@@ -14,16 +14,209 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      audit_logs: {
+        Row: {
+          action: string
+          details: Json | null
+          document_id: string | null
+          id: string
+          ip_address: string | null
+          timestamp: string
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          details?: Json | null
+          document_id?: string | null
+          id?: string
+          ip_address?: string | null
+          timestamp?: string
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          details?: Json | null
+          document_id?: string | null
+          id?: string
+          ip_address?: string | null
+          timestamp?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "audit_logs_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      document_versions: {
+        Row: {
+          change_notes: string | null
+          document_id: string
+          file_name: string
+          file_size: number | null
+          file_url: string
+          id: string
+          uploaded_at: string
+          uploaded_by: string | null
+          version_number: number
+        }
+        Insert: {
+          change_notes?: string | null
+          document_id: string
+          file_name: string
+          file_size?: number | null
+          file_url: string
+          id?: string
+          uploaded_at?: string
+          uploaded_by?: string | null
+          version_number: number
+        }
+        Update: {
+          change_notes?: string | null
+          document_id?: string
+          file_name?: string
+          file_size?: number | null
+          file_url?: string
+          id?: string
+          uploaded_at?: string
+          uploaded_by?: string | null
+          version_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_versions_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      documents: {
+        Row: {
+          advogado: string
+          cliente: string
+          confidencialidade: string
+          created_at: string
+          created_by: string | null
+          current_version: number
+          data_documento: string
+          data_ingresso: string
+          data_processo: string | null
+          estado_processual: string
+          file_name: string
+          file_size: number | null
+          file_url: string
+          id: string
+          internal_id: string
+          materia: string
+          numero_processo: string
+          orgao_judicial: string | null
+          palavras_chave: string[] | null
+          parte_autora: string | null
+          parte_re: string | null
+          tipo_documento: string
+          updated_at: string
+        }
+        Insert: {
+          advogado: string
+          cliente: string
+          confidencialidade?: string
+          created_at?: string
+          created_by?: string | null
+          current_version?: number
+          data_documento: string
+          data_ingresso?: string
+          data_processo?: string | null
+          estado_processual?: string
+          file_name: string
+          file_size?: number | null
+          file_url: string
+          id?: string
+          internal_id: string
+          materia: string
+          numero_processo: string
+          orgao_judicial?: string | null
+          palavras_chave?: string[] | null
+          parte_autora?: string | null
+          parte_re?: string | null
+          tipo_documento: string
+          updated_at?: string
+        }
+        Update: {
+          advogado?: string
+          cliente?: string
+          confidencialidade?: string
+          created_at?: string
+          created_by?: string | null
+          current_version?: number
+          data_documento?: string
+          data_ingresso?: string
+          data_processo?: string | null
+          estado_processual?: string
+          file_name?: string
+          file_size?: number | null
+          file_url?: string
+          id?: string
+          internal_id?: string
+          materia?: string
+          numero_processo?: string
+          orgao_judicial?: string | null
+          palavras_chave?: string[] | null
+          parte_autora?: string | null
+          parte_re?: string | null
+          tipo_documento?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_any_role: {
+        Args: {
+          _roles: Database["public"]["Enums"]["app_role"][]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "manager" | "user"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +343,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "manager", "user"],
+    },
   },
 } as const
