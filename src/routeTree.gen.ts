@@ -14,6 +14,7 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedUploadRouteImport } from './routes/_authenticated/upload'
 import { Route as AuthenticatedSearchRouteImport } from './routes/_authenticated/search'
+import { Route as AuthenticatedMyDocumentsRouteImport } from './routes/_authenticated/my-documents'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 
 const AuthRoute = AuthRouteImport.update({
@@ -40,6 +41,12 @@ const AuthenticatedSearchRoute = AuthenticatedSearchRouteImport.update({
   path: '/search',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedMyDocumentsRoute =
+  AuthenticatedMyDocumentsRouteImport.update({
+    id: '/my-documents',
+    path: '/my-documents',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
@@ -50,6 +57,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/my-documents': typeof AuthenticatedMyDocumentsRoute
   '/search': typeof AuthenticatedSearchRoute
   '/upload': typeof AuthenticatedUploadRoute
 }
@@ -57,6 +65,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/my-documents': typeof AuthenticatedMyDocumentsRoute
   '/search': typeof AuthenticatedSearchRoute
   '/upload': typeof AuthenticatedUploadRoute
 }
@@ -66,20 +75,28 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
+  '/_authenticated/my-documents': typeof AuthenticatedMyDocumentsRoute
   '/_authenticated/search': typeof AuthenticatedSearchRoute
   '/_authenticated/upload': typeof AuthenticatedUploadRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/auth' | '/dashboard' | '/search' | '/upload'
+  fullPaths:
+    | '/'
+    | '/auth'
+    | '/dashboard'
+    | '/my-documents'
+    | '/search'
+    | '/upload'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth' | '/dashboard' | '/search' | '/upload'
+  to: '/' | '/auth' | '/dashboard' | '/my-documents' | '/search' | '/upload'
   id:
     | '__root__'
     | '/'
     | '/_authenticated'
     | '/auth'
     | '/_authenticated/dashboard'
+    | '/_authenticated/my-documents'
     | '/_authenticated/search'
     | '/_authenticated/upload'
   fileRoutesById: FileRoutesById
@@ -127,6 +144,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSearchRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/my-documents': {
+      id: '/_authenticated/my-documents'
+      path: '/my-documents'
+      fullPath: '/my-documents'
+      preLoaderRoute: typeof AuthenticatedMyDocumentsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/dashboard': {
       id: '/_authenticated/dashboard'
       path: '/dashboard'
@@ -139,12 +163,14 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
+  AuthenticatedMyDocumentsRoute: typeof AuthenticatedMyDocumentsRoute
   AuthenticatedSearchRoute: typeof AuthenticatedSearchRoute
   AuthenticatedUploadRoute: typeof AuthenticatedUploadRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
+  AuthenticatedMyDocumentsRoute: AuthenticatedMyDocumentsRoute,
   AuthenticatedSearchRoute: AuthenticatedSearchRoute,
   AuthenticatedUploadRoute: AuthenticatedUploadRoute,
 }
