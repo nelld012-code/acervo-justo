@@ -14,8 +14,6 @@ type Version = {
   id: string;
   version_number: number;
   file_url: string;
-  file_name: string;
-  file_size: number | null;
   uploaded_at: string;
   change_notes: string | null;
 };
@@ -44,7 +42,7 @@ export function DocumentDetailSheet({ doc, open, onOpenChange }: { doc: Document
     logAudit(doc.id, "viewed");
     (async () => {
       const [{ data: v }, { data: a }] = await Promise.all([
-        supabase.from("document_versions").select("id, version_number, file_url, file_name, file_size, uploaded_at, change_notes").eq("document_id", doc.id).order("version_number", { ascending: false }),
+        supabase.from("document_versions").select("id, version_number, file_url, uploaded_at, change_notes").eq("document_id", doc.id).order("version_number", { ascending: false }),
         supabase.from("audit_logs").select("id, action, timestamp, user_id").eq("document_id", doc.id).order("timestamp", { ascending: false }).limit(50),
       ]);
       setVersions(v ?? []);
@@ -130,11 +128,11 @@ export function DocumentDetailSheet({ doc, open, onOpenChange }: { doc: Document
                     <div>
                       <p className="font-medium">Versão {v.version_number}</p>
                       <p className="text-xs text-muted-foreground">
-                        {format(new Date(v.uploaded_at), "dd/MM/yyyy HH:mm", { locale: ptBR })} · {v.file_name}
+                        {format(new Date(v.uploaded_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}
                       </p>
                       {v.change_notes && <p className="mt-1 text-xs text-muted-foreground">{v.change_notes}</p>}
                     </div>
-                    <Button size="sm" variant="outline" onClick={() => handleDownload(v.file_url, v.file_name)}>
+                    <Button size="sm" variant="outline" onClick={() => handleDownload(v.file_url, doc.file_name)}>
                       <ExternalLink className="mr-2 h-3 w-3" />Abrir
                     </Button>
                   </li>
