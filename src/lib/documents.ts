@@ -76,7 +76,7 @@ export async function logAudit(
     user_id: data.user.id,
     document_id: documentId,
     action,
-    details: details ?? null,
+    details: (details ?? null) as never,
   });
 }
 
