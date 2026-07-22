@@ -253,7 +253,26 @@ function UploadPage() {
             <form onSubmit={handleSubmit} className="grid gap-4 sm:grid-cols-2">
               <Field label="Advogado *"><Input value={form.advogado} onChange={(e) => set("advogado", e.target.value)} required /></Field>
               <Field label="Número do Processo *"><Input value={form.numero_processo} onChange={(e) => set("numero_processo", e.target.value)} required /></Field>
-              <Field label="Cliente *"><Input value={form.cliente} onChange={(e) => set("cliente", e.target.value)} required /></Field>
+              <Field label="Cliente Cadastrado">
+                <Select
+                  value={form.cliente_id || "none"}
+                  onValueChange={(v) => {
+                    if (v === "none") { set("cliente_id", ""); return; }
+                    const c = clientes?.find((x) => x.id === v);
+                    setForm((f) => ({ ...f, cliente_id: v, cliente: c?.nome ?? f.cliente }));
+                  }}
+                >
+                  <SelectTrigger><SelectValue placeholder="Selecione (opcional)" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">— Nenhum —</SelectItem>
+                    {clientes?.map((c) => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </Field>
+              <Field label="Cliente (nome) *"><Input value={form.cliente} onChange={(e) => set("cliente", e.target.value)} required /></Field>
+              <Field label="Valor Total do Processo (R$)">
+                <Input type="number" step="0.01" min="0" value={form.valor_total_processo} onChange={(e) => set("valor_total_processo", e.target.value)} placeholder="0,00" />
+              </Field>
               <Field label="Órgão Judicial"><Input value={form.orgao_judicial} onChange={(e) => set("orgao_judicial", e.target.value)} /></Field>
               <Field label="Parte Autora"><Input value={form.parte_autora} onChange={(e) => set("parte_autora", e.target.value)} /></Field>
               <Field label="Parte Ré"><Input value={form.parte_re} onChange={(e) => set("parte_re", e.target.value)} /></Field>
