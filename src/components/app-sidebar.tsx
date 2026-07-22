@@ -1,5 +1,5 @@
 import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
-import { LayoutDashboard, Upload, Search, FolderOpen, ClipboardList, LogOut, Scale } from "lucide-react";
+import { LayoutDashboard, Upload, Search, FolderOpen, ClipboardList, LogOut, Scale, Users } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -18,6 +18,7 @@ import { useQueryClient } from "@tanstack/react-query";
 
 const items = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
+  { title: "Clientes", url: "/clientes", icon: Users },
   { title: "Enviar Documento", url: "/upload", icon: Upload },
   { title: "Buscar Documentos", url: "/search", icon: Search },
   { title: "Meus Documentos", url: "/my-documents", icon: FolderOpen },
