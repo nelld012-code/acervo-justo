@@ -52,6 +52,45 @@ export type Database = {
           },
         ]
       }
+      clients: {
+        Row: {
+          cpf_cnpj: string | null
+          created_at: string
+          created_by: string | null
+          email: string | null
+          endereco: string | null
+          id: string
+          nome: string
+          observacoes: string | null
+          telefone: string
+          updated_at: string
+        }
+        Insert: {
+          cpf_cnpj?: string | null
+          created_at?: string
+          created_by?: string | null
+          email?: string | null
+          endereco?: string | null
+          id?: string
+          nome: string
+          observacoes?: string | null
+          telefone: string
+          updated_at?: string
+        }
+        Update: {
+          cpf_cnpj?: string | null
+          created_at?: string
+          created_by?: string | null
+          email?: string | null
+          endereco?: string | null
+          id?: string
+          nome?: string
+          observacoes?: string | null
+          telefone?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       document_versions: {
         Row: {
           change_notes: string | null
@@ -100,6 +139,7 @@ export type Database = {
         Row: {
           advogado: string
           cliente: string
+          cliente_id: string | null
           confidencialidade: string
           created_at: string
           created_by: string | null
@@ -121,10 +161,13 @@ export type Database = {
           parte_re: string | null
           tipo_documento: string
           updated_at: string
+          valor_recebido_total: number
+          valor_total_processo: number | null
         }
         Insert: {
           advogado: string
           cliente: string
+          cliente_id?: string | null
           confidencialidade?: string
           created_at?: string
           created_by?: string | null
@@ -146,10 +189,13 @@ export type Database = {
           parte_re?: string | null
           tipo_documento: string
           updated_at?: string
+          valor_recebido_total?: number
+          valor_total_processo?: number | null
         }
         Update: {
           advogado?: string
           cliente?: string
+          cliente_id?: string | null
           confidencialidade?: string
           created_at?: string
           created_by?: string | null
@@ -171,8 +217,62 @@ export type Database = {
           parte_re?: string | null
           tipo_documento?: string
           updated_at?: string
+          valor_recebido_total?: number
+          valor_total_processo?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "documents_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payments: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          data_pagamento: string
+          descricao: string | null
+          document_id: string
+          id: string
+          metodo_pagamento: string
+          responsavel_recebimento: string
+          valor: number
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          data_pagamento: string
+          descricao?: string | null
+          document_id: string
+          id?: string
+          metodo_pagamento: string
+          responsavel_recebimento: string
+          valor: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          data_pagamento?: string
+          descricao?: string | null
+          document_id?: string
+          id?: string
+          metodo_pagamento?: string
+          responsavel_recebimento?: string
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payments_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
