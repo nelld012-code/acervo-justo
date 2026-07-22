@@ -45,7 +45,44 @@ export type Documento = {
   created_by: string | null;
   created_at: string;
   updated_at: string;
+  cliente_id?: string | null;
+  valor_total_processo?: number | null;
+  valor_recebido_total?: number | null;
 };
+
+export type Cliente = {
+  id: string;
+  nome: string;
+  cpf_cnpj: string | null;
+  email: string | null;
+  telefone: string;
+  endereco: string | null;
+  observacoes: string | null;
+  created_at: string;
+};
+
+export const METODOS_PAGAMENTO = [
+  "PIX",
+  "Transferência Bancária",
+  "Dinheiro",
+  "Cheque",
+  "Cartão de Crédito",
+] as const;
+
+export function sanitizePhone(phone: string) {
+  return phone.replace(/\D+/g, "");
+}
+
+export function whatsappLink(phone: string) {
+  const digits = sanitizePhone(phone);
+  const withCountry = digits.startsWith("55") ? digits : `55${digits}`;
+  return `https://wa.me/${withCountry}`;
+}
+
+export function formatBRL(value: number | null | undefined) {
+  const n = Number(value ?? 0);
+  return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
 
 export function sanitize(s: string) {
   return s.replace(/[^\w-]+/g, "_").replace(/_+/g, "_");
