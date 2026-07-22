@@ -1,5 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState, useRef } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { UploadCloud, FileText, X } from "lucide-react";
 import { toast } from "sonner";
-import { TIPOS_DOCUMENTO, MATERIAS, ESTADOS, CONFIDENCIALIDADES, buildStoragePath, logAudit } from "@/lib/documents";
+import { TIPOS_DOCUMENTO, MATERIAS, ESTADOS, CONFIDENCIALIDADES, buildStoragePath, logAudit, type Cliente } from "@/lib/documents";
 
 export const Route = createFileRoute("/_authenticated/upload")({
   head: () => ({ meta: [{ title: "Enviar Documento - Gestão Judicial" }] }),
@@ -32,6 +33,8 @@ function UploadPage() {
     data_processo: "",
     tipo_documento: "",
     cliente: "",
+    cliente_id: "",
+    valor_total_processo: "",
     parte_autora: "",
     parte_re: "",
     orgao_judicial: "",
@@ -39,6 +42,15 @@ function UploadPage() {
     estado_processual: "Aberto",
     confidencialidade: "Público",
     palavras_chave: "",
+  });
+
+  const { data: clientes } = useQuery({
+    queryKey: ["clients-picker"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("clients").select("id, nome, telefone, cpf_cnpj, email, endereco, observacoes, created_at").order("nome");
+      if (error) throw error;
+      return (data ?? []) as Cliente[];
+    },
   });
 
   function set<K extends keyof typeof form>(k: K, v: string) {
@@ -138,6 +150,8 @@ function UploadPage() {
           data_processo: form.data_processo || null,
           tipo_documento: form.tipo_documento,
           cliente: form.cliente,
+          cliente_id: form.cliente_id || null,
+          valor_total_processo: form.valor_total_processo ? Number(form.valor_total_processo) : null,
           parte_autora: form.parte_autora || null,
           parte_re: form.parte_re || null,
           orgao_judicial: form.orgao_judicial || null,
@@ -239,7 +253,26 @@ function UploadPage() {
             <form onSubmit={handleSubmit} className="grid gap-4 sm:grid-cols-2">
               <Field label="Advogado *"><Input value={form.advogado} onChange={(e) => set("advogado", e.target.value)} required /></Field>
               <Field label="Número do Processo *"><Input value={form.numero_processo} onChange={(e) => set("numero_processo", e.target.value)} required /></Field>
-              <Field label="Cliente *"><Input value={form.cliente} onChange={(e) => set("cliente", e.target.value)} required /></Field>
+              <Field label="Cliente Cadastrado">
+                <Select
+                  value={form.cliente_id || "none"}
+                  onValueChange={(v) => {
+                    if (v === "none") { set("cliente_id", ""); return; }
+                    const c = clientes?.find((x) => x.id === v);
+                    setForm((f) => ({ ...f, cliente_id: v, cliente: c?.nome ?? f.cliente }));
+                  }}
+                >
+                  <SelectTrigger><SelectValue placeholder="Selecione (opcional)" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">— Nenhum —</SelectItem>
+                    {clientes?.map((c) => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </Field>
+              <Field label="Cliente (nome) *"><Input value={form.cliente} onChange={(e) => set("cliente", e.target.value)} required /></Field>
+              <Field label="Valor Total do Processo (R$)">
+                <Input type="number" step="0.01" min="0" value={form.valor_total_processo} onChange={(e) => set("valor_total_processo", e.target.value)} placeholder="0,00" />
+              </Field>
               <Field label="Órgão Judicial"><Input value={form.orgao_judicial} onChange={(e) => set("orgao_judicial", e.target.value)} /></Field>
               <Field label="Parte Autora"><Input value={form.parte_autora} onChange={(e) => set("parte_autora", e.target.value)} /></Field>
               <Field label="Parte Ré"><Input value={form.parte_re} onChange={(e) => set("parte_re", e.target.value)} /></Field>

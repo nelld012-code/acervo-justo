@@ -3,10 +3,11 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { FileText, FolderOpen, Archive, CheckCircle2, Clock } from "lucide-react";
-import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid } from "recharts";
+import { FileText, FolderOpen, Archive, CheckCircle2, Clock, Wallet, TrendingUp } from "lucide-react";
+import { BarChart, Bar, LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid } from "recharts";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { formatBRL } from "@/lib/documents";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({ meta: [{ title: "Dashboard - Gestão Judicial" }] }),
@@ -19,9 +20,18 @@ function Dashboard() {
     queryFn: async () => {
       const { data: docs, error } = await supabase
         .from("documents")
-        .select("id, internal_id, advogado, cliente, tipo_documento, estado_processual, created_at, data_documento");
+        .select("id, internal_id, advogado, cliente, tipo_documento, estado_processual, created_at, data_documento, valor_total_processo, valor_recebido_total");
       if (error) throw error;
       return docs ?? [];
+    },
+  });
+
+  const { data: payments } = useQuery({
+    queryKey: ["payments-all"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("payments").select("valor, data_pagamento");
+      if (error) throw error;
+      return data ?? [];
     },
   });
 
@@ -46,8 +56,15 @@ function Dashboard() {
     Encerrado: data?.filter((d) => d.estado_processual === "Encerrado").length ?? 0,
   };
 
+  const totalReceber = (data ?? []).reduce((acc, d) => {
+    const tot = Number(d.valor_total_processo ?? 0);
+    const rec = Number(d.valor_recebido_total ?? 0);
+    return acc + Math.max(0, tot - rec);
+  }, 0);
+
   // Monthly influx (last 6 months)
   const monthly: { mes: string; total: number }[] = [];
+  const monthlyCash: { mes: string; total: number }[] = [];
   const now = new Date();
   for (let i = 5; i >= 0; i--) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
@@ -56,6 +73,10 @@ function Dashboard() {
     monthly.push({
       mes: label,
       total: data?.filter((doc) => doc.created_at.startsWith(key)).length ?? 0,
+    });
+    monthlyCash.push({
+      mes: label,
+      total: (payments ?? []).filter((p) => (p.data_pagamento ?? "").startsWith(key)).reduce((s, p) => s + Number(p.valor ?? 0), 0),
     });
   }
 
@@ -81,6 +102,17 @@ function Dashboard() {
         <h2 className="text-2xl font-bold tracking-tight text-foreground">Dashboard</h2>
         <p className="text-sm text-muted-foreground">Visão geral do acervo documental.</p>
       </div>
+
+      <Card className="bg-gradient-to-r from-primary to-[oklch(0.53_0.22_260)] text-primary-foreground border-0">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium opacity-90">Total a Receber</CardTitle>
+          <Wallet className="h-5 w-5 opacity-90" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-4xl font-bold">{isLoading ? "—" : formatBRL(totalReceber)}</div>
+          <p className="mt-1 text-xs opacity-80">Saldo devedor consolidado em todos os processos</p>
+        </CardContent>
+      </Card>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         {cards.map((c) => (
@@ -108,12 +140,32 @@ function Dashboard() {
                 <XAxis dataKey="mes" />
                 <YAxis allowDecimals={false} />
                 <Tooltip />
-                <Bar dataKey="total" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="total" fill="var(--primary)" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
 
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle>Entrada de Caixa Mensal</CardTitle>
+            <TrendingUp className="h-4 w-4 text-[oklch(0.68_0.16_275)]" />
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={260}>
+              <LineChart data={monthlyCash}>
+                <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                <XAxis dataKey="mes" />
+                <YAxis tickFormatter={(v) => `R$ ${Math.round(Number(v) / 1000)}k`} />
+                <Tooltip formatter={(v: number) => formatBRL(v)} />
+                <Line type="monotone" dataKey="total" stroke="var(--accent)" strokeWidth={2.5} dot={{ r: 3 }} />
+              </LineChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid gap-4">
         <Card>
           <CardHeader>
             <CardTitle>Atividade Recente</CardTitle>

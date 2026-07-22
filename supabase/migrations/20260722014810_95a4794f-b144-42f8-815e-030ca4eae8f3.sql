@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.recalc_document_received() FROM PUBLIC, anon, authenticated;
