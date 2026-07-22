@@ -80,11 +80,15 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "Sistema de Gestão de Documentos Judiciais" },
-      { name: "description", content: "Plataforma segura para gestão, versionamento e auditoria de documentos jurídicos." },
+      { name: "description", content: "Gerencie petições, contratos e sentenças com controle de versão e trilha de auditoria." },
       { property: "og:title", content: "Sistema de Gestão de Documentos Judiciais" },
-      { property: "og:description", content: "Plataforma segura para gestão, versionamento e auditoria de documentos jurídicos." },
+      { property: "og:description", content: "Gerencie petições, contratos e sentenças com controle de versão e trilha de auditoria." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:title", content: "Sistema de Gestão de Documentos Judiciais" },
+      { name: "twitter:description", content: "Gerencie petições, contratos e sentenças com controle de versão e trilha de auditoria." },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/327d0f09-f878-4fae-9159-f2536163cdba/id-preview-ce40adf5--3a20ae50-781d-485b-bf94-455f13c6e988.lovable.app-1784685102771.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/327d0f09-f878-4fae-9159-f2536163cdba/id-preview-ce40adf5--3a20ae50-781d-485b-bf94-455f13c6e988.lovable.app-1784685102771.png" },
     ],
     links: [
       {
