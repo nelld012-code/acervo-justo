@@ -291,3 +291,166 @@ function HeroCard({ title, value, icon, tone }: { title: string; value: string; 
     </Card>
   );
 }
+
+type ProcessOption = {
+  id: string;
+  numero_processo: string;
+  cliente: string;
+  valor_total_processo: number | null;
+  valor_recebido_total: number | null;
+};
+
+function RegisterPaymentDialog({
+  open, onOpenChange, onSaved,
+}: { open: boolean; onOpenChange: (v: boolean) => void; onSaved: () => void }) {
+  const [query, setQuery] = useState("");
+  const [selected, setSelected] = useState<ProcessOption | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({
+    valor: "",
+    data_pagamento: new Date().toISOString().slice(0, 10),
+    responsavel_recebimento: "",
+    metodo_pagamento: "PIX",
+    descricao: "",
+  });
+
+  const { data: results } = useQuery({
+    queryKey: ["proc-search", query],
+    enabled: open && query.trim().length >= 2 && !selected,
+    queryFn: async () => {
+      const q = `%${query.trim()}%`;
+      const { data, error } = await supabase
+        .from("documents")
+        .select("id, numero_processo, cliente, valor_total_processo, valor_recebido_total")
+        .or(`numero_processo.ilike.${q},cliente.ilike.${q}`)
+        .limit(8);
+      if (error) throw error;
+      return (data ?? []) as ProcessOption[];
+    },
+  });
+
+  function reset() {
+    setQuery(""); setSelected(null);
+    setForm({ valor: "", data_pagamento: new Date().toISOString().slice(0, 10), responsavel_recebimento: "", metodo_pagamento: "PIX", descricao: "" });
+  }
+
+  async function handleSave() {
+    if (!selected) return toast.error("Selecione um processo");
+    const valor = Number(form.valor);
+    if (!valor || valor <= 0) return toast.error("Valor inválido");
+    if (!form.responsavel_recebimento.trim()) return toast.error("Informe o responsável");
+    const total = Number(selected.valor_total_processo ?? 0);
+    const recebido = Number(selected.valor_recebido_total ?? 0);
+    if (total > 0 && recebido + valor > total) {
+      return toast.error("Valor excede o saldo devedor", { description: `Saldo restante: ${formatBRL(total - recebido)}` });
+    }
+    setSaving(true);
+    try {
+      const { data: u } = await supabase.auth.getUser();
+      const { error } = await supabase.from("payments").insert({
+        document_id: selected.id,
+        valor,
+        data_pagamento: form.data_pagamento,
+        responsavel_recebimento: form.responsavel_recebimento.trim(),
+        metodo_pagamento: form.metodo_pagamento,
+        descricao: form.descricao.trim() || null,
+        created_by: u.user?.id,
+      });
+      if (error) throw error;
+      toast.success("Pagamento registrado");
+      onSaved();
+      reset();
+      onOpenChange(false);
+    } catch (e) {
+      toast.error("Falha ao registrar pagamento", { description: e instanceof Error ? e.message : "" });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { onOpenChange(o); if (!o) reset(); }}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader><DialogTitle>Registrar Entrada (Pagamento)</DialogTitle></DialogHeader>
+        {!selected ? (
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label>Buscar processo *</Label>
+              <Input
+                autoFocus
+                placeholder="Nº do processo ou nome do cliente..."
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+            </div>
+            <div className="max-h-64 overflow-y-auto rounded-md border">
+              {query.trim().length < 2 ? (
+                <p className="p-3 text-xs text-muted-foreground">Digite ao menos 2 caracteres para buscar.</p>
+              ) : (results ?? []).length === 0 ? (
+                <p className="p-3 text-xs text-muted-foreground">Nenhum processo encontrado.</p>
+              ) : (
+                <ul>
+                  {(results ?? []).map((r) => (
+                    <li key={r.id}>
+                      <button
+                        type="button"
+                        onClick={() => setSelected(r)}
+                        className="flex w-full items-center justify-between border-b p-3 text-left text-sm last:border-none hover:bg-muted/40"
+                      >
+                        <div>
+                          <p className="font-medium">{r.numero_processo}</p>
+                          <p className="text-xs text-muted-foreground">{r.cliente}</p>
+                        </div>
+                        <span className="font-mono text-xs text-muted-foreground">
+                          {formatBRL(Number(r.valor_recebido_total ?? 0))} / {formatBRL(Number(r.valor_total_processo ?? 0))}
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <div className="rounded-md border bg-muted/30 p-3 text-sm">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium">{selected.numero_processo}</p>
+                  <p className="text-xs text-muted-foreground">{selected.cliente}</p>
+                </div>
+                <Button variant="ghost" size="sm" onClick={() => setSelected(null)}>Trocar</Button>
+              </div>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-1.5"><Label>Valor (R$) *</Label>
+                <Input type="number" step="0.01" min="0" value={form.valor} onChange={(e) => setForm({ ...form, valor: e.target.value })} />
+              </div>
+              <div className="space-y-1.5"><Label>Data *</Label>
+                <Input type="date" value={form.data_pagamento} onChange={(e) => setForm({ ...form, data_pagamento: e.target.value })} />
+              </div>
+              <div className="space-y-1.5"><Label>Responsável *</Label>
+                <Input value={form.responsavel_recebimento} onChange={(e) => setForm({ ...form, responsavel_recebimento: e.target.value })} />
+              </div>
+              <div className="space-y-1.5"><Label>Método *</Label>
+                <Select value={form.metodo_pagamento} onValueChange={(v) => setForm({ ...form, metodo_pagamento: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>{METODOS_PAGAMENTO.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div className="sm:col-span-2 space-y-1.5"><Label>Descrição</Label>
+                <Input value={form.descricao} onChange={(e) => setForm({ ...form, descricao: e.target.value })} />
+              </div>
+            </div>
+          </div>
+        )}
+        <DialogFooter>
+          <Button variant="outline" onClick={() => { onOpenChange(false); reset(); }}>Cancelar</Button>
+          <Button onClick={handleSave} disabled={saving || !selected} className="bg-primary hover:bg-primary/90">
+            {saving ? "Salvando..." : "Salvar Pagamento"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
