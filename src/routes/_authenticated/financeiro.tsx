@@ -163,9 +163,6 @@ function FinanceiroPage() {
                   <Input value={form.responsavel_pagamento} onChange={(e) => setForm({ ...form, responsavel_pagamento: e.target.value })} />
                 </div>
               </div>
-              <div className="space-y-1.5"><Label>Observações</Label>
-                <Textarea value={form.descricao} onChange={(e) => setForm({ ...form, descricao: e.target.value })} />
-              </div>
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
