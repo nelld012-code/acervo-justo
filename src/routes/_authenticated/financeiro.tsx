@@ -9,9 +9,9 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, TrendingUp, TrendingDown, Wallet } from "lucide-react";
+import { Plus, TrendingUp, TrendingDown, Wallet, Receipt } from "lucide-react";
 import { toast } from "sonner";
-import { CATEGORIAS_DESPESA, formatBRL, type Expense, type PaymentRow } from "@/lib/documents";
+import { CATEGORIAS_DESPESA, METODOS_PAGAMENTO, formatBRL, type Expense, type PaymentRow } from "@/lib/documents";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
@@ -34,6 +34,7 @@ function FinanceiroPage() {
     data_despesa: new Date().toISOString().slice(0, 10),
     responsavel_pagamento: "",
   });
+  const [payOpen, setPayOpen] = useState(false);
 
   const monthStart = startOfMonth(new Date()).toISOString().slice(0, 10);
   const monthEnd = endOfMonth(new Date()).toISOString().slice(0, 10);
@@ -135,9 +136,13 @@ function FinanceiroPage() {
             Resumo de {format(new Date(), "MMMM 'de' yyyy", { locale: ptBR })}
           </p>
         </div>
-        <Dialog open={open} onOpenChange={setOpen}>
+        <div className="flex items-center gap-2">
+          <Button onClick={() => setPayOpen(true)} className="bg-primary hover:bg-primary/90">
+            <Receipt className="mr-2 h-4 w-4" />Registrar Entrada (Pagamento)
+          </Button>
+          <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
-            <Button className="bg-primary hover:bg-primary/90"><Plus className="mr-2 h-4 w-4" />Nova Despesa</Button>
+            <Button variant="outline"><Plus className="mr-2 h-4 w-4" />Nova Despesa</Button>
           </DialogTrigger>
           <DialogContent className="max-w-lg">
             <DialogHeader><DialogTitle>Registrar Despesa</DialogTitle></DialogHeader>
@@ -170,8 +175,15 @@ function FinanceiroPage() {
               </Button>
             </DialogFooter>
           </DialogContent>
-        </Dialog>
+          </Dialog>
+        </div>
       </div>
+
+      <RegisterPaymentDialog
+        open={payOpen}
+        onOpenChange={setPayOpen}
+        onSaved={() => qc.invalidateQueries({ queryKey: ["fin-payments"] })}
+      />
 
       <div className="grid gap-4 md:grid-cols-3">
         <HeroCard title="Total de Entradas" value={formatBRL(totalEntradas)} icon={<TrendingUp className="h-5 w-5" />} tone="up" />
