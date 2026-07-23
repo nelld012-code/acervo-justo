@@ -39,7 +39,9 @@ function SearchPage() {
       let query = supabase.from("documents").select("*", { count: "exact" });
       if (q) {
         if (exact) query = query.or(`internal_id.eq.${q},numero_processo.eq.${q},cliente.eq.${q}`);
-        else query = query.or(`internal_id.ilike.%${q}%,numero_processo.ilike.%${q}%,cliente.ilike.%${q}%,advogado.ilike.%${q}%,file_name.ilike.%${q}%`);
+        else query = query.or(
+          `internal_id.ilike.%${q}%,numero_processo.ilike.%${q}%,cliente.ilike.%${q}%,advogado.ilike.%${q}%,parte_autora.ilike.%${q}%,parte_re.ilike.%${q}%,file_name.ilike.%${q}%,palavras_chave.cs.{${q}}`,
+        );
       }
       if (advogado) query = exact ? query.eq("advogado", advogado) : query.ilike("advogado", `%${advogado}%`);
       if (numero) query = exact ? query.eq("numero_processo", numero) : query.ilike("numero_processo", `%${numero}%`);
