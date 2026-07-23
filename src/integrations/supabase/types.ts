@@ -230,6 +230,45 @@ export type Database = {
           },
         ]
       }
+      expenses: {
+        Row: {
+          categoria: string
+          comprovante_url: string | null
+          created_at: string
+          data_despesa: string
+          descricao: string
+          id: string
+          responsavel_pagamento: string | null
+          updated_at: string
+          user_id: string | null
+          valor: number
+        }
+        Insert: {
+          categoria: string
+          comprovante_url?: string | null
+          created_at?: string
+          data_despesa: string
+          descricao: string
+          id?: string
+          responsavel_pagamento?: string | null
+          updated_at?: string
+          user_id?: string | null
+          valor: number
+        }
+        Update: {
+          categoria?: string
+          comprovante_url?: string | null
+          created_at?: string
+          data_despesa?: string
+          descricao?: string
+          id?: string
+          responsavel_pagamento?: string | null
+          updated_at?: string
+          user_id?: string | null
+          valor?: number
+        }
+        Relationships: []
+      }
       payments: {
         Row: {
           created_at: string

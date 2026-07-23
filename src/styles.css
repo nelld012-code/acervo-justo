@@ -143,3 +143,16 @@
     color: var(--color-foreground);
   }
 }
+
+@media print {
+  body * { visibility: hidden !important; }
+  .print-area, .print-area * { visibility: visible !important; }
+  .print-area {
+    position: absolute !important;
+    left: 0; top: 0; width: 100%;
+    background: white !important;
+    color: black !important;
+    padding: 2rem !important;
+  }
+  .no-print { display: none !important; }
+}

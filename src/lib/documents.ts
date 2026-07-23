@@ -69,6 +69,38 @@ export const METODOS_PAGAMENTO = [
   "Cartão de Crédito",
 ] as const;
 
+export const CATEGORIAS_DESPESA = [
+  "Salários",
+  "Insumos/Escritório",
+  "Aluguel",
+  "Marketing",
+  "Impostos",
+  "Outros",
+] as const;
+
+export type Expense = {
+  id: string;
+  user_id: string | null;
+  descricao: string;
+  categoria: string;
+  valor: number;
+  data_despesa: string;
+  responsavel_pagamento: string | null;
+  comprovante_url: string | null;
+  created_at: string;
+};
+
+export type PaymentRow = {
+  id: string;
+  document_id: string;
+  valor: number;
+  data_pagamento: string;
+  responsavel_recebimento: string;
+  metodo_pagamento: string;
+  descricao: string | null;
+  created_at: string;
+};
+
 export function sanitizePhone(phone: string) {
   return phone.replace(/\D+/g, "");
 }
