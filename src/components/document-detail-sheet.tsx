@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -8,8 +9,9 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
-import { Download, ExternalLink, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, Download, ExternalLink, Plus, Printer, Trash2 } from "lucide-react";
 import { type Documento, badgeVariantForStatus, formatFileSize, getSignedUrl, logAudit, METODOS_PAGAMENTO, formatBRL } from "@/lib/documents";
+import { ReceiptModal, type ReceiptData } from "@/components/receipt-modal";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
@@ -53,6 +55,8 @@ export function DocumentDetailSheet({ doc, open, onOpenChange }: { doc: Document
   const [recebido, setRecebido] = useState<number>(0);
   const [payForm, setPayForm] = useState({ valor: "", data_pagamento: new Date().toISOString().slice(0, 10), responsavel_recebimento: "", metodo_pagamento: "PIX", descricao: "" });
   const [saving, setSaving] = useState(false);
+  const [payDialogOpen, setPayDialogOpen] = useState(false);
+  const [receipt, setReceipt] = useState<ReceiptData | null>(null);
 
   useEffect(() => {
     if (!doc || !open) return;
@@ -105,6 +109,7 @@ export function DocumentDetailSheet({ doc, open, onOpenChange }: { doc: Document
       if (error) throw error;
       toast.success("Pagamento registrado");
       setPayForm({ valor: "", data_pagamento: new Date().toISOString().slice(0, 10), responsavel_recebimento: "", metodo_pagamento: "PIX", descricao: "" });
+      setPayDialogOpen(false);
       await reloadFinance();
     } catch (e) {
       toast.error("Falha ao registrar pagamento", { description: e instanceof Error ? e.message : "" });
@@ -144,6 +149,9 @@ export function DocumentDetailSheet({ doc, open, onOpenChange }: { doc: Document
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="w-full sm:max-w-2xl overflow-y-auto">
         <SheetHeader>
+          <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)} className="mb-2 w-fit -ml-2 text-muted-foreground">
+            <ArrowLeft className="mr-1 h-4 w-4" />Voltar
+          </Button>
           <SheetTitle>{doc.internal_id}</SheetTitle>
           <SheetDescription>
             Processo {doc.numero_processo} — {doc.tipo_documento}
@@ -229,6 +237,11 @@ export function DocumentDetailSheet({ doc, open, onOpenChange }: { doc: Document
           </TabsContent>
 
           <TabsContent value="finance" className="space-y-4 pt-4">
+            <div className="flex justify-end">
+              <Button onClick={() => setPayDialogOpen(true)} className="bg-primary hover:bg-primary/90">
+                <Plus className="mr-2 h-4 w-4" />Adicionar Pagamento
+              </Button>
+            </div>
             {(() => {
               const total = Number(doc.valor_total_processo ?? 0);
               const saldo = Math.max(0, total - recebido);
@@ -250,37 +263,6 @@ export function DocumentDetailSheet({ doc, open, onOpenChange }: { doc: Document
               );
             })()}
 
-            <Card>
-              <CardContent className="space-y-3 pt-4">
-                <p className="text-sm font-semibold">Adicionar Pagamento</p>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <div className="space-y-1.5"><Label>Valor (R$)</Label>
-                    <Input type="number" step="0.01" min="0" value={payForm.valor} onChange={(e) => setPayForm({ ...payForm, valor: e.target.value })} />
-                  </div>
-                  <div className="space-y-1.5"><Label>Data</Label>
-                    <Input type="date" value={payForm.data_pagamento} onChange={(e) => setPayForm({ ...payForm, data_pagamento: e.target.value })} />
-                  </div>
-                  <div className="space-y-1.5"><Label>Responsável</Label>
-                    <Input value={payForm.responsavel_recebimento} onChange={(e) => setPayForm({ ...payForm, responsavel_recebimento: e.target.value })} />
-                  </div>
-                  <div className="space-y-1.5"><Label>Método</Label>
-                    <Select value={payForm.metodo_pagamento} onValueChange={(v) => setPayForm({ ...payForm, metodo_pagamento: v })}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>{METODOS_PAGAMENTO.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}</SelectContent>
-                    </Select>
-                  </div>
-                  <div className="sm:col-span-2 space-y-1.5"><Label>Descrição</Label>
-                    <Input value={payForm.descricao} onChange={(e) => setPayForm({ ...payForm, descricao: e.target.value })} />
-                  </div>
-                </div>
-                <div className="flex justify-end">
-                  <Button onClick={handleAddPayment} disabled={saving} className="bg-primary hover:bg-primary/90">
-                    <Plus className="mr-2 h-4 w-4" />{saving ? "Salvando..." : "Adicionar Pagamento"}
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-
             {payments.length === 0 ? (
               <p className="text-sm text-muted-foreground">Nenhum pagamento registrado.</p>
             ) : (
@@ -294,15 +276,66 @@ export function DocumentDetailSheet({ doc, open, onOpenChange }: { doc: Document
                       </p>
                       {p.descricao && <p className="text-xs text-muted-foreground">{p.descricao}</p>}
                     </div>
-                    <Button size="icon" variant="ghost" onClick={() => handleDeletePayment(p.id)}>
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setReceipt({
+                          numero_processo: doc.numero_processo,
+                          cliente: doc.cliente,
+                          data_pagamento: p.data_pagamento,
+                          valor: Number(p.valor),
+                          metodo_pagamento: p.metodo_pagamento,
+                          responsavel_recebimento: p.responsavel_recebimento,
+                          descricao: p.descricao,
+                        })}
+                      >
+                        <Printer className="mr-1 h-3 w-3" />Recibo
+                      </Button>
+                      <Button size="icon" variant="ghost" onClick={() => handleDeletePayment(p.id)}>
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </div>
                   </li>
                 ))}
               </ul>
             )}
           </TabsContent>
         </Tabs>
+
+        <Dialog open={payDialogOpen} onOpenChange={setPayDialogOpen}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader><DialogTitle>Adicionar Pagamento</DialogTitle></DialogHeader>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-1.5"><Label>Valor (R$) *</Label>
+                <Input type="number" step="0.01" min="0" value={payForm.valor} onChange={(e) => setPayForm({ ...payForm, valor: e.target.value })} />
+              </div>
+              <div className="space-y-1.5"><Label>Data *</Label>
+                <Input type="date" value={payForm.data_pagamento} onChange={(e) => setPayForm({ ...payForm, data_pagamento: e.target.value })} />
+              </div>
+              <div className="space-y-1.5"><Label>Responsável *</Label>
+                <Input value={payForm.responsavel_recebimento} onChange={(e) => setPayForm({ ...payForm, responsavel_recebimento: e.target.value })} />
+              </div>
+              <div className="space-y-1.5"><Label>Método *</Label>
+                <Select value={payForm.metodo_pagamento} onValueChange={(v) => setPayForm({ ...payForm, metodo_pagamento: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>{METODOS_PAGAMENTO.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div className="sm:col-span-2 space-y-1.5"><Label>Descrição</Label>
+                <Input value={payForm.descricao} onChange={(e) => setPayForm({ ...payForm, descricao: e.target.value })} />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setPayDialogOpen(false)}>Cancelar</Button>
+              <Button onClick={handleAddPayment} disabled={saving} className="bg-primary hover:bg-primary/90">
+                <Plus className="mr-2 h-4 w-4" />{saving ? "Salvando..." : "Salvar Pagamento"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <ReceiptModal data={receipt} open={!!receipt} onOpenChange={(o) => !o && setReceipt(null)} />
       </SheetContent>
     </Sheet>
   );
