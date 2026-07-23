@@ -9,9 +9,11 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, Pencil, Trash2, MessageCircle } from "lucide-react";
+import { Plus, Pencil, Trash2, MessageCircle, User, Printer } from "lucide-react";
 import { toast } from "sonner";
-import { type Cliente, whatsappLink } from "@/lib/documents";
+import { type Cliente, whatsappLink, formatBRL } from "@/lib/documents";
+import { ReceiptModal, type ReceiptData } from "@/components/receipt-modal";
+import { format } from "date-fns";
 
 export const Route = createFileRoute("/_authenticated/clientes")({
   head: () => ({ meta: [{ title: "Clientes - Gestão Judicial" }] }),
@@ -28,6 +30,8 @@ function ClientesPage() {
   const [editing, setEditing] = useState<Cliente | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm);
   const [saving, setSaving] = useState(false);
+  const [profileClient, setProfileClient] = useState<Cliente | null>(null);
+  const [receipt, setReceipt] = useState<ReceiptData | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ["clients"],
@@ -202,6 +206,7 @@ function ClientesPage() {
                     </TableCell>
                     <TableCell>{c.email ?? "—"}</TableCell>
                     <TableCell className="text-right">
+                      <Button size="icon" variant="ghost" onClick={() => setProfileClient(c)} title="Ver perfil"><User className="h-4 w-4" /></Button>
                       <Button size="icon" variant="ghost" onClick={() => openEdit(c)}><Pencil className="h-4 w-4" /></Button>
                       <Button size="icon" variant="ghost" onClick={() => handleDelete(c)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                     </TableCell>
@@ -212,6 +217,152 @@ function ClientesPage() {
           </div>
         </CardContent>
       </Card>
+
+      <ClientProfileDialog
+        client={profileClient}
+        onClose={() => setProfileClient(null)}
+        onPrintReceipt={(r) => setReceipt(r)}
+      />
+      <ReceiptModal data={receipt} open={!!receipt} onOpenChange={(o) => !o && setReceipt(null)} />
+    </div>
+  );
+}
+
+function ClientProfileDialog({
+  client,
+  onClose,
+  onPrintReceipt,
+}: {
+  client: Cliente | null;
+  onClose: () => void;
+  onPrintReceipt: (r: ReceiptData) => void;
+}) {
+  const enabled = !!client;
+  const { data: docs } = useQuery({
+    queryKey: ["client-docs", client?.id],
+    enabled,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("documents")
+        .select("id, internal_id, numero_processo, tipo_documento, estado_processual, data_documento, valor_total_processo, valor_recebido_total")
+        .eq("cliente_id", client!.id)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+  const { data: pays } = useQuery({
+    queryKey: ["client-pays", client?.id],
+    enabled,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("payments")
+        .select("id, valor, data_pagamento, responsavel_recebimento, metodo_pagamento, descricao, document_id, documents!inner(cliente_id, numero_processo, cliente)")
+        .eq("documents.cliente_id", client!.id)
+        .order("data_pagamento", { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as unknown as Array<{
+        id: string; valor: number; data_pagamento: string; responsavel_recebimento: string;
+        metodo_pagamento: string; descricao: string | null;
+        documents: { numero_processo: string; cliente: string } | null;
+      }>;
+    },
+  });
+
+  return (
+    <Dialog open={enabled} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{client?.nome}</DialogTitle>
+        </DialogHeader>
+        {client && (
+          <div className="space-y-6">
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <Info label="CPF/CNPJ" value={client.cpf_cnpj ?? "—"} />
+              <Info label="Telefone" value={client.telefone} />
+              <Info label="E-mail" value={client.email ?? "—"} />
+              <Info label="Endereço" value={client.endereco ?? "—"} />
+            </div>
+            <section>
+              <h3 className="mb-2 text-sm font-semibold">Processos</h3>
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Processo</TableHead>
+                      <TableHead>Tipo</TableHead>
+                      <TableHead>Estado</TableHead>
+                      <TableHead className="text-right">Total</TableHead>
+                      <TableHead className="text-right">Recebido</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {(docs ?? []).map((d) => (
+                      <TableRow key={d.id}>
+                        <TableCell className="text-xs">{d.numero_processo}</TableCell>
+                        <TableCell className="text-xs">{d.tipo_documento}</TableCell>
+                        <TableCell className="text-xs">{d.estado_processual}</TableCell>
+                        <TableCell className="text-right font-mono">{formatBRL(Number(d.valor_total_processo ?? 0))}</TableCell>
+                        <TableCell className="text-right font-mono text-accent">{formatBRL(Number(d.valor_recebido_total ?? 0))}</TableCell>
+                      </TableRow>
+                    ))}
+                    {(!docs || docs.length === 0) && <TableRow><TableCell colSpan={5} className="text-center text-sm text-muted-foreground">Sem processos vinculados.</TableCell></TableRow>}
+                  </TableBody>
+                </Table>
+              </div>
+            </section>
+            <section>
+              <h3 className="mb-2 text-sm font-semibold">Pagamentos</h3>
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Data</TableHead>
+                      <TableHead>Processo</TableHead>
+                      <TableHead>Método</TableHead>
+                      <TableHead className="text-right">Valor</TableHead>
+                      <TableHead className="w-[100px]" />
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {(pays ?? []).map((p) => (
+                      <TableRow key={p.id}>
+                        <TableCell className="text-xs">{format(new Date(p.data_pagamento), "dd/MM/yyyy")}</TableCell>
+                        <TableCell className="text-xs">{p.documents?.numero_processo ?? "—"}</TableCell>
+                        <TableCell className="text-xs">{p.metodo_pagamento}</TableCell>
+                        <TableCell className="text-right font-mono font-semibold text-accent">{formatBRL(Number(p.valor))}</TableCell>
+                        <TableCell className="text-right">
+                          <Button size="sm" variant="outline" onClick={() => onPrintReceipt({
+                            numero_processo: p.documents?.numero_processo ?? "—",
+                            cliente: client.nome,
+                            data_pagamento: p.data_pagamento,
+                            valor: Number(p.valor),
+                            metodo_pagamento: p.metodo_pagamento,
+                            responsavel_recebimento: p.responsavel_recebimento,
+                            descricao: p.descricao,
+                          })}>
+                            <Printer className="mr-1 h-3 w-3" />Recibo
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {(!pays || pays.length === 0) && <TableRow><TableCell colSpan={5} className="text-center text-sm text-muted-foreground">Nenhum pagamento registrado.</TableCell></TableRow>}
+                  </TableBody>
+                </Table>
+              </div>
+            </section>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function Info({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="text-xs font-medium text-muted-foreground">{label}</p>
+      <p className="text-foreground">{value}</p>
     </div>
   );
 }
