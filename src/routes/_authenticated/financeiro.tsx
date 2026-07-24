@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, TrendingUp, TrendingDown, Wallet, Receipt } from "lucide-react";
+import { Plus, TrendingUp, TrendingDown, Wallet, Receipt, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { CATEGORIAS_DESPESA, METODOS_PAGAMENTO, formatBRL, type Expense, type PaymentRow } from "@/lib/documents";
 import { format, startOfMonth, endOfMonth } from "date-fns";
@@ -35,6 +35,24 @@ function FinanceiroPage() {
     responsavel_pagamento: "",
   });
   const [payOpen, setPayOpen] = useState(false);
+  const [editPayment, setEditPayment] = useState<PaymentWithDoc | null>(null);
+  const [editExpense, setEditExpense] = useState<Expense | null>(null);
+
+  async function handleDeletePayment(p: PaymentWithDoc) {
+    if (!confirm("Excluir este pagamento?")) return;
+    const { error } = await supabase.from("payments").delete().eq("id", p.id);
+    if (error) return toast.error("Não foi possível excluir", { description: error.message });
+    toast.success("Pagamento excluído");
+    qc.invalidateQueries({ queryKey: ["fin-payments"] });
+  }
+
+  async function handleDeleteExpense(e: Expense) {
+    if (!confirm("Excluir esta despesa?")) return;
+    const { error } = await supabase.from("expenses").delete().eq("id", e.id);
+    if (error) return toast.error("Não foi possível excluir", { description: error.message });
+    toast.success("Despesa excluída");
+    qc.invalidateQueries({ queryKey: ["fin-expenses"] });
+  }
 
   const monthStart = startOfMonth(new Date()).toISOString().slice(0, 10);
   const monthEnd = endOfMonth(new Date()).toISOString().slice(0, 10);
@@ -232,7 +250,7 @@ function FinanceiroPage() {
           <CardContent className="p-0">
             <Table>
               <TableHeader>
-                <TableRow><TableHead>Data</TableHead><TableHead>Cliente</TableHead><TableHead>Processo</TableHead><TableHead className="text-right">Valor</TableHead></TableRow>
+                <TableRow><TableHead>Data</TableHead><TableHead>Cliente</TableHead><TableHead>Processo</TableHead><TableHead className="text-right">Valor</TableHead><TableHead className="w-[90px] text-right">Ações</TableHead></TableRow>
               </TableHeader>
               <TableBody>
                 {(payments ?? []).slice(0, 10).map((p) => (
@@ -241,10 +259,14 @@ function FinanceiroPage() {
                     <TableCell>{p.documents?.cliente ?? "—"}</TableCell>
                     <TableCell className="text-xs">{p.documents?.numero_processo ?? "—"}</TableCell>
                     <TableCell className="text-right font-mono font-semibold text-accent">{formatBRL(Number(p.valor))}</TableCell>
+                    <TableCell className="text-right whitespace-nowrap">
+                      <Button size="icon" variant="ghost" title="Editar" onClick={() => setEditPayment(p)}><Pencil className="h-4 w-4" /></Button>
+                      <Button size="icon" variant="ghost" title="Excluir" onClick={() => handleDeletePayment(p)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                    </TableCell>
                   </TableRow>
                 ))}
                 {(!payments || payments.length === 0) && (
-                  <TableRow><TableCell colSpan={4} className="text-center text-sm text-muted-foreground">Sem pagamentos.</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={5} className="text-center text-sm text-muted-foreground">Sem pagamentos.</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>
@@ -255,7 +277,7 @@ function FinanceiroPage() {
           <CardContent className="p-0">
             <Table>
               <TableHeader>
-                <TableRow><TableHead>Data</TableHead><TableHead>Categoria</TableHead><TableHead>Descrição</TableHead><TableHead className="text-right">Valor</TableHead></TableRow>
+                <TableRow><TableHead>Data</TableHead><TableHead>Categoria</TableHead><TableHead>Descrição</TableHead><TableHead className="text-right">Valor</TableHead><TableHead className="w-[90px] text-right">Ações</TableHead></TableRow>
               </TableHeader>
               <TableBody>
                 {(expenses ?? []).slice(0, 10).map((e) => (
@@ -264,17 +286,204 @@ function FinanceiroPage() {
                     <TableCell className="text-xs">{e.categoria}</TableCell>
                     <TableCell>{e.descricao}</TableCell>
                     <TableCell className="text-right font-mono font-semibold text-destructive">{formatBRL(Number(e.valor))}</TableCell>
+                    <TableCell className="text-right whitespace-nowrap">
+                      <Button size="icon" variant="ghost" title="Editar" onClick={() => setEditExpense(e)}><Pencil className="h-4 w-4" /></Button>
+                      <Button size="icon" variant="ghost" title="Excluir" onClick={() => handleDeleteExpense(e)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                    </TableCell>
                   </TableRow>
                 ))}
                 {(!expenses || expenses.length === 0) && (
-                  <TableRow><TableCell colSpan={4} className="text-center text-sm text-muted-foreground">Sem despesas.</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={5} className="text-center text-sm text-muted-foreground">Sem despesas.</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>
           </CardContent>
         </Card>
       </div>
+
+      <EditPaymentDialog
+        payment={editPayment}
+        onClose={() => setEditPayment(null)}
+        onSaved={() => qc.invalidateQueries({ queryKey: ["fin-payments"] })}
+      />
+      <EditExpenseDialog
+        expense={editExpense}
+        onClose={() => setEditExpense(null)}
+        onSaved={() => qc.invalidateQueries({ queryKey: ["fin-expenses"] })}
+      />
     </div>
+  );
+}
+
+function EditPaymentDialog({
+  payment, onClose, onSaved,
+}: { payment: PaymentWithDoc | null; onClose: () => void; onSaved: () => void }) {
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({
+    valor: "", data_pagamento: "", responsavel_recebimento: "", metodo_pagamento: "PIX", descricao: "",
+  });
+  const [loadedId, setLoadedId] = useState<string | null>(null);
+
+  if (payment && payment.id !== loadedId) {
+    setLoadedId(payment.id);
+    setForm({
+      valor: String(payment.valor ?? ""),
+      data_pagamento: payment.data_pagamento,
+      responsavel_recebimento: payment.responsavel_recebimento ?? "",
+      metodo_pagamento: payment.metodo_pagamento ?? "PIX",
+      descricao: payment.descricao ?? "",
+    });
+  }
+
+  async function handleSave() {
+    if (!payment) return;
+    const valor = Number(form.valor);
+    if (!valor || valor <= 0) return toast.error("Valor inválido");
+    if (!form.responsavel_recebimento.trim()) return toast.error("Informe o responsável");
+    setSaving(true);
+    try {
+      const { error } = await supabase.from("payments").update({
+        valor,
+        data_pagamento: form.data_pagamento,
+        responsavel_recebimento: form.responsavel_recebimento.trim(),
+        metodo_pagamento: form.metodo_pagamento,
+        descricao: form.descricao.trim() || null,
+      }).eq("id", payment.id);
+      if (error) throw error;
+      toast.success("Pagamento atualizado");
+      onSaved();
+      setLoadedId(null);
+      onClose();
+    } catch (e) {
+      toast.error("Falha ao atualizar", { description: e instanceof Error ? e.message : "" });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Dialog open={!!payment} onOpenChange={(o) => { if (!o) { setLoadedId(null); onClose(); } }}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader><DialogTitle>Editar Pagamento</DialogTitle></DialogHeader>
+        {payment && (
+          <div className="space-y-3">
+            <div className="rounded-md border bg-muted/30 p-3 text-sm">
+              <p className="font-medium">{payment.documents?.numero_processo ?? "—"}</p>
+              <p className="text-xs text-muted-foreground">{payment.documents?.cliente ?? "—"}</p>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-1.5"><Label>Valor (R$) *</Label>
+                <Input type="number" step="0.01" min="0" value={form.valor} onChange={(e) => setForm({ ...form, valor: e.target.value })} />
+              </div>
+              <div className="space-y-1.5"><Label>Data *</Label>
+                <Input type="date" value={form.data_pagamento} onChange={(e) => setForm({ ...form, data_pagamento: e.target.value })} />
+              </div>
+              <div className="space-y-1.5"><Label>Responsável *</Label>
+                <Input value={form.responsavel_recebimento} onChange={(e) => setForm({ ...form, responsavel_recebimento: e.target.value })} />
+              </div>
+              <div className="space-y-1.5"><Label>Método *</Label>
+                <Select value={form.metodo_pagamento} onValueChange={(v) => setForm({ ...form, metodo_pagamento: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>{METODOS_PAGAMENTO.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div className="sm:col-span-2 space-y-1.5"><Label>Descrição</Label>
+                <Input value={form.descricao} onChange={(e) => setForm({ ...form, descricao: e.target.value })} />
+              </div>
+            </div>
+          </div>
+        )}
+        <DialogFooter>
+          <Button variant="outline" onClick={() => { setLoadedId(null); onClose(); }}>Cancelar</Button>
+          <Button onClick={handleSave} disabled={saving} className="bg-primary hover:bg-primary/90">
+            {saving ? "Salvando..." : "Salvar Alterações"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function EditExpenseDialog({
+  expense, onClose, onSaved,
+}: { expense: Expense | null; onClose: () => void; onSaved: () => void }) {
+  const [saving, setSaving] = useState(false);
+  const [loadedId, setLoadedId] = useState<string | null>(null);
+  const [form, setForm] = useState({
+    descricao: "", categoria: "Outros", valor: "", data_despesa: "", responsavel_pagamento: "",
+  });
+
+  if (expense && expense.id !== loadedId) {
+    setLoadedId(expense.id);
+    setForm({
+      descricao: expense.descricao ?? "",
+      categoria: expense.categoria ?? "Outros",
+      valor: String(expense.valor ?? ""),
+      data_despesa: expense.data_despesa,
+      responsavel_pagamento: expense.responsavel_pagamento ?? "",
+    });
+  }
+
+  async function handleSave() {
+    if (!expense) return;
+    if (!form.descricao.trim()) return toast.error("Informe a descrição");
+    const valor = Number(form.valor);
+    if (!valor || valor <= 0) return toast.error("Valor inválido");
+    setSaving(true);
+    try {
+      const { error } = await supabase.from("expenses").update({
+        descricao: form.descricao.trim(),
+        categoria: form.categoria,
+        valor,
+        data_despesa: form.data_despesa,
+        responsavel_pagamento: form.responsavel_pagamento.trim() || null,
+      }).eq("id", expense.id);
+      if (error) throw error;
+      toast.success("Despesa atualizada");
+      onSaved();
+      setLoadedId(null);
+      onClose();
+    } catch (e) {
+      toast.error("Falha ao atualizar", { description: e instanceof Error ? e.message : "" });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Dialog open={!!expense} onOpenChange={(o) => { if (!o) { setLoadedId(null); onClose(); } }}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader><DialogTitle>Editar Despesa</DialogTitle></DialogHeader>
+        <div className="grid gap-3">
+          <div className="space-y-1.5"><Label>Descrição *</Label>
+            <Input value={form.descricao} onChange={(e) => setForm({ ...form, descricao: e.target.value })} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5"><Label>Categoria *</Label>
+              <Select value={form.categoria} onValueChange={(v) => setForm({ ...form, categoria: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>{CATEGORIAS_DESPESA.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5"><Label>Valor (R$) *</Label>
+              <Input type="number" step="0.01" min="0" value={form.valor} onChange={(e) => setForm({ ...form, valor: e.target.value })} />
+            </div>
+            <div className="space-y-1.5"><Label>Data *</Label>
+              <Input type="date" value={form.data_despesa} onChange={(e) => setForm({ ...form, data_despesa: e.target.value })} />
+            </div>
+            <div className="space-y-1.5"><Label>Responsável</Label>
+              <Input value={form.responsavel_pagamento} onChange={(e) => setForm({ ...form, responsavel_pagamento: e.target.value })} />
+            </div>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => { setLoadedId(null); onClose(); }}>Cancelar</Button>
+          <Button onClick={handleSave} disabled={saving} className="bg-primary hover:bg-primary/90">
+            {saving ? "Salvando..." : "Salvar Alterações"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
