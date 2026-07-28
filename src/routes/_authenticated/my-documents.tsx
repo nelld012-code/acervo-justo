@@ -39,7 +39,27 @@ function MyDocs() {
       </div>
 
       <Card>
-        <CardContent className="overflow-x-auto p-0">
+        <CardContent className="p-0">
+          <div className="divide-y md:hidden">
+            {isLoading ? (
+              <p className="py-8 text-center text-sm text-muted-foreground">Carregando...</p>
+            ) : data && data.length > 0 ? (
+              data.map((d) => (
+                <button key={d.id} onClick={() => setSelected(d)} className="block w-full space-y-1 p-4 text-left">
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="min-w-0 break-words text-sm font-semibold text-foreground">{d.numero_processo}</span>
+                    <Badge variant={badgeVariantForStatus(d.estado_processual)} className="shrink-0">{d.estado_processual}</Badge>
+                  </div>
+                  <p className="break-words text-sm text-muted-foreground">{d.cliente} · {d.tipo_documento}</p>
+                  <p className="break-words text-xs text-muted-foreground">Doc: {format(new Date(d.data_documento), "dd/MM/yyyy")} · Enviado: {format(new Date(d.created_at), "dd/MM/yyyy HH:mm")}</p>
+                  <p className="font-mono text-xs text-muted-foreground">{d.internal_id}</p>
+                </button>
+              ))
+            ) : (
+              <p className="py-8 text-center text-sm text-muted-foreground">Você ainda não enviou documentos.</p>
+            )}
+          </div>
+          <div className="hidden overflow-x-auto md:block">
           <Table>
             <TableHeader>
               <TableRow>
@@ -72,6 +92,7 @@ function MyDocs() {
               )}
             </TableBody>
           </Table>
+          </div>
         </CardContent>
       </Card>
 

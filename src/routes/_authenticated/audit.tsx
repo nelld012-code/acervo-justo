@@ -42,7 +42,26 @@ function AuditPage() {
       </div>
 
       <Card>
-        <CardContent className="overflow-x-auto p-0">
+        <CardContent className="p-0">
+          <div className="divide-y md:hidden">
+            {isLoading ? (
+              <p className="py-8 text-center text-sm text-muted-foreground">Carregando...</p>
+            ) : data && data.length > 0 ? (
+              data.map((r) => (
+                <div key={r.id} className="space-y-1 p-4">
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="text-xs text-muted-foreground">{format(new Date(r.timestamp), "dd/MM/yyyy HH:mm:ss", { locale: ptBR })}</span>
+                    <Badge variant="outline" className="shrink-0">{LABEL[r.action] ?? r.action}</Badge>
+                  </div>
+                  <p className="break-all font-mono text-xs text-muted-foreground">Doc: {r.document_id?.slice(0, 8) ?? "—"} · Usuário: {r.user_id?.slice(0, 8) ?? "—"}</p>
+                  {r.details ? <p className="break-all text-xs text-muted-foreground">{JSON.stringify(r.details)}</p> : null}
+                </div>
+              ))
+            ) : (
+              <p className="py-8 text-center text-sm text-muted-foreground">Sem registros.</p>
+            )}
+          </div>
+          <div className="hidden overflow-x-auto md:block">
           <Table>
             <TableHeader>
               <TableRow>
@@ -71,6 +90,7 @@ function AuditPage() {
               )}
             </TableBody>
           </Table>
+          </div>
         </CardContent>
       </Card>
     </div>
