@@ -173,7 +173,7 @@ export function DocumentDetailSheet({ doc, open, onOpenChange }: { doc: Document
               <Badge variant="outline">{doc.confidencialidade}</Badge>
               <Badge variant="secondary">v{doc.current_version}</Badge>
             </div>
-            <div className="grid grid-cols-2 gap-4 text-sm">
+            <div className="grid grid-cols-1 gap-4 text-sm sm:grid-cols-2">
               <Info label="Advogado" value={doc.advogado} />
               <Info label="Cliente" value={doc.cliente} />
               <Info label="Parte Autora" value={doc.parte_autora} />
@@ -304,7 +304,7 @@ export function DocumentDetailSheet({ doc, open, onOpenChange }: { doc: Document
         </Tabs>
 
         <Dialog open={payDialogOpen} onOpenChange={setPayDialogOpen}>
-          <DialogContent className="max-w-lg">
+          <DialogContent className="max-h-[85vh] w-[calc(100vw-2rem)] max-w-lg overflow-y-auto">
             <DialogHeader><DialogTitle>Adicionar Pagamento</DialogTitle></DialogHeader>
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="space-y-1.5"><Label>Valor (R$) *</Label>
