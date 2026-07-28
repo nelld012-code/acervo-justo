@@ -195,7 +195,7 @@ function UploadPage() {
   }
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
+    <div className="mx-auto min-w-0 max-w-4xl space-y-6">
       <div>
         <h2 className="text-2xl font-bold tracking-tight text-foreground">Enviar Documento</h2>
         <p className="text-sm text-muted-foreground">Envie um arquivo (PDF, DOCX, PNG ou JPG) e preencha os metadados.</p>
@@ -213,7 +213,7 @@ function UploadPage() {
               if (f) handleFile(f);
             }}
             onClick={() => inputRef.current?.click()}
-            className={`flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed p-10 transition-colors ${drag ? "border-primary bg-primary/5" : "border-border"}`}
+            className={`flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed p-6 sm:p-10 transition-colors ${drag ? "border-primary bg-primary/5" : "border-border"}`}
           >
             <input
               ref={inputRef}

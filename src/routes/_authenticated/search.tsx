@@ -63,7 +63,7 @@ function SearchPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 space-y-6">
       <div>
         <h2 className="text-2xl font-bold tracking-tight text-foreground">Buscar Documentos</h2>
         <p className="text-sm text-muted-foreground">Combine filtros para localizar rapidamente qualquer processo.</p>
@@ -118,15 +118,15 @@ function SearchPage() {
                 Busca exata
               </label>
             </div>
-            <div className="flex items-end justify-end">
-              <Button variant="outline" onClick={clearFilters}><X className="mr-2 h-4 w-4" />Limpar filtros</Button>
+            <div className="flex items-end sm:justify-end">
+              <Button variant="outline" className="w-full sm:w-auto" onClick={clearFilters}><X className="mr-2 h-4 w-4" />Limpar filtros</Button>
             </div>
           </div>
         </CardContent>
       </Card>
 
       <Card>
-        <CardContent className="p-0">
+        <CardContent className="overflow-x-auto p-0">
           <Table>
             <TableHeader>
               <TableRow>
@@ -164,7 +164,7 @@ function SearchPage() {
         </CardContent>
       </Card>
 
-      <div className="flex items-center justify-between text-sm">
+      <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
         <span className="text-muted-foreground">{data?.count ?? 0} resultado(s)</span>
         <div className="flex gap-2">
           <Button size="sm" variant="outline" onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0}>Anterior</Button>
