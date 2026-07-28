@@ -271,13 +271,13 @@ function ClientProfileDialog({
 
   return (
     <Dialog open={enabled} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+      <DialogContent className="w-[calc(100vw-2rem)] max-w-3xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{client?.nome}</DialogTitle>
         </DialogHeader>
         {client && (
           <div className="space-y-6">
-            <div className="grid grid-cols-2 gap-3 text-sm">
+            <div className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
               <Info label="CPF/CNPJ" value={client.cpf_cnpj ?? "—"} />
               <Info label="Telefone" value={client.telefone} />
               <Info label="E-mail" value={client.email ?? "—"} />
@@ -285,7 +285,7 @@ function ClientProfileDialog({
             </div>
             <section>
               <h3 className="mb-2 text-sm font-semibold">Processos</h3>
-              <div className="rounded-md border">
+              <div className="w-full overflow-x-auto rounded-md border">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -313,7 +313,7 @@ function ClientProfileDialog({
             </section>
             <section>
               <h3 className="mb-2 text-sm font-semibold">Pagamentos</h3>
-              <div className="rounded-md border">
+              <div className="w-full overflow-x-auto rounded-md border">
                 <Table>
                   <TableHeader>
                     <TableRow>
