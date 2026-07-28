@@ -170,7 +170,33 @@ function ClientesPage() {
       <Card>
         <CardContent className="space-y-4 pt-6">
           <Input placeholder="Buscar por nome, CPF/CNPJ ou telefone..." value={search} onChange={(e) => setSearch(e.target.value)} />
-          <div className="w-full overflow-x-auto rounded-md border">
+          <div className="divide-y rounded-md border md:hidden">
+            {isLoading ? (
+              <p className="py-8 text-center text-sm text-muted-foreground">Carregando...</p>
+            ) : filtered.length === 0 ? (
+              <p className="py-8 text-center text-sm text-muted-foreground">Nenhum cliente encontrado.</p>
+            ) : filtered.map((c) => (
+              <div key={c.id} className="space-y-2 p-4">
+                <p className="break-words font-medium text-foreground">{c.nome}</p>
+                <p className="break-words text-xs text-muted-foreground">{c.cpf_cnpj ?? "—"} · {c.email ?? "—"}</p>
+                <p className="break-words text-sm text-muted-foreground">{c.telefone}</p>
+                <div className="flex flex-wrap gap-2">
+                  <a
+                    href={whatsappLink(c.telefone)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex h-9 items-center gap-1 rounded-md bg-emerald-600 px-3 text-xs font-medium text-white"
+                  >
+                    <MessageCircle className="h-4 w-4" />WhatsApp
+                  </a>
+                  <Button size="sm" variant="outline" onClick={() => setProfileClient(c)}><User className="mr-1 h-4 w-4" />Ficha</Button>
+                  <Button size="sm" variant="outline" onClick={() => openEdit(c)}><Pencil className="mr-1 h-4 w-4" />Editar</Button>
+                  <Button size="sm" variant="outline" onClick={() => handleDelete(c)}><Trash2 className="mr-1 h-4 w-4 text-destructive" />Excluir</Button>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="hidden w-full overflow-x-auto rounded-md border md:block">
             <Table>
               <TableHeader>
                 <TableRow>
