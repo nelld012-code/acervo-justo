@@ -147,7 +147,7 @@ export function DocumentDetailSheet({ doc, open, onOpenChange }: { doc: Document
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full sm:max-w-2xl overflow-y-auto">
+      <SheetContent className="w-full max-w-full overflow-y-auto p-4 sm:max-w-2xl sm:p-6">
         <SheetHeader>
           <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)} className="mb-2 w-fit -ml-2 text-muted-foreground">
             <ArrowLeft className="mr-1 h-4 w-4" />Voltar
@@ -159,11 +159,11 @@ export function DocumentDetailSheet({ doc, open, onOpenChange }: { doc: Document
         </SheetHeader>
 
         <Tabs defaultValue="details" className="mt-6">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="details">Detalhes</TabsTrigger>
-            <TabsTrigger value="versions">Histórico de Versões</TabsTrigger>
-            <TabsTrigger value="audit">Auditoria</TabsTrigger>
-            <TabsTrigger value="finance">Financeiro</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-2 gap-1 sm:grid-cols-4">
+            <TabsTrigger value="details" className="text-xs sm:text-sm">Detalhes</TabsTrigger>
+            <TabsTrigger value="versions" className="text-xs sm:text-sm">Versões</TabsTrigger>
+            <TabsTrigger value="audit" className="text-xs sm:text-sm">Auditoria</TabsTrigger>
+            <TabsTrigger value="finance" className="text-xs sm:text-sm">Financeiro</TabsTrigger>
           </TabsList>
 
           <TabsContent value="details" className="space-y-4 pt-4">
@@ -193,8 +193,8 @@ export function DocumentDetailSheet({ doc, open, onOpenChange }: { doc: Document
                 </div>
               </div>
             )}
-            <div className="flex gap-2">
-              <Button onClick={() => handleDownload(doc.file_url, doc.file_name)}>
+            <div className="flex flex-wrap gap-2">
+              <Button className="w-full sm:w-auto" onClick={() => handleDownload(doc.file_url, doc.file_name)}>
                 <Download className="mr-2 h-4 w-4" />Baixar arquivo atual
               </Button>
             </div>
@@ -204,8 +204,8 @@ export function DocumentDetailSheet({ doc, open, onOpenChange }: { doc: Document
             {versions.length === 0 ? <p className="text-sm text-muted-foreground">Nenhuma versão registrada.</p> : (
               <ul className="space-y-3">
                 {versions.map((v) => (
-                  <li key={v.id} className="flex items-center justify-between rounded-lg border p-3">
-                    <div>
+                  <li key={v.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border p-3">
+                    <div className="min-w-0">
                       <p className="font-medium">Versão {v.version_number}</p>
                       <p className="text-xs text-muted-foreground">
                         {format(new Date(v.uploaded_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}
@@ -225,7 +225,7 @@ export function DocumentDetailSheet({ doc, open, onOpenChange }: { doc: Document
             {audits.length === 0 ? <p className="text-sm text-muted-foreground">Sem registros de auditoria.</p> : (
               <ul className="space-y-2">
                 {audits.map((a) => (
-                  <li key={a.id} className="flex items-center justify-between border-b py-2 text-sm last:border-none">
+                  <li key={a.id} className="flex flex-wrap items-center justify-between gap-2 border-b py-2 text-sm last:border-none">
                     <Badge variant="outline">{ACTION_LABEL[a.action] ?? a.action}</Badge>
                     <span className="text-xs text-muted-foreground">
                       {format(new Date(a.timestamp), "dd/MM/yyyy HH:mm:ss", { locale: ptBR })}
@@ -238,7 +238,7 @@ export function DocumentDetailSheet({ doc, open, onOpenChange }: { doc: Document
 
           <TabsContent value="finance" className="space-y-4 pt-4">
             <div className="flex justify-end">
-              <Button onClick={() => setPayDialogOpen(true)} className="bg-primary hover:bg-primary/90">
+              <Button onClick={() => setPayDialogOpen(true)} className="w-full bg-primary hover:bg-primary/90 sm:w-auto">
                 <Plus className="mr-2 h-4 w-4" />Adicionar Pagamento
               </Button>
             </div>
@@ -246,18 +246,18 @@ export function DocumentDetailSheet({ doc, open, onOpenChange }: { doc: Document
               const total = Number(doc.valor_total_processo ?? 0);
               const saldo = Math.max(0, total - recebido);
               return (
-                <div className="grid gap-3 sm:grid-cols-3">
+                <div className="grid gap-3 sm:grid-cols-3 [&>*]:min-w-0">
                   <Card><CardContent className="pt-4">
                     <p className="text-xs text-muted-foreground">Valor Total do Processo</p>
-                    <p className="text-2xl font-bold text-foreground">{formatBRL(total)}</p>
+                    <p className="text-xl font-bold text-foreground sm:text-2xl">{formatBRL(total)}</p>
                   </CardContent></Card>
                   <Card><CardContent className="pt-4">
                     <p className="text-xs text-muted-foreground">Total Recebido</p>
-                    <p className="text-2xl font-bold text-[oklch(0.72_0.15_250)]">{formatBRL(recebido)}</p>
+                    <p className="text-xl font-bold text-[oklch(0.72_0.15_250)] sm:text-2xl">{formatBRL(recebido)}</p>
                   </CardContent></Card>
                   <Card><CardContent className="pt-4">
                     <p className="text-xs text-muted-foreground">Saldo Devedor</p>
-                    <p className="text-2xl font-bold text-[oklch(0.77_0.13_275)]">{formatBRL(saldo)}</p>
+                    <p className="text-xl font-bold text-[oklch(0.77_0.13_275)] sm:text-2xl">{formatBRL(saldo)}</p>
                   </CardContent></Card>
                 </div>
               );
@@ -268,8 +268,8 @@ export function DocumentDetailSheet({ doc, open, onOpenChange }: { doc: Document
             ) : (
               <ul className="space-y-2">
                 {payments.map((p) => (
-                  <li key={p.id} className="flex items-center justify-between rounded-md border p-3 text-sm">
-                    <div>
+                  <li key={p.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md border p-3 text-sm">
+                    <div className="min-w-0">
                       <p className="font-semibold text-[oklch(0.72_0.15_250)]">{formatBRL(p.valor)}</p>
                       <p className="text-xs text-muted-foreground">
                         {format(new Date(p.data_pagamento), "dd/MM/yyyy")} · {p.metodo_pagamento} · {p.responsavel_recebimento}
