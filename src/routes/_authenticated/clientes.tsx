@@ -113,19 +113,19 @@ function ClientesPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
+    <div className="min-w-0 space-y-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
           <h2 className="text-2xl font-bold tracking-tight text-foreground">Clientes</h2>
           <p className="text-sm text-muted-foreground">Cadastro completo com contato direto por WhatsApp.</p>
         </div>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
-            <Button onClick={openNew} className="bg-primary hover:bg-primary/90">
+            <Button onClick={openNew} className="w-full bg-primary hover:bg-primary/90 sm:w-auto">
               <Plus className="mr-2 h-4 w-4" />Novo Cliente
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-lg">
+          <DialogContent className="max-h-[85vh] w-[calc(100vw-2rem)] max-w-lg overflow-y-auto">
             <DialogHeader>
               <DialogTitle>{editing ? "Editar Cliente" : "Novo Cliente"}</DialogTitle>
             </DialogHeader>
@@ -134,7 +134,7 @@ function ClientesPage() {
                 <Label>Nome *</Label>
                 <Input value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} />
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div className="space-y-1.5">
                   <Label>CPF / CNPJ</Label>
                   <Input value={form.cpf_cnpj} onChange={(e) => setForm({ ...form, cpf_cnpj: e.target.value })} />
@@ -170,7 +170,7 @@ function ClientesPage() {
       <Card>
         <CardContent className="space-y-4 pt-6">
           <Input placeholder="Buscar por nome, CPF/CNPJ ou telefone..." value={search} onChange={(e) => setSearch(e.target.value)} />
-          <div className="rounded-md border">
+          <div className="w-full overflow-x-auto rounded-md border">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -271,13 +271,13 @@ function ClientProfileDialog({
 
   return (
     <Dialog open={enabled} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+      <DialogContent className="w-[calc(100vw-2rem)] max-w-3xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{client?.nome}</DialogTitle>
         </DialogHeader>
         {client && (
           <div className="space-y-6">
-            <div className="grid grid-cols-2 gap-3 text-sm">
+            <div className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
               <Info label="CPF/CNPJ" value={client.cpf_cnpj ?? "—"} />
               <Info label="Telefone" value={client.telefone} />
               <Info label="E-mail" value={client.email ?? "—"} />
@@ -285,7 +285,7 @@ function ClientProfileDialog({
             </div>
             <section>
               <h3 className="mb-2 text-sm font-semibold">Processos</h3>
-              <div className="rounded-md border">
+              <div className="w-full overflow-x-auto rounded-md border">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -313,7 +313,7 @@ function ClientProfileDialog({
             </section>
             <section>
               <h3 className="mb-2 text-sm font-semibold">Pagamentos</h3>
-              <div className="rounded-md border">
+              <div className="w-full overflow-x-auto rounded-md border">
                 <Table>
                   <TableHeader>
                     <TableRow>

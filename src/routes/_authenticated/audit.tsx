@@ -35,14 +35,14 @@ function AuditPage() {
   });
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 space-y-6">
       <div>
         <h2 className="text-2xl font-bold tracking-tight text-foreground">Registro de Auditoria</h2>
         <p className="text-sm text-muted-foreground">Últimas 200 ações no sistema.</p>
       </div>
 
       <Card>
-        <CardContent className="p-0">
+        <CardContent className="overflow-x-auto p-0">
           <Table>
             <TableHeader>
               <TableRow>

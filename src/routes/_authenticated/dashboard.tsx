@@ -97,7 +97,7 @@ function Dashboard() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 space-y-6">
       <div>
         <h2 className="text-2xl font-bold tracking-tight text-foreground">Dashboard</h2>
         <p className="text-sm text-muted-foreground">Visão geral do acervo documental.</p>
@@ -109,31 +109,31 @@ function Dashboard() {
           <Wallet className="h-5 w-5 opacity-90" />
         </CardHeader>
         <CardContent>
-          <div className="text-4xl font-bold">{isLoading ? "—" : formatBRL(totalReceber)}</div>
+          <div className="text-2xl font-bold sm:text-4xl">{isLoading ? "—" : formatBRL(totalReceber)}</div>
           <p className="mt-1 text-xs opacity-80">Saldo devedor consolidado em todos os processos</p>
         </CardContent>
       </Card>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 [&>*]:min-w-0">
         {cards.map((c) => (
           <Card key={c.title}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">{c.title}</CardTitle>
-              <c.icon className={`h-4 w-4 ${c.color}`} />
+              <CardTitle className="min-w-0 truncate text-sm font-medium text-muted-foreground">{c.title}</CardTitle>
+              <c.icon className={`h-4 w-4 shrink-0 ${c.color}`} />
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-foreground">{isLoading ? "—" : c.value}</div>
+              <div className="text-2xl font-bold text-foreground sm:text-3xl">{isLoading ? "—" : c.value}</div>
             </CardContent>
           </Card>
         ))}
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-4 lg:grid-cols-2 [&>*]:min-w-0">
         <Card>
           <CardHeader>
             <CardTitle>Documentos por Mês</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-2 sm:px-6">
             <ResponsiveContainer width="100%" height={260}>
               <BarChart data={monthly}>
                 <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
@@ -147,11 +147,11 @@ function Dashboard() {
         </Card>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>Entrada de Caixa Mensal</CardTitle>
-            <TrendingUp className="h-4 w-4 text-[oklch(0.68_0.16_275)]" />
+          <CardHeader className="flex flex-row items-center justify-between gap-2">
+            <CardTitle className="min-w-0 truncate">Entrada de Caixa Mensal</CardTitle>
+            <TrendingUp className="h-4 w-4 shrink-0 text-[oklch(0.68_0.16_275)]" />
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-2 sm:px-6">
             <ResponsiveContainer width="100%" height={260}>
               <LineChart data={monthlyCash}>
                 <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
@@ -174,8 +174,8 @@ function Dashboard() {
             {recent && recent.length > 0 ? (
               <ul className="space-y-3">
                 {recent.map((r) => (
-                  <li key={r.id} className="flex items-center justify-between border-b pb-2 text-sm last:border-none last:pb-0">
-                    <div>
+                  <li key={r.id} className="flex flex-wrap items-center justify-between gap-2 border-b pb-2 text-sm last:border-none last:pb-0">
+                    <div className="min-w-0">
                       <Badge variant="outline" className="mr-2 capitalize">{actionLabel[r.action] ?? r.action}</Badge>
                       <span className="text-muted-foreground">
                         {r.document_id ? `Documento ${r.document_id.slice(0, 8)}` : "Sistema"}
