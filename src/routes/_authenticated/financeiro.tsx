@@ -363,7 +363,7 @@ function EditPaymentDialog({
 
   return (
     <Dialog open={!!payment} onOpenChange={(o) => { if (!o) { setLoadedId(null); onClose(); } }}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-h-[85vh] w-[calc(100vw-2rem)] max-w-lg overflow-y-auto">
         <DialogHeader><DialogTitle>Editar Pagamento</DialogTitle></DialogHeader>
         {payment && (
           <div className="space-y-3">
@@ -452,13 +452,13 @@ function EditExpenseDialog({
 
   return (
     <Dialog open={!!expense} onOpenChange={(o) => { if (!o) { setLoadedId(null); onClose(); } }}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-h-[85vh] w-[calc(100vw-2rem)] max-w-lg overflow-y-auto">
         <DialogHeader><DialogTitle>Editar Despesa</DialogTitle></DialogHeader>
         <div className="grid gap-3">
           <div className="space-y-1.5"><Label>Descrição *</Label>
             <Input value={form.descricao} onChange={(e) => setForm({ ...form, descricao: e.target.value })} />
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-1.5"><Label>Categoria *</Label>
               <Select value={form.categoria} onValueChange={(v) => setForm({ ...form, categoria: v })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
@@ -579,7 +579,7 @@ function RegisterPaymentDialog({
 
   return (
     <Dialog open={open} onOpenChange={(o) => { onOpenChange(o); if (!o) reset(); }}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-h-[85vh] w-[calc(100vw-2rem)] max-w-lg overflow-y-auto">
         <DialogHeader><DialogTitle>Registrar Entrada (Pagamento)</DialogTitle></DialogHeader>
         {!selected ? (
           <div className="space-y-3">
