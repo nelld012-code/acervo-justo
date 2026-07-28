@@ -146,29 +146,29 @@ function FinanceiroPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
+    <div className="min-w-0 space-y-6">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className="min-w-0">
           <h2 className="text-2xl font-bold tracking-tight text-foreground">Financeiro</h2>
           <p className="text-sm text-muted-foreground">
             Resumo de {format(new Date(), "MMMM 'de' yyyy", { locale: ptBR })}
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button onClick={() => setPayOpen(true)} className="bg-primary hover:bg-primary/90">
-            <Receipt className="mr-2 h-4 w-4" />Registrar Entrada (Pagamento)
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <Button onClick={() => setPayOpen(true)} className="w-full bg-primary hover:bg-primary/90 sm:w-auto">
+            <Receipt className="mr-2 h-4 w-4 shrink-0" /><span className="truncate">Registrar Entrada (Pagamento)</span>
           </Button>
           <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
-            <Button variant="outline"><Plus className="mr-2 h-4 w-4" />Nova Despesa</Button>
+            <Button variant="outline" className="w-full sm:w-auto"><Plus className="mr-2 h-4 w-4" />Nova Despesa</Button>
           </DialogTrigger>
-          <DialogContent className="max-w-lg">
+          <DialogContent className="max-h-[85vh] w-[calc(100vw-2rem)] max-w-lg overflow-y-auto">
             <DialogHeader><DialogTitle>Registrar Despesa</DialogTitle></DialogHeader>
             <div className="grid gap-3">
               <div className="space-y-1.5"><Label>Descrição *</Label>
                 <Input value={form.descricao} onChange={(e) => setForm({ ...form, descricao: e.target.value })} />
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div className="space-y-1.5"><Label>Categoria *</Label>
                   <Select value={form.categoria} onValueChange={(v) => setForm({ ...form, categoria: v })}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
@@ -203,16 +203,16 @@ function FinanceiroPage() {
         onSaved={() => qc.invalidateQueries({ queryKey: ["fin-payments"] })}
       />
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-3 [&>*]:min-w-0">
         <HeroCard title="Total de Entradas" value={formatBRL(totalEntradas)} icon={<TrendingUp className="h-5 w-5" />} tone="up" />
         <HeroCard title="Total de Saídas" value={formatBRL(totalSaidas)} icon={<TrendingDown className="h-5 w-5" />} tone="down" />
         <HeroCard title="Saldo do Mês" value={formatBRL(saldo)} icon={<Wallet className="h-5 w-5" />} tone={saldo >= 0 ? "up" : "down"} />
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-4 lg:grid-cols-2 [&>*]:min-w-0">
         <Card>
           <CardHeader><CardTitle>Ranking de Clientes (mês)</CardTitle></CardHeader>
-          <CardContent className="h-72">
+          <CardContent className="h-72 px-2 sm:px-6">
             {rankingClientes.length === 0 ? (
               <p className="text-sm text-muted-foreground">Sem pagamentos neste mês.</p>
             ) : (
@@ -220,7 +220,7 @@ function FinanceiroPage() {
                 <BarChart data={rankingClientes} layout="vertical" margin={{ left: 20 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                   <XAxis type="number" tickFormatter={(v) => formatBRL(v)} stroke="var(--muted-foreground)" fontSize={11} />
-                  <YAxis type="category" dataKey="cliente" stroke="var(--muted-foreground)" fontSize={11} width={120} />
+                  <YAxis type="category" dataKey="cliente" stroke="var(--muted-foreground)" fontSize={11} width={80} />
                   <Tooltip formatter={(v: number) => formatBRL(v)} contentStyle={{ background: "var(--card)", border: "1px solid var(--border)" }} />
                   <Bar dataKey="total" fill="var(--primary)" radius={[0, 6, 6, 0]} />
                 </BarChart>
@@ -230,7 +230,7 @@ function FinanceiroPage() {
         </Card>
         <Card>
           <CardHeader><CardTitle>Fluxo de Caixa (mês)</CardTitle></CardHeader>
-          <CardContent className="h-72">
+          <CardContent className="h-72 px-2 sm:px-6">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={fluxoCaixa}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
@@ -244,10 +244,10 @@ function FinanceiroPage() {
         </Card>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-4 lg:grid-cols-2 [&>*]:min-w-0">
         <Card>
           <CardHeader><CardTitle>Últimos Pagamentos</CardTitle></CardHeader>
-          <CardContent className="p-0">
+          <CardContent className="overflow-x-auto p-0">
             <Table>
               <TableHeader>
                 <TableRow><TableHead>Data</TableHead><TableHead>Cliente</TableHead><TableHead>Processo</TableHead><TableHead className="text-right">Valor</TableHead><TableHead className="w-[90px] text-right">Ações</TableHead></TableRow>
@@ -274,7 +274,7 @@ function FinanceiroPage() {
         </Card>
         <Card>
           <CardHeader><CardTitle>Últimas Despesas</CardTitle></CardHeader>
-          <CardContent className="p-0">
+          <CardContent className="overflow-x-auto p-0">
             <Table>
               <TableHeader>
                 <TableRow><TableHead>Data</TableHead><TableHead>Categoria</TableHead><TableHead>Descrição</TableHead><TableHead className="text-right">Valor</TableHead><TableHead className="w-[90px] text-right">Ações</TableHead></TableRow>
