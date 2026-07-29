@@ -8,6 +8,10 @@ import { Badge } from "@/components/ui/badge";
 import { DocumentDetailSheet } from "@/components/document-detail-sheet";
 import { type Documento, badgeVariantForStatus } from "@/lib/documents";
 import { format } from "date-fns";
+import { Button } from "@/components/ui/button";
+import { Printer } from "lucide-react";
+import { toast } from "sonner";
+import { printReport } from "@/lib/print-report";
 
 export const Route = createFileRoute("/_authenticated/my-documents")({
   head: () => ({ meta: [{ title: "Meus Documentos - Gestão Judicial" }] }),
@@ -33,9 +37,35 @@ function MyDocs() {
 
   return (
     <div className="min-w-0 space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold tracking-tight text-foreground">Meus Documentos</h2>
-        <p className="text-sm text-muted-foreground">Documentos enviados por você.</p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <h2 className="text-2xl font-bold tracking-tight text-foreground">Meus Documentos</h2>
+          <p className="text-sm text-muted-foreground">Documentos enviados por você.</p>
+        </div>
+        <Button
+          variant="outline"
+          className="w-full sm:w-auto"
+          onClick={() => {
+            const rows = data ?? [];
+            if (!rows.length) return toast.error("Nenhum documento para imprimir");
+            const ok = printReport({
+              title: "Meus Documentos",
+              subtitle: `${rows.length} documento(s)`,
+              sections: [{
+                columns: ["ID", "Processo", "Cliente", "Tipo", "Data", "Estado", "Enviado em"],
+                rows: rows.map((d) => [
+                  d.internal_id, d.numero_processo, d.cliente, d.tipo_documento,
+                  format(new Date(d.data_documento), "dd/MM/yyyy"),
+                  d.estado_processual,
+                  format(new Date(d.created_at), "dd/MM/yyyy HH:mm"),
+                ]),
+              }],
+            });
+            if (!ok) toast.error("Permita pop-ups para imprimir");
+          }}
+        >
+          <Printer className="mr-2 h-4 w-4" />Imprimir
+        </Button>
       </div>
 
       <Card>

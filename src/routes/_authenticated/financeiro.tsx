@@ -9,11 +9,12 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, TrendingUp, TrendingDown, Wallet, Receipt, Pencil, Trash2 } from "lucide-react";
+import { Plus, TrendingUp, TrendingDown, Wallet, Receipt, Pencil, Trash2, Printer } from "lucide-react";
 import { toast } from "sonner";
 import { CATEGORIAS_DESPESA, METODOS_PAGAMENTO, formatBRL, type Expense, type PaymentRow } from "@/lib/documents";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { printReport } from "@/lib/print-report";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, LineChart, Line,
 } from "recharts";
@@ -155,6 +156,49 @@ function FinanceiroPage() {
           </p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <Button
+            variant="outline"
+            className="w-full sm:w-auto"
+            onClick={() => {
+              const ok = printReport({
+                title: "Relatório Financeiro",
+                subtitle: format(new Date(), "MMMM 'de' yyyy", { locale: ptBR }),
+                summary: [
+                  { label: "Total de Entradas", value: formatBRL(totalEntradas) },
+                  { label: "Total de Saídas", value: formatBRL(totalSaidas) },
+                  { label: "Saldo do Mês", value: formatBRL(saldo) },
+                ],
+                sections: [
+                  {
+                    heading: "Pagamentos do mês",
+                    columns: ["Data", "Cliente", "Processo", "Método", "Responsável", "Valor"],
+                    rows: monthPayments.map((p) => [
+                      format(new Date(p.data_pagamento), "dd/MM/yyyy"),
+                      p.documents?.cliente ?? "—",
+                      p.documents?.numero_processo ?? "—",
+                      p.metodo_pagamento,
+                      p.responsavel_recebimento,
+                      formatBRL(Number(p.valor)),
+                    ]),
+                  },
+                  {
+                    heading: "Despesas do mês",
+                    columns: ["Data", "Descrição", "Categoria", "Responsável", "Valor"],
+                    rows: monthExpenses.map((e) => [
+                      format(new Date(e.data_despesa), "dd/MM/yyyy"),
+                      e.descricao,
+                      e.categoria,
+                      e.responsavel_pagamento ?? "—",
+                      formatBRL(Number(e.valor)),
+                    ]),
+                  },
+                ],
+              });
+              if (!ok) toast.error("Permita pop-ups para imprimir");
+            }}
+          >
+            <Printer className="mr-2 h-4 w-4" />Imprimir
+          </Button>
           <Button onClick={() => setPayOpen(true)} className="w-full bg-primary hover:bg-primary/90 sm:w-auto">
             <Receipt className="mr-2 h-4 w-4 shrink-0" /><span className="truncate">Registrar Entrada (Pagamento)</span>
           </Button>

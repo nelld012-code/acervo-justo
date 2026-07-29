@@ -13,6 +13,9 @@ import { DocumentDetailSheet } from "@/components/document-detail-sheet";
 import { TIPOS_DOCUMENTO, ESTADOS, type Documento, badgeVariantForStatus } from "@/lib/documents";
 import { format } from "date-fns";
 import { Search as SearchIcon, X } from "lucide-react";
+import { Printer } from "lucide-react";
+import { toast } from "sonner";
+import { printReport } from "@/lib/print-report";
 
 export const Route = createFileRoute("/_authenticated/search")({
   head: () => ({ meta: [{ title: "Buscar Documentos - Gestão Judicial" }] }),
@@ -64,9 +67,33 @@ function SearchPage() {
 
   return (
     <div className="min-w-0 space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold tracking-tight text-foreground">Buscar Documentos</h2>
-        <p className="text-sm text-muted-foreground">Combine filtros para localizar rapidamente qualquer processo.</p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <h2 className="text-2xl font-bold tracking-tight text-foreground">Buscar Documentos</h2>
+          <p className="text-sm text-muted-foreground">Combine filtros para localizar rapidamente qualquer processo.</p>
+        </div>
+        <Button
+          variant="outline"
+          className="w-full sm:w-auto"
+          onClick={() => {
+            const rows = data?.rows ?? [];
+            if (!rows.length) return toast.error("Nenhum resultado para imprimir");
+            const ok = printReport({
+              title: "Resultados da Busca de Documentos",
+              subtitle: `Página ${page + 1} · ${rows.length} de ${data?.count ?? 0} resultado(s)`,
+              sections: [{
+                columns: ["ID", "Processo", "Cliente", "Tipo", "Advogado", "Data", "Estado", "Versão"],
+                rows: rows.map((d) => [
+                  d.internal_id, d.numero_processo, d.cliente, d.tipo_documento, d.advogado,
+                  format(new Date(d.data_documento), "dd/MM/yyyy"), d.estado_processual, `v${d.current_version}`,
+                ]),
+              }],
+            });
+            if (!ok) toast.error("Permita pop-ups para imprimir");
+          }}
+        >
+          <Printer className="mr-2 h-4 w-4" />Imprimir
+        </Button>
       </div>
 
       <Card>
