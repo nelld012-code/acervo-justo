@@ -113,6 +113,73 @@ function ClientesPage() {
     qc.invalidateQueries({ queryKey: ["clients"] });
   }
 
+  async function printClientFicha(c: Cliente) {
+    const [docsRes, paysRes] = await Promise.all([
+      supabase
+        .from("documents")
+        .select("internal_id, numero_processo, tipo_documento, estado_processual, data_documento, valor_total_processo, valor_recebido_total")
+        .eq("cliente_id", c.id)
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("payments")
+        .select("valor, data_pagamento, responsavel_recebimento, metodo_pagamento, descricao, documents!inner(cliente_id, numero_processo)")
+        .eq("documents.cliente_id", c.id)
+        .order("data_pagamento", { ascending: false }),
+    ]);
+    const docs = (docsRes.data ?? []) as Array<Record<string, any>>;
+    const pays = (paysRes.data ?? []) as Array<Record<string, any>>;
+    const totalRecebido = pays.reduce((s, p) => s + Number(p.valor ?? 0), 0);
+    const ok = printReport({
+      title: `Ficha do Cliente — ${c.nome}`,
+      subtitle: `${c.cpf_cnpj ?? "Sem CPF/CNPJ"} · ${c.telefone}`,
+      summary: [
+        { label: "Processos", value: String(docs.length) },
+        { label: "Pagamentos", value: String(pays.length) },
+        { label: "Total recebido", value: formatBRL(totalRecebido) },
+      ],
+      sections: [
+        {
+          heading: "Dados cadastrais",
+          columns: ["Campo", "Valor"],
+          rows: [
+            ["Nome", c.nome],
+            ["CPF/CNPJ", c.cpf_cnpj ?? "—"],
+            ["Telefone", c.telefone],
+            ["E-mail", c.email ?? "—"],
+            ["Endereço", c.endereco ?? "—"],
+            ["Observações", c.observacoes ?? "—"],
+          ],
+        },
+        {
+          heading: "Processos vinculados",
+          columns: ["ID", "Processo", "Tipo", "Estado", "Data", "Valor total", "Recebido"],
+          rows: docs.map((d) => [
+            d.internal_id ?? "—",
+            d.numero_processo ?? "—",
+            d.tipo_documento ?? "—",
+            d.estado_processual ?? "—",
+            d.data_documento ? format(new Date(d.data_documento), "dd/MM/yyyy") : "—",
+            formatBRL(Number(d.valor_total_processo ?? 0)),
+            formatBRL(Number(d.valor_recebido_total ?? 0)),
+          ]),
+        },
+        {
+          heading: "Histórico de pagamentos",
+          columns: ["Data", "Processo", "Valor", "Método", "Recebido por", "Descrição"],
+          rows: pays.map((p) => [
+            p.data_pagamento ? format(new Date(p.data_pagamento), "dd/MM/yyyy") : "—",
+            p.documents?.numero_processo ?? "—",
+            formatBRL(Number(p.valor ?? 0)),
+            p.metodo_pagamento ?? "—",
+            p.responsavel_recebimento ?? "—",
+            p.descricao ?? "—",
+          ]),
+        },
+      ],
+    });
+    if (!ok) toast.error("Não foi possível abrir a impressão");
+  }
+
   return (
     <div className="min-w-0 space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -134,7 +201,7 @@ function ClientesPage() {
                 rows: filtered.map((c) => [c.nome, c.cpf_cnpj ?? "—", c.telefone, c.email ?? "—", c.endereco ?? "—"]),
               }],
             });
-            if (!ok) toast.error("Permita pop-ups para imprimir");
+            if (!ok) toast.error("Não foi possível abrir a impressão");
           }}
         >
           <Printer className="mr-2 h-4 w-4" />Imprimir
@@ -212,6 +279,7 @@ function ClientesPage() {
                   </a>
                   <Button size="sm" variant="outline" onClick={() => setProfileClient(c)}><User className="mr-1 h-4 w-4" />Ficha</Button>
                   <Button size="sm" variant="outline" onClick={() => openEdit(c)}><Pencil className="mr-1 h-4 w-4" />Editar</Button>
+                  <Button size="sm" variant="outline" onClick={() => printClientFicha(c)}><Printer className="mr-1 h-4 w-4" />Imprimir</Button>
                   <Button size="sm" variant="outline" onClick={() => handleDelete(c)}><Trash2 className="mr-1 h-4 w-4 text-destructive" />Excluir</Button>
                 </div>
               </div>
@@ -225,7 +293,7 @@ function ClientesPage() {
                   <TableHead>CPF/CNPJ</TableHead>
                   <TableHead>Telefone</TableHead>
                   <TableHead>E-mail</TableHead>
-                  <TableHead className="w-[120px] text-right">Ações</TableHead>
+                  <TableHead className="w-[170px] text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -255,6 +323,7 @@ function ClientesPage() {
                     <TableCell className="text-right">
                       <Button size="icon" variant="ghost" onClick={() => setProfileClient(c)} title="Ver perfil"><User className="h-4 w-4" /></Button>
                       <Button size="icon" variant="ghost" onClick={() => openEdit(c)}><Pencil className="h-4 w-4" /></Button>
+                      <Button size="icon" variant="ghost" onClick={() => printClientFicha(c)} title="Imprimir ficha"><Printer className="h-4 w-4" /></Button>
                       <Button size="icon" variant="ghost" onClick={() => handleDelete(c)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                     </TableCell>
                   </TableRow>
