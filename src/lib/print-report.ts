@@ -57,13 +57,29 @@ ${opts.sections
   )
   .join("")}
 <footer>Sistema de Gestão de Casos e Financeiro</footer>
-<script>window.onload=function(){window.focus();window.print();}<\/script>
 </body></html>`;
 
-  const win = window.open("", "_blank", "width=1024,height=768");
-  if (!win) return false;
-  win.document.open();
-  win.document.write(html);
-  win.document.close();
-  return true;
+  // Use a hidden iframe: reliable inside embedded previews where window.open is blocked.
+  try {
+    const iframe = document.createElement("iframe");
+    iframe.setAttribute("aria-hidden", "true");
+    iframe.style.position = "fixed";
+    iframe.style.right = "0";
+    iframe.style.bottom = "0";
+    iframe.style.width = "0";
+    iframe.style.height = "0";
+    iframe.style.border = "0";
+    iframe.srcdoc = html;
+    iframe.onload = () => {
+      const win = iframe.contentWindow;
+      if (!win) return;
+      win.focus();
+      win.print();
+      setTimeout(() => iframe.remove(), 60000);
+    };
+    document.body.appendChild(iframe);
+    return true;
+  } catch {
+    return false;
+  }
 }
