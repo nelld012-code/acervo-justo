@@ -194,7 +194,7 @@ function FinanceiroPage() {
                   },
                 ],
               });
-              if (!ok) toast.error("Permita pop-ups para imprimir");
+              if (!ok) toast.error("Não foi possível abrir a impressão");
             }}
           >
             <Printer className="mr-2 h-4 w-4" />Imprimir
