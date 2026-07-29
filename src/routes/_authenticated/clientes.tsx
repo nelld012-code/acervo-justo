@@ -293,7 +293,7 @@ function ClientesPage() {
                   <TableHead>CPF/CNPJ</TableHead>
                   <TableHead>Telefone</TableHead>
                   <TableHead>E-mail</TableHead>
-                  <TableHead className="w-[120px] text-right">Ações</TableHead>
+                  <TableHead className="w-[170px] text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
