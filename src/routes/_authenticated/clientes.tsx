@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import { type Cliente, whatsappLink, formatBRL } from "@/lib/documents";
 import { ReceiptModal, type ReceiptData } from "@/components/receipt-modal";
 import { format } from "date-fns";
+import { printReport } from "@/lib/print-report";
 
 export const Route = createFileRoute("/_authenticated/clientes")({
   head: () => ({ meta: [{ title: "Clientes - Gestão Judicial" }] }),
@@ -119,6 +120,25 @@ function ClientesPage() {
           <h2 className="text-2xl font-bold tracking-tight text-foreground">Clientes</h2>
           <p className="text-sm text-muted-foreground">Cadastro completo com contato direto por WhatsApp.</p>
         </div>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+        <Button
+          variant="outline"
+          className="w-full sm:w-auto"
+          onClick={() => {
+            if (!filtered.length) return toast.error("Nenhum cliente para imprimir");
+            const ok = printReport({
+              title: "Relatório de Clientes",
+              subtitle: `${filtered.length} cliente(s)`,
+              sections: [{
+                columns: ["Nome", "CPF/CNPJ", "Telefone", "E-mail", "Endereço"],
+                rows: filtered.map((c) => [c.nome, c.cpf_cnpj ?? "—", c.telefone, c.email ?? "—", c.endereco ?? "—"]),
+              }],
+            });
+            if (!ok) toast.error("Permita pop-ups para imprimir");
+          }}
+        >
+          <Printer className="mr-2 h-4 w-4" />Imprimir
+        </Button>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
             <Button onClick={openNew} className="w-full bg-primary hover:bg-primary/90 sm:w-auto">
