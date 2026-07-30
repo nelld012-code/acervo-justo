@@ -278,8 +278,8 @@ function ClientesPage() {
                     <MessageCircle className="h-4 w-4" />WhatsApp
                   </a>
                   <Button size="sm" variant="outline" onClick={() => setProfileClient(c)}><User className="mr-1 h-4 w-4" />Ficha</Button>
-                  <Button size="sm" variant="outline" onClick={() => openEdit(c)}><Pencil className="mr-1 h-4 w-4" />Editar</Button>
                   <Button size="sm" variant="outline" onClick={() => printClientFicha(c)}><Printer className="mr-1 h-4 w-4" />Imprimir</Button>
+                  <Button size="sm" variant="outline" onClick={() => openEdit(c)}><Pencil className="mr-1 h-4 w-4" />Editar</Button>
                   <Button size="sm" variant="outline" onClick={() => handleDelete(c)}><Trash2 className="mr-1 h-4 w-4 text-destructive" />Excluir</Button>
                 </div>
               </div>
