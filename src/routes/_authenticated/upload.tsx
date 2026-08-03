@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { UploadCloud, FileText, X } from "lucide-react";
 import { toast } from "sonner";
+import { useProfile } from "@/hooks/use-profile";
 import { TIPOS_DOCUMENTO, MATERIAS, ESTADOS, CONFIDENCIALIDADES, buildStoragePath, logAudit, type Cliente } from "@/lib/documents";
 
 export const Route = createFileRoute("/_authenticated/upload")({
@@ -19,7 +20,18 @@ export const Route = createFileRoute("/_authenticated/upload")({
 
 const ACCEPTED = ["application/pdf", "image/png", "image/jpeg", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"];
 
+
+function AccessDenied({ msg }: { msg: string }) {
+  return (
+    <div className="mx-auto max-w-lg rounded-lg border border-border bg-card p-8 text-center">
+      <h2 className="text-lg font-semibold text-foreground">Acesso restrito</h2>
+      <p className="mt-2 text-sm text-muted-foreground">{msg}</p>
+    </div>
+  );
+}
+
 function UploadPage() {
+  const { perms, isLoading: loadingPerms } = useProfile();
   const navigate = useNavigate();
   const [file, setFile] = useState<File | null>(null);
   const [drag, setDrag] = useState(false);
@@ -193,6 +205,10 @@ function UploadPage() {
       setSubmitting(false);
     }
   }
+
+
+  if (loadingPerms) return null;
+  if (!perms.canManageDocuments) return <AccessDenied msg={"Seu cargo permite apenas a consulta de documentos."} />;
 
   return (
     <div className="mx-auto min-w-0 max-w-4xl space-y-6">

@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogT
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, TrendingUp, TrendingDown, Wallet, Receipt, Pencil, Trash2, Printer } from "lucide-react";
 import { toast } from "sonner";
+import { useProfile } from "@/hooks/use-profile";
 import { CATEGORIAS_DESPESA, METODOS_PAGAMENTO, formatBRL, type Expense, type PaymentRow } from "@/lib/documents";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -27,7 +28,18 @@ export const Route = createFileRoute("/_authenticated/financeiro")({
 
 type PaymentWithDoc = PaymentRow & { documents: { numero_processo: string; cliente: string } | null };
 
+
+function AccessDenied({ msg }: { msg: string }) {
+  return (
+    <div className="mx-auto max-w-lg rounded-lg border border-border bg-card p-8 text-center">
+      <h2 className="text-lg font-semibold text-foreground">Acesso restrito</h2>
+      <p className="mt-2 text-sm text-muted-foreground">{msg}</p>
+    </div>
+  );
+}
+
 function FinanceiroPage() {
+  const { perms, isLoading: loadingPerms } = useProfile();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -146,6 +158,10 @@ function FinanceiroPage() {
       setSaving(false);
     }
   }
+
+
+  if (loadingPerms) return null;
+  if (!perms.canAccessFinance) return <AccessDenied msg={"O módulo financeiro está disponível apenas para administradores e advogados."} />;
 
   return (
     <div className="min-w-0 space-y-6">
