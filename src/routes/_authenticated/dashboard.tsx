@@ -8,6 +8,7 @@ import { BarChart, Bar, LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tool
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { formatBRL } from "@/lib/documents";
+import { WeeklyAgenda } from "@/components/weekly-agenda";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({ meta: [{ title: "Dashboard - Gestão Judicial" }] }),
@@ -127,6 +128,8 @@ function Dashboard() {
           </Card>
         ))}
       </div>
+
+      <WeeklyAgenda />
 
       <div className="grid gap-4 lg:grid-cols-2 [&>*]:min-w-0">
         <Card>
