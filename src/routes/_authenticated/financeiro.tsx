@@ -322,7 +322,7 @@ function FinanceiroPage() {
           <CardContent className="overflow-x-auto p-0">
             <Table>
               <TableHeader>
-                <TableRow><TableHead>Data</TableHead><TableHead>Categoria</TableHead><TableHead>Descrição</TableHead><TableHead className="text-right">Valor</TableHead><TableHead className="w-[90px] text-right">Ações</TableHead></TableRow>
+                <TableRow><TableHead>Data</TableHead><TableHead>Categoria</TableHead><TableHead>Descrição</TableHead><TableHead className="text-right">Valor</TableHead><TableHead className="w-[130px] text-right">Ações</TableHead></TableRow>
               </TableHeader>
               <TableBody>
                 {(expenses ?? []).slice(0, 10).map((e) => (
