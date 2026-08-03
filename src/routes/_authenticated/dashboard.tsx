@@ -129,8 +129,9 @@ function Dashboard() {
         ))}
       </div>
 
+      <WeeklyAgenda />
+
       <div className="grid gap-4 lg:grid-cols-2 [&>*]:min-w-0">
-        {null}
         <Card>
           <CardHeader>
             <CardTitle>Documentos por Mês</CardTitle>
