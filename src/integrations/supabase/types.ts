@@ -313,6 +313,86 @@ export type Database = {
           },
         ]
       }
+      profiles: {
+        Row: {
+          cargo: string
+          created_at: string
+          email: string | null
+          id: string
+          nome: string
+          updated_at: string
+        }
+        Insert: {
+          cargo?: string
+          created_at?: string
+          email?: string | null
+          id: string
+          nome?: string
+          updated_at?: string
+        }
+        Update: {
+          cargo?: string
+          created_at?: string
+          email?: string | null
+          id?: string
+          nome?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      tasks: {
+        Row: {
+          assigned_to: string
+          created_at: string
+          created_by: string | null
+          data_tarefa: string
+          descricao: string | null
+          document_id: string | null
+          hora_tarefa: string | null
+          id: string
+          prioridade: string
+          status: string
+          titulo: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_to: string
+          created_at?: string
+          created_by?: string | null
+          data_tarefa: string
+          descricao?: string | null
+          document_id?: string | null
+          hora_tarefa?: string | null
+          id?: string
+          prioridade?: string
+          status?: string
+          titulo: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_to?: string
+          created_at?: string
+          created_by?: string | null
+          data_tarefa?: string
+          descricao?: string | null
+          document_id?: string | null
+          hora_tarefa?: string | null
+          id?: string
+          prioridade?: string
+          status?: string
+          titulo?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tasks_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string
