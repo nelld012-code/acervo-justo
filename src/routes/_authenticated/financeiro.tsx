@@ -15,6 +15,7 @@ import { CATEGORIAS_DESPESA, METODOS_PAGAMENTO, formatBRL, type Expense, type Pa
 import { format, startOfMonth, endOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { printReport } from "@/lib/print-report";
+import { printExpenseVoucher } from "@/lib/print-expense";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, LineChart, Line,
 } from "recharts";
@@ -331,6 +332,17 @@ function FinanceiroPage() {
                     <TableCell>{e.descricao}</TableCell>
                     <TableCell className="text-right font-mono font-semibold text-destructive">{formatBRL(Number(e.valor))}</TableCell>
                     <TableCell className="text-right whitespace-nowrap">
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        title="Imprimir comprovante"
+                        onClick={() => {
+                          const ok = printExpenseVoucher(e);
+                          if (!ok) toast.error("Não foi possível abrir a impressão");
+                        }}
+                      >
+                        <Printer className="h-4 w-4" />
+                      </Button>
                       <Button size="icon" variant="ghost" title="Editar" onClick={() => setEditExpense(e)}><Pencil className="h-4 w-4" /></Button>
                       <Button size="icon" variant="ghost" title="Excluir" onClick={() => handleDeleteExpense(e)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                     </TableCell>
