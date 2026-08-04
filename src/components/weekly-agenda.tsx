@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { addDays, format, startOfWeek, isSameDay, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { CalendarPlus, Check, ChevronLeft, ChevronRight, Trash2, Undo2 } from "lucide-react";
+import { CalendarPlus, Check, ChevronLeft, ChevronRight, Printer, Trash2, Undo2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useProfile, CARGO_LABELS, type Cargo } from "@/hooks/use-profile";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,8 +14,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { printReport } from "@/lib/print-report";
 
 const PRIORIDADE_LABEL: Record<string, string> = { baixa: "Baixa", media: "Média", alta: "Alta" };
+const STATUS_LABEL: Record<string, string> = { pendente: "Pendente", concluida: "Concluída", cancelada: "Cancelada" };
 const PRIORIDADE_CLASS: Record<string, string> = {
   baixa: "border-slate-500/40 text-slate-300",
   media: "border-indigo-400/50 text-indigo-300",
