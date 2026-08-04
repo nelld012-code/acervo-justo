@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
 import { Plus, Pencil, Trash2, MessageCircle, User, Printer } from "lucide-react";
 import { toast } from "sonner";
-import { type Cliente, whatsappLink, formatBRL } from "@/lib/documents";
+import { type Cliente, whatsappLink, formatBRL, ESTADOS_CIVIS } from "@/lib/documents";
 import { ReceiptModal, type ReceiptData } from "@/components/receipt-modal";
 import { format } from "date-fns";
 import { printReport } from "@/lib/print-report";
@@ -21,8 +21,20 @@ export const Route = createFileRoute("/_authenticated/clientes")({
   component: ClientesPage,
 });
 
-type FormState = { nome: string; cpf_cnpj: string; email: string; telefone: string; endereco: string; observacoes: string };
-const emptyForm: FormState = { nome: "", cpf_cnpj: "", email: "", telefone: "", endereco: "", observacoes: "" };
+type FormState = {
+  nome: string; cpf_cnpj: string; email: string; telefone: string; endereco: string; observacoes: string;
+  data_atendimento: string; rg: string; estado_civil: string; profissao: string; bairro: string; cidade: string;
+  reu_nome: string; reu_rg_cnpj: string; reu_estado_civil: string; reu_profissao: string;
+  reu_endereco: string; reu_bairro: string; reu_cidade: string;
+  resumo_atendimento: string; tipo_acao: string; numero_processo: string;
+};
+const emptyForm: FormState = {
+  nome: "", cpf_cnpj: "", email: "", telefone: "", endereco: "", observacoes: "",
+  data_atendimento: "", rg: "", estado_civil: "", profissao: "", bairro: "", cidade: "",
+  reu_nome: "", reu_rg_cnpj: "", reu_estado_civil: "", reu_profissao: "",
+  reu_endereco: "", reu_bairro: "", reu_cidade: "",
+  resumo_atendimento: "", tipo_acao: "", numero_processo: "",
+};
 
 function ClientesPage() {
   const qc = useQueryClient();
@@ -69,6 +81,22 @@ function ClientesPage() {
       telefone: c.telefone,
       endereco: c.endereco ?? "",
       observacoes: c.observacoes ?? "",
+      data_atendimento: c.data_atendimento ?? "",
+      rg: c.rg ?? "",
+      estado_civil: c.estado_civil ?? "",
+      profissao: c.profissao ?? "",
+      bairro: c.bairro ?? "",
+      cidade: c.cidade ?? "",
+      reu_nome: c.reu_nome ?? "",
+      reu_rg_cnpj: c.reu_rg_cnpj ?? "",
+      reu_estado_civil: c.reu_estado_civil ?? "",
+      reu_profissao: c.reu_profissao ?? "",
+      reu_endereco: c.reu_endereco ?? "",
+      reu_bairro: c.reu_bairro ?? "",
+      reu_cidade: c.reu_cidade ?? "",
+      resumo_atendimento: c.resumo_atendimento ?? "",
+      tipo_acao: c.tipo_acao ?? "",
+      numero_processo: c.numero_processo ?? "",
     });
     setOpen(true);
   }
@@ -79,6 +107,7 @@ function ClientesPage() {
     setSaving(true);
     try {
       const { data: userData } = await supabase.auth.getUser();
+      const nn = (v: string) => (v.trim() ? v.trim() : null);
       const payload = {
         nome: form.nome.trim(),
         cpf_cnpj: form.cpf_cnpj.trim() || null,
@@ -86,6 +115,22 @@ function ClientesPage() {
         telefone: form.telefone.trim(),
         endereco: form.endereco.trim() || null,
         observacoes: form.observacoes.trim() || null,
+        data_atendimento: form.data_atendimento || null,
+        rg: nn(form.rg),
+        estado_civil: nn(form.estado_civil),
+        profissao: nn(form.profissao),
+        bairro: nn(form.bairro),
+        cidade: nn(form.cidade),
+        reu_nome: nn(form.reu_nome),
+        reu_rg_cnpj: nn(form.reu_rg_cnpj),
+        reu_estado_civil: nn(form.reu_estado_civil),
+        reu_profissao: nn(form.reu_profissao),
+        reu_endereco: nn(form.reu_endereco),
+        reu_bairro: nn(form.reu_bairro),
+        reu_cidade: nn(form.reu_cidade),
+        resumo_atendimento: nn(form.resumo_atendimento),
+        tipo_acao: nn(form.tipo_acao),
+        numero_processo: nn(form.numero_processo),
       };
       if (editing) {
         const { error } = await supabase.from("clients").update(payload).eq("id", editing.id);
