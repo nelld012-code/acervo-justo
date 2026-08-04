@@ -59,7 +59,31 @@ export type Cliente = {
   endereco: string | null;
   observacoes: string | null;
   created_at: string;
+  data_atendimento?: string | null;
+  rg?: string | null;
+  estado_civil?: string | null;
+  profissao?: string | null;
+  bairro?: string | null;
+  cidade?: string | null;
+  reu_nome?: string | null;
+  reu_rg_cnpj?: string | null;
+  reu_estado_civil?: string | null;
+  reu_profissao?: string | null;
+  reu_endereco?: string | null;
+  reu_bairro?: string | null;
+  reu_cidade?: string | null;
+  resumo_atendimento?: string | null;
+  tipo_acao?: string | null;
+  numero_processo?: string | null;
 };
+
+export const ESTADOS_CIVIS = [
+  "Solteiro(a)",
+  "Casado(a)",
+  "Divorciado(a)",
+  "Viúvo(a)",
+  "União estável",
+] as const;
 
 export const METODOS_PAGAMENTO = [
   "PIX",
