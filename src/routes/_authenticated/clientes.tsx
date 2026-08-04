@@ -261,33 +261,142 @@ function ClientesPage() {
             <DialogHeader>
               <DialogTitle>{editing ? "Editar Cliente" : "Novo Cliente"}</DialogTitle>
             </DialogHeader>
-            <div className="grid gap-3">
-              <div className="space-y-1.5">
-                <Label>Nome *</Label>
-                <Input value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} />
-              </div>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <div className="space-y-1.5">
-                  <Label>CPF / CNPJ</Label>
-                  <Input value={form.cpf_cnpj} onChange={(e) => setForm({ ...form, cpf_cnpj: e.target.value })} />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Telefone *</Label>
-                  <Input value={form.telefone} onChange={(e) => setForm({ ...form, telefone: e.target.value })} placeholder="(11) 91234-5678" />
-                </div>
-              </div>
-              <div className="space-y-1.5">
-                <Label>E-mail</Label>
-                <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Endereço</Label>
-                <Input value={form.endereco} onChange={(e) => setForm({ ...form, endereco: e.target.value })} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Observações</Label>
-                <Textarea value={form.observacoes} onChange={(e) => setForm({ ...form, observacoes: e.target.value })} />
-              </div>
+            <div className="grid gap-4">
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm">Dados do autor</CardTitle>
+                </CardHeader>
+                <CardContent className="grid gap-3">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div className="space-y-1.5">
+                      <Label>Nome *</Label>
+                      <Input value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Data do atendimento</Label>
+                      <Input type="date" value={form.data_atendimento} onChange={(e) => setForm({ ...form, data_atendimento: e.target.value })} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>RG</Label>
+                      <Input value={form.rg} onChange={(e) => setForm({ ...form, rg: e.target.value })} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>CPF / CNPJ</Label>
+                      <Input value={form.cpf_cnpj} onChange={(e) => setForm({ ...form, cpf_cnpj: e.target.value })} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Estado civil</Label>
+                      <select
+                        className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                        value={form.estado_civil}
+                        onChange={(e) => setForm({ ...form, estado_civil: e.target.value })}
+                      >
+                        <option value="">Selecione...</option>
+                        {ESTADOS_CIVIS.map((s) => <option key={s} value={s}>{s}</option>)}
+                      </select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Profissão</Label>
+                      <Input value={form.profissao} onChange={(e) => setForm({ ...form, profissao: e.target.value })} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Telefone *</Label>
+                      <Input value={form.telefone} onChange={(e) => setForm({ ...form, telefone: e.target.value })} placeholder="(11) 91234-5678" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>E-mail</Label>
+                      <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Endereço</Label>
+                    <Input value={form.endereco} onChange={(e) => setForm({ ...form, endereco: e.target.value })} />
+                  </div>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div className="space-y-1.5">
+                      <Label>Bairro</Label>
+                      <Input value={form.bairro} onChange={(e) => setForm({ ...form, bairro: e.target.value })} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Cidade</Label>
+                      <Input value={form.cidade} onChange={(e) => setForm({ ...form, cidade: e.target.value })} />
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Observações</Label>
+                    <Textarea value={form.observacoes} onChange={(e) => setForm({ ...form, observacoes: e.target.value })} />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm">Dados do réu <span className="font-normal text-muted-foreground">(opcional)</span></CardTitle>
+                </CardHeader>
+                <CardContent className="grid gap-3">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div className="space-y-1.5">
+                      <Label>Nome do réu</Label>
+                      <Input value={form.reu_nome} onChange={(e) => setForm({ ...form, reu_nome: e.target.value })} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>RG / CNPJ</Label>
+                      <Input value={form.reu_rg_cnpj} onChange={(e) => setForm({ ...form, reu_rg_cnpj: e.target.value })} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Estado civil</Label>
+                      <select
+                        className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                        value={form.reu_estado_civil}
+                        onChange={(e) => setForm({ ...form, reu_estado_civil: e.target.value })}
+                      >
+                        <option value="">Selecione...</option>
+                        {ESTADOS_CIVIS.map((s) => <option key={s} value={s}>{s}</option>)}
+                      </select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Profissão</Label>
+                      <Input value={form.reu_profissao} onChange={(e) => setForm({ ...form, reu_profissao: e.target.value })} />
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Endereço</Label>
+                    <Input value={form.reu_endereco} onChange={(e) => setForm({ ...form, reu_endereco: e.target.value })} />
+                  </div>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div className="space-y-1.5">
+                      <Label>Bairro</Label>
+                      <Input value={form.reu_bairro} onChange={(e) => setForm({ ...form, reu_bairro: e.target.value })} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Cidade</Label>
+                      <Input value={form.reu_cidade} onChange={(e) => setForm({ ...form, reu_cidade: e.target.value })} />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm">Resumo do atendimento</CardTitle>
+                </CardHeader>
+                <CardContent className="grid gap-3">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div className="space-y-1.5">
+                      <Label>Tipo de ação / proposta</Label>
+                      <Input value={form.tipo_acao} onChange={(e) => setForm({ ...form, tipo_acao: e.target.value })} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Número do processo (se houver)</Label>
+                      <Input value={form.numero_processo} onChange={(e) => setForm({ ...form, numero_processo: e.target.value })} />
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Resumo</Label>
+                    <Textarea rows={4} value={form.resumo_atendimento} onChange={(e) => setForm({ ...form, resumo_atendimento: e.target.value })} />
+                  </div>
+                </CardContent>
+              </Card>
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
