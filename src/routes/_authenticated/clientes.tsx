@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
 import { Plus, Pencil, Trash2, MessageCircle, User, Printer } from "lucide-react";
 import { toast } from "sonner";
-import { type Cliente, whatsappLink, formatBRL } from "@/lib/documents";
+import { type Cliente, whatsappLink, formatBRL, ESTADOS_CIVIS } from "@/lib/documents";
 import { ReceiptModal, type ReceiptData } from "@/components/receipt-modal";
 import { format } from "date-fns";
 import { printReport } from "@/lib/print-report";
@@ -21,8 +21,20 @@ export const Route = createFileRoute("/_authenticated/clientes")({
   component: ClientesPage,
 });
 
-type FormState = { nome: string; cpf_cnpj: string; email: string; telefone: string; endereco: string; observacoes: string };
-const emptyForm: FormState = { nome: "", cpf_cnpj: "", email: "", telefone: "", endereco: "", observacoes: "" };
+type FormState = {
+  nome: string; cpf_cnpj: string; email: string; telefone: string; endereco: string; observacoes: string;
+  data_atendimento: string; rg: string; estado_civil: string; profissao: string; bairro: string; cidade: string;
+  reu_nome: string; reu_rg_cnpj: string; reu_estado_civil: string; reu_profissao: string;
+  reu_endereco: string; reu_bairro: string; reu_cidade: string;
+  resumo_atendimento: string; tipo_acao: string; numero_processo: string;
+};
+const emptyForm: FormState = {
+  nome: "", cpf_cnpj: "", email: "", telefone: "", endereco: "", observacoes: "",
+  data_atendimento: "", rg: "", estado_civil: "", profissao: "", bairro: "", cidade: "",
+  reu_nome: "", reu_rg_cnpj: "", reu_estado_civil: "", reu_profissao: "",
+  reu_endereco: "", reu_bairro: "", reu_cidade: "",
+  resumo_atendimento: "", tipo_acao: "", numero_processo: "",
+};
 
 function ClientesPage() {
   const qc = useQueryClient();
@@ -69,6 +81,22 @@ function ClientesPage() {
       telefone: c.telefone,
       endereco: c.endereco ?? "",
       observacoes: c.observacoes ?? "",
+      data_atendimento: c.data_atendimento ?? "",
+      rg: c.rg ?? "",
+      estado_civil: c.estado_civil ?? "",
+      profissao: c.profissao ?? "",
+      bairro: c.bairro ?? "",
+      cidade: c.cidade ?? "",
+      reu_nome: c.reu_nome ?? "",
+      reu_rg_cnpj: c.reu_rg_cnpj ?? "",
+      reu_estado_civil: c.reu_estado_civil ?? "",
+      reu_profissao: c.reu_profissao ?? "",
+      reu_endereco: c.reu_endereco ?? "",
+      reu_bairro: c.reu_bairro ?? "",
+      reu_cidade: c.reu_cidade ?? "",
+      resumo_atendimento: c.resumo_atendimento ?? "",
+      tipo_acao: c.tipo_acao ?? "",
+      numero_processo: c.numero_processo ?? "",
     });
     setOpen(true);
   }
@@ -79,6 +107,7 @@ function ClientesPage() {
     setSaving(true);
     try {
       const { data: userData } = await supabase.auth.getUser();
+      const nn = (v: string) => (v.trim() ? v.trim() : null);
       const payload = {
         nome: form.nome.trim(),
         cpf_cnpj: form.cpf_cnpj.trim() || null,
@@ -86,6 +115,22 @@ function ClientesPage() {
         telefone: form.telefone.trim(),
         endereco: form.endereco.trim() || null,
         observacoes: form.observacoes.trim() || null,
+        data_atendimento: form.data_atendimento || null,
+        rg: nn(form.rg),
+        estado_civil: nn(form.estado_civil),
+        profissao: nn(form.profissao),
+        bairro: nn(form.bairro),
+        cidade: nn(form.cidade),
+        reu_nome: nn(form.reu_nome),
+        reu_rg_cnpj: nn(form.reu_rg_cnpj),
+        reu_estado_civil: nn(form.reu_estado_civil),
+        reu_profissao: nn(form.reu_profissao),
+        reu_endereco: nn(form.reu_endereco),
+        reu_bairro: nn(form.reu_bairro),
+        reu_cidade: nn(form.reu_cidade),
+        resumo_atendimento: nn(form.resumo_atendimento),
+        tipo_acao: nn(form.tipo_acao),
+        numero_processo: nn(form.numero_processo),
       };
       if (editing) {
         const { error } = await supabase.from("clients").update(payload).eq("id", editing.id);
@@ -139,15 +184,43 @@ function ClientesPage() {
       ],
       sections: [
         {
-          heading: "Dados cadastrais",
+          heading: "Dados do autor",
           columns: ["Campo", "Valor"],
           rows: [
+            ["Data do atendimento", c.data_atendimento ? format(new Date(c.data_atendimento + "T00:00:00"), "dd/MM/yyyy") : "—"],
             ["Nome", c.nome],
+            ["RG", c.rg ?? "—"],
             ["CPF/CNPJ", c.cpf_cnpj ?? "—"],
+            ["Estado civil", c.estado_civil ?? "—"],
+            ["Profissão", c.profissao ?? "—"],
             ["Telefone", c.telefone],
             ["E-mail", c.email ?? "—"],
             ["Endereço", c.endereco ?? "—"],
+            ["Bairro", c.bairro ?? "—"],
+            ["Cidade", c.cidade ?? "—"],
             ["Observações", c.observacoes ?? "—"],
+          ],
+        },
+        {
+          heading: "Dados do réu",
+          columns: ["Campo", "Valor"],
+          rows: [
+            ["Nome", c.reu_nome ?? "—"],
+            ["RG/CNPJ", c.reu_rg_cnpj ?? "—"],
+            ["Estado civil", c.reu_estado_civil ?? "—"],
+            ["Profissão", c.reu_profissao ?? "—"],
+            ["Endereço", c.reu_endereco ?? "—"],
+            ["Bairro", c.reu_bairro ?? "—"],
+            ["Cidade", c.reu_cidade ?? "—"],
+          ],
+        },
+        {
+          heading: "Resumo do atendimento",
+          columns: ["Campo", "Valor"],
+          rows: [
+            ["Tipo de ação / proposta", c.tipo_acao ?? "—"],
+            ["Número do processo", c.numero_processo ?? "—"],
+            ["Resumo", c.resumo_atendimento ?? "—"],
           ],
         },
         {
@@ -216,33 +289,142 @@ function ClientesPage() {
             <DialogHeader>
               <DialogTitle>{editing ? "Editar Cliente" : "Novo Cliente"}</DialogTitle>
             </DialogHeader>
-            <div className="grid gap-3">
-              <div className="space-y-1.5">
-                <Label>Nome *</Label>
-                <Input value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} />
-              </div>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <div className="space-y-1.5">
-                  <Label>CPF / CNPJ</Label>
-                  <Input value={form.cpf_cnpj} onChange={(e) => setForm({ ...form, cpf_cnpj: e.target.value })} />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Telefone *</Label>
-                  <Input value={form.telefone} onChange={(e) => setForm({ ...form, telefone: e.target.value })} placeholder="(11) 91234-5678" />
-                </div>
-              </div>
-              <div className="space-y-1.5">
-                <Label>E-mail</Label>
-                <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Endereço</Label>
-                <Input value={form.endereco} onChange={(e) => setForm({ ...form, endereco: e.target.value })} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Observações</Label>
-                <Textarea value={form.observacoes} onChange={(e) => setForm({ ...form, observacoes: e.target.value })} />
-              </div>
+            <div className="grid gap-4">
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm">Dados do autor</CardTitle>
+                </CardHeader>
+                <CardContent className="grid gap-3">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div className="space-y-1.5">
+                      <Label>Nome *</Label>
+                      <Input value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Data do atendimento</Label>
+                      <Input type="date" value={form.data_atendimento} onChange={(e) => setForm({ ...form, data_atendimento: e.target.value })} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>RG</Label>
+                      <Input value={form.rg} onChange={(e) => setForm({ ...form, rg: e.target.value })} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>CPF / CNPJ</Label>
+                      <Input value={form.cpf_cnpj} onChange={(e) => setForm({ ...form, cpf_cnpj: e.target.value })} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Estado civil</Label>
+                      <select
+                        className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                        value={form.estado_civil}
+                        onChange={(e) => setForm({ ...form, estado_civil: e.target.value })}
+                      >
+                        <option value="">Selecione...</option>
+                        {ESTADOS_CIVIS.map((s) => <option key={s} value={s}>{s}</option>)}
+                      </select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Profissão</Label>
+                      <Input value={form.profissao} onChange={(e) => setForm({ ...form, profissao: e.target.value })} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Telefone *</Label>
+                      <Input value={form.telefone} onChange={(e) => setForm({ ...form, telefone: e.target.value })} placeholder="(11) 91234-5678" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>E-mail</Label>
+                      <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Endereço</Label>
+                    <Input value={form.endereco} onChange={(e) => setForm({ ...form, endereco: e.target.value })} />
+                  </div>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div className="space-y-1.5">
+                      <Label>Bairro</Label>
+                      <Input value={form.bairro} onChange={(e) => setForm({ ...form, bairro: e.target.value })} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Cidade</Label>
+                      <Input value={form.cidade} onChange={(e) => setForm({ ...form, cidade: e.target.value })} />
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Observações</Label>
+                    <Textarea value={form.observacoes} onChange={(e) => setForm({ ...form, observacoes: e.target.value })} />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm">Dados do réu <span className="font-normal text-muted-foreground">(opcional)</span></CardTitle>
+                </CardHeader>
+                <CardContent className="grid gap-3">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div className="space-y-1.5">
+                      <Label>Nome do réu</Label>
+                      <Input value={form.reu_nome} onChange={(e) => setForm({ ...form, reu_nome: e.target.value })} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>RG / CNPJ</Label>
+                      <Input value={form.reu_rg_cnpj} onChange={(e) => setForm({ ...form, reu_rg_cnpj: e.target.value })} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Estado civil</Label>
+                      <select
+                        className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                        value={form.reu_estado_civil}
+                        onChange={(e) => setForm({ ...form, reu_estado_civil: e.target.value })}
+                      >
+                        <option value="">Selecione...</option>
+                        {ESTADOS_CIVIS.map((s) => <option key={s} value={s}>{s}</option>)}
+                      </select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Profissão</Label>
+                      <Input value={form.reu_profissao} onChange={(e) => setForm({ ...form, reu_profissao: e.target.value })} />
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Endereço</Label>
+                    <Input value={form.reu_endereco} onChange={(e) => setForm({ ...form, reu_endereco: e.target.value })} />
+                  </div>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div className="space-y-1.5">
+                      <Label>Bairro</Label>
+                      <Input value={form.reu_bairro} onChange={(e) => setForm({ ...form, reu_bairro: e.target.value })} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Cidade</Label>
+                      <Input value={form.reu_cidade} onChange={(e) => setForm({ ...form, reu_cidade: e.target.value })} />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm">Resumo do atendimento</CardTitle>
+                </CardHeader>
+                <CardContent className="grid gap-3">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div className="space-y-1.5">
+                      <Label>Tipo de ação / proposta</Label>
+                      <Input value={form.tipo_acao} onChange={(e) => setForm({ ...form, tipo_acao: e.target.value })} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Número do processo (se houver)</Label>
+                      <Input value={form.numero_processo} onChange={(e) => setForm({ ...form, numero_processo: e.target.value })} />
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Resumo</Label>
+                    <Textarea rows={4} value={form.resumo_atendimento} onChange={(e) => setForm({ ...form, resumo_atendimento: e.target.value })} />
+                  </div>
+                </CardContent>
+              </Card>
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
