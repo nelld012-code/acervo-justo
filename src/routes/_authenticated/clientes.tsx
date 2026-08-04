@@ -184,15 +184,43 @@ function ClientesPage() {
       ],
       sections: [
         {
-          heading: "Dados cadastrais",
+          heading: "Dados do autor",
           columns: ["Campo", "Valor"],
           rows: [
+            ["Data do atendimento", c.data_atendimento ? format(new Date(c.data_atendimento + "T00:00:00"), "dd/MM/yyyy") : "—"],
             ["Nome", c.nome],
+            ["RG", c.rg ?? "—"],
             ["CPF/CNPJ", c.cpf_cnpj ?? "—"],
+            ["Estado civil", c.estado_civil ?? "—"],
+            ["Profissão", c.profissao ?? "—"],
             ["Telefone", c.telefone],
             ["E-mail", c.email ?? "—"],
             ["Endereço", c.endereco ?? "—"],
+            ["Bairro", c.bairro ?? "—"],
+            ["Cidade", c.cidade ?? "—"],
             ["Observações", c.observacoes ?? "—"],
+          ],
+        },
+        {
+          heading: "Dados do réu",
+          columns: ["Campo", "Valor"],
+          rows: [
+            ["Nome", c.reu_nome ?? "—"],
+            ["RG/CNPJ", c.reu_rg_cnpj ?? "—"],
+            ["Estado civil", c.reu_estado_civil ?? "—"],
+            ["Profissão", c.reu_profissao ?? "—"],
+            ["Endereço", c.reu_endereco ?? "—"],
+            ["Bairro", c.reu_bairro ?? "—"],
+            ["Cidade", c.reu_cidade ?? "—"],
+          ],
+        },
+        {
+          heading: "Resumo do atendimento",
+          columns: ["Campo", "Valor"],
+          rows: [
+            ["Tipo de ação / proposta", c.tipo_acao ?? "—"],
+            ["Número do processo", c.numero_processo ?? "—"],
+            ["Resumo", c.resumo_atendimento ?? "—"],
           ],
         },
         {
