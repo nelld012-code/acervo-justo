@@ -70,6 +70,66 @@ export function WeeklyAgenda() {
 
   const teamMap = new Map((team ?? []).map((t) => [t.id, t]));
 
+  type AgendaTask = NonNullable<typeof tasks>[number];
+
+  function responsavel(t: AgendaTask) {
+    if (t.assigned_to === profile?.id) return profile?.nome || profile?.email || "Você";
+    const m = teamMap.get(t.assigned_to);
+    return m?.nome || m?.email || "Equipe";
+  }
+
+  function taskRow(t: AgendaTask) {
+    return [
+      format(parseISO(t.data_tarefa), "dd/MM/yyyy"),
+      t.hora_tarefa ? String(t.hora_tarefa).slice(0, 5) : "—",
+      t.titulo,
+      t.descricao ?? "—",
+      PRIORIDADE_LABEL[t.prioridade] ?? t.prioridade,
+      STATUS_LABEL[t.status] ?? t.status,
+      responsavel(t),
+    ];
+  }
+
+  const COLUMNS = ["Data", "Hora", "Atividade", "Descrição", "Prioridade", "Status", "Responsável"];
+
+  function printWeek() {
+    const list = [...(tasks ?? [])].sort((a, b) =>
+      a.data_tarefa === b.data_tarefa
+        ? String(a.hora_tarefa ?? "").localeCompare(String(b.hora_tarefa ?? ""))
+        : a.data_tarefa.localeCompare(b.data_tarefa),
+    );
+    const ok = printReport({
+      title: "Agenda Semanal",
+      subtitle: `${format(weekStart, "dd/MM/yyyy")} a ${format(addDays(weekStart, 6), "dd/MM/yyyy")}`,
+      summary: [
+        { label: "Atividades", value: String(list.length) },
+        { label: "Pendentes", value: String(list.filter((t) => t.status === "pendente").length) },
+        { label: "Concluídas", value: String(list.filter((t) => t.status === "concluida").length) },
+      ],
+      sections: [{ columns: COLUMNS, rows: list.map(taskRow) }],
+    });
+    if (!ok) toast.error("Não foi possível abrir a impressão");
+  }
+
+  function printDay(day: Date, dayTasks: AgendaTask[]) {
+    const ok = printReport({
+      title: `Agenda de ${format(day, "dd/MM/yyyy")}`,
+      subtitle: format(day, "EEEE", { locale: ptBR }),
+      summary: [{ label: "Atividades", value: String(dayTasks.length) }],
+      sections: [{ columns: COLUMNS, rows: dayTasks.map(taskRow) }],
+    });
+    if (!ok) toast.error("Não foi possível abrir a impressão");
+  }
+
+  function printTask(t: AgendaTask) {
+    const ok = printReport({
+      title: "Atividade da Agenda",
+      subtitle: t.titulo,
+      sections: [{ columns: COLUMNS, rows: [taskRow(t)] }],
+    });
+    if (!ok) toast.error("Não foi possível abrir a impressão");
+  }
+
   const createTask = useMutation({
     mutationFn: async () => {
       if (!profile) throw new Error("Perfil não encontrado");
@@ -131,6 +191,9 @@ export function WeeklyAgenda() {
           <Button variant="outline" size="sm" onClick={() => setWeekOffset(0)}>Hoje</Button>
           <Button variant="outline" size="icon" aria-label="Próxima semana" onClick={() => setWeekOffset((w) => w + 1)}>
             <ChevronRight className="h-4 w-4" />
+          </Button>
+          <Button variant="outline" size="sm" onClick={printWeek}>
+            <Printer className="mr-2 h-4 w-4" /> Imprimir semana
           </Button>
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
@@ -209,7 +272,19 @@ export function WeeklyAgenda() {
                   <span className="text-xs font-semibold uppercase text-muted-foreground">
                     {format(day, "EEE", { locale: ptBR })}
                   </span>
-                  <span className={`text-sm font-bold ${today ? "text-primary" : "text-foreground"}`}>{format(day, "dd")}</span>
+                  <span className="flex items-center gap-1">
+                    <span className={`text-sm font-bold ${today ? "text-primary" : "text-foreground"}`}>{format(day, "dd")}</span>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6"
+                      aria-label={`Imprimir agenda de ${format(day, "dd/MM")}`}
+                      title="Imprimir dia"
+                      onClick={() => printDay(day, dayTasks)}
+                    >
+                      <Printer className="h-3.5 w-3.5" />
+                    </Button>
+                  </span>
                 </div>
                 <div className="space-y-2">
                   {dayTasks.length === 0 && <p className="text-xs text-muted-foreground">—</p>}
@@ -226,6 +301,16 @@ export function WeeklyAgenda() {
                         </div>
                       )}
                       <div className="mt-2 flex gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7"
+                          aria-label="Imprimir atividade"
+                          title="Imprimir"
+                          onClick={() => printTask(t)}
+                        >
+                          <Printer className="h-3.5 w-3.5" />
+                        </Button>
                         <Button
                           variant="ghost"
                           size="icon"
