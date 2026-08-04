@@ -54,39 +54,87 @@ export type Database = {
       }
       clients: {
         Row: {
+          bairro: string | null
+          cidade: string | null
           cpf_cnpj: string | null
           created_at: string
           created_by: string | null
+          data_atendimento: string | null
           email: string | null
           endereco: string | null
+          estado_civil: string | null
           id: string
           nome: string
+          numero_processo: string | null
           observacoes: string | null
+          profissao: string | null
+          resumo_atendimento: string | null
+          reu_bairro: string | null
+          reu_cidade: string | null
+          reu_endereco: string | null
+          reu_estado_civil: string | null
+          reu_nome: string | null
+          reu_profissao: string | null
+          reu_rg_cnpj: string | null
+          rg: string | null
           telefone: string
+          tipo_acao: string | null
           updated_at: string
         }
         Insert: {
+          bairro?: string | null
+          cidade?: string | null
           cpf_cnpj?: string | null
           created_at?: string
           created_by?: string | null
+          data_atendimento?: string | null
           email?: string | null
           endereco?: string | null
+          estado_civil?: string | null
           id?: string
           nome: string
+          numero_processo?: string | null
           observacoes?: string | null
+          profissao?: string | null
+          resumo_atendimento?: string | null
+          reu_bairro?: string | null
+          reu_cidade?: string | null
+          reu_endereco?: string | null
+          reu_estado_civil?: string | null
+          reu_nome?: string | null
+          reu_profissao?: string | null
+          reu_rg_cnpj?: string | null
+          rg?: string | null
           telefone: string
+          tipo_acao?: string | null
           updated_at?: string
         }
         Update: {
+          bairro?: string | null
+          cidade?: string | null
           cpf_cnpj?: string | null
           created_at?: string
           created_by?: string | null
+          data_atendimento?: string | null
           email?: string | null
           endereco?: string | null
+          estado_civil?: string | null
           id?: string
           nome?: string
+          numero_processo?: string | null
           observacoes?: string | null
+          profissao?: string | null
+          resumo_atendimento?: string | null
+          reu_bairro?: string | null
+          reu_cidade?: string | null
+          reu_endereco?: string | null
+          reu_estado_civil?: string | null
+          reu_nome?: string | null
+          reu_profissao?: string | null
+          reu_rg_cnpj?: string | null
+          rg?: string | null
           telefone?: string
+          tipo_acao?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -320,6 +368,7 @@ export type Database = {
           email: string | null
           id: string
           nome: string
+          telefone: string | null
           updated_at: string
         }
         Insert: {
@@ -328,6 +377,7 @@ export type Database = {
           email?: string | null
           id: string
           nome?: string
+          telefone?: string | null
           updated_at?: string
         }
         Update: {
@@ -336,6 +386,7 @@ export type Database = {
           email?: string | null
           id?: string
           nome?: string
+          telefone?: string | null
           updated_at?: string
         }
         Relationships: []
