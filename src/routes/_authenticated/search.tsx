@@ -12,10 +12,15 @@ import { Card, CardContent } from "@/components/ui/card";
 import { DocumentDetailSheet } from "@/components/document-detail-sheet";
 import { TIPOS_DOCUMENTO, ESTADOS, type Documento, badgeVariantForStatus } from "@/lib/documents";
 import { format } from "date-fns";
-import { Search as SearchIcon, X } from "lucide-react";
-import { Printer } from "lucide-react";
+import { Search as SearchIcon, X, Pencil, Trash2, UploadCloud, Printer } from "lucide-react";
 import { toast } from "sonner";
 import { printReport } from "@/lib/print-report";
+import {
+  DocumentEditDialog,
+  DocumentDeleteDialog,
+  DocumentUploadDialog,
+  useDocumentRowActions,
+} from "@/components/document-row-actions";
 
 export const Route = createFileRoute("/_authenticated/search")({
   head: () => ({ meta: [{ title: "Buscar Documentos - Gestão Judicial" }] }),
@@ -35,6 +40,7 @@ function SearchPage() {
   const [exact, setExact] = useState(false);
   const [page, setPage] = useState(0);
   const [selected, setSelected] = useState<Documento | null>(null);
+  const actions = useDocumentRowActions([["docs"], ["my-docs"], ["dashboard-docs"]]);
 
   const { data, isLoading } = useQuery({
     queryKey: ["docs", { q, advogado, numero, tipo, estado, dateFrom, dateTo, exact, page }],
@@ -189,9 +195,20 @@ function SearchPage() {
                   <p className="break-words text-xs text-muted-foreground">{d.advogado} · {format(new Date(d.data_documento), "dd/MM/yyyy")} · v{d.current_version}</p>
                   <p className="font-mono text-xs text-muted-foreground">{d.internal_id}</p>
                   </button>
-                  <Button size="sm" variant="outline" className="mt-2" onClick={() => printOne(d)}>
-                    <Printer className="mr-1 h-4 w-4" />Imprimir
-                  </Button>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <Button size="sm" variant="outline" title="Editar documento" onClick={() => actions.setEditing(d)}>
+                      <Pencil className="mr-1 h-4 w-4" />Editar
+                    </Button>
+                    <Button size="sm" variant="outline" title="Excluir documento" onClick={() => actions.setDeleting(d)}>
+                      <Trash2 className="mr-1 h-4 w-4" />Excluir
+                    </Button>
+                    <Button size="sm" variant="outline" title="Anexar arquivo" onClick={() => actions.setUploading(d)}>
+                      <UploadCloud className="mr-1 h-4 w-4" />Enviar
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => printOne(d)}>
+                      <Printer className="mr-1 h-4 w-4" />Imprimir
+                    </Button>
+                  </div>
                 </div>
               ))
             ) : (
@@ -210,7 +227,7 @@ function SearchPage() {
                 <TableHead>Data</TableHead>
                 <TableHead>Estado</TableHead>
                 <TableHead>Versão</TableHead>
-                <TableHead className="text-right">Imprimir</TableHead>
+                <TableHead className="text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -228,14 +245,20 @@ function SearchPage() {
                     <TableCell><Badge variant={badgeVariantForStatus(d.estado_processual)}>{d.estado_processual}</Badge></TableCell>
                     <TableCell>v{d.current_version}</TableCell>
                     <TableCell className="text-right">
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        title="Imprimir este resultado"
-                        onClick={(e) => { e.stopPropagation(); printOne(d); }}
-                      >
-                        <Printer className="h-4 w-4" />
-                      </Button>
+                      <div className="flex items-center justify-end gap-1">
+                        <Button size="icon" variant="ghost" title="Editar documento" onClick={(e) => { e.stopPropagation(); actions.setEditing(d); }}>
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button size="icon" variant="ghost" title="Excluir documento" onClick={(e) => { e.stopPropagation(); actions.setDeleting(d); }}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                        <Button size="icon" variant="ghost" title="Anexar arquivo" onClick={(e) => { e.stopPropagation(); actions.setUploading(d); }}>
+                          <UploadCloud className="h-4 w-4" />
+                        </Button>
+                        <Button size="icon" variant="ghost" title="Imprimir este resultado" onClick={(e) => { e.stopPropagation(); printOne(d); }}>
+                          <Printer className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))
@@ -258,6 +281,25 @@ function SearchPage() {
       </div>
 
       <DocumentDetailSheet doc={selected} open={!!selected} onOpenChange={(o) => !o && setSelected(null)} />
+
+      <DocumentEditDialog
+        doc={actions.editing}
+        open={!!actions.editing}
+        onOpenChange={(o) => !o && actions.setEditing(null)}
+        onSaved={actions.refresh}
+      />
+      <DocumentDeleteDialog
+        doc={actions.deleting}
+        open={!!actions.deleting}
+        onOpenChange={(o) => !o && actions.setDeleting(null)}
+        onDeleted={actions.refresh}
+      />
+      <DocumentUploadDialog
+        doc={actions.uploading}
+        open={!!actions.uploading}
+        onOpenChange={(o) => !o && actions.setUploading(null)}
+        onUploaded={actions.refresh}
+      />
     </div>
   );
 }
