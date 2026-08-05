@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { UploadCloud, FileText, X } from "lucide-react";
+import { UploadCloud, FileText, X, CheckCircle2, Loader2, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { useProfile } from "@/hooks/use-profile";
 import { TIPOS_DOCUMENTO, MATERIAS, ESTADOS, CONFIDENCIALIDADES, buildStoragePath, logAudit, type Cliente } from "@/lib/documents";
@@ -20,6 +20,13 @@ export const Route = createFileRoute("/_authenticated/upload")({
 
 const ACCEPTED = ["application/pdf", "image/png", "image/jpeg", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"];
 
+type QueueItem = {
+  id: string;
+  file: File;
+  tipo_documento: string;
+  status: "pendente" | "enviando" | "concluido" | "erro";
+  message?: string;
+};
 
 function AccessDenied({ msg }: { msg: string }) {
   return (
@@ -33,7 +40,8 @@ function AccessDenied({ msg }: { msg: string }) {
 function UploadPage() {
   const { perms, isLoading: loadingPerms } = useProfile();
   const navigate = useNavigate();
-  const [file, setFile] = useState<File | null>(null);
+  const [queue, setQueue] = useState<QueueItem[]>([]);
+  const [activeId, setActiveId] = useState<string | null>(null);
   const [drag, setDrag] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -69,27 +77,156 @@ function UploadPage() {
     setForm((f) => ({ ...f, [k]: v }));
   }
 
-  function handleFile(f: File) {
-    if (!ACCEPTED.includes(f.type)) {
-      toast.error("Formato não suportado", { description: "Aceitamos PDF, DOCX, PNG ou JPG." });
+  function handleFiles(list: FileList | File[]) {
+    const files = Array.from(list);
+    const validos = files.filter((f) => ACCEPTED.includes(f.type));
+    if (validos.length < files.length) {
+      toast.error("Alguns arquivos foram ignorados", { description: "Aceitamos apenas PDF, DOCX, PNG ou JPG." });
+    }
+    if (!validos.length) return;
+    setQueue((q) => [
+      ...q,
+      ...validos.map((f) => ({
+        id: `${f.name}-${f.size}-${Math.random().toString(36).slice(2, 8)}`,
+        file: f,
+        tipo_documento: form.tipo_documento,
+        status: "pendente" as const,
+      })),
+    ]);
+  }
+
+  function removeFromQueue(id: string) {
+    setQueue((q) => q.filter((i) => i.id !== id));
+    setActiveId((a) => (a === id ? null : a));
+  }
+
+  function aplicarATodos() {
+    if (!form.tipo_documento) {
+      toast.error("Selecione um Tipo de Documento antes de aplicar a todos");
       return;
     }
-    setFile(f);
+    setQueue((q) => q.map((i) => (i.status === "concluido" ? i : { ...i, tipo_documento: form.tipo_documento })));
+    toast.success("Metadados aplicados a todos os arquivos");
+  }
+
+  function setItemTipo(id: string, tipo: string) {
+    setQueue((q) => q.map((i) => (i.id === id ? { ...i, tipo_documento: tipo } : i)));
+  }
+
+  async function uploadOne(item: QueueItem, userId: string) {
+    const tipo = item.tipo_documento || form.tipo_documento;
+    if (!tipo) throw new Error("Tipo de documento não definido");
+    const file = item.file;
+    const ext = file.name.split(".").pop() ?? "bin";
+    const storagePath = buildStoragePath({
+      cliente: form.cliente,
+      numero_processo: form.numero_processo,
+      tipo_documento: tipo,
+      data_documento: form.data_documento,
+      originalExt: ext,
+    });
+
+    const { data: existing } = await supabase
+      .from("documents")
+      .select("id, current_version")
+      .eq("numero_processo", form.numero_processo)
+      .eq("tipo_documento", tipo)
+      .maybeSingle();
+
+    const versionSuffix = existing ? existing.current_version + 1 : 0;
+    const finalPath = existing
+      ? storagePath.replace(/\.([^.]+)$/, `_v${versionSuffix}_${Date.now()}.$1`)
+      : storagePath.replace(/\.([^.]+)$/, `_${Date.now()}.$1`);
+
+    const { error: upErr } = await supabase.storage.from("legal_docs").upload(finalPath, file, {
+      contentType: file.type,
+      upsert: false,
+    });
+    if (upErr) throw upErr;
+
+    const fileMeta = {
+      file_url: finalPath,
+      file_name: file.name,
+      file_size: Math.round(file.size / 1024),
+    };
+
+    const palavras = form.palavras_chave.split(",").map((s) => s.trim()).filter(Boolean);
+
+    if (existing) {
+      const newVersion = existing.current_version + 1;
+      const { error: verErr } = await supabase.from("document_versions").insert({
+        document_id: existing.id,
+        version_number: newVersion,
+        ...fileMeta,
+        uploaded_by: userId,
+        change_notes: "Nova versão enviada",
+      });
+      if (verErr) throw verErr;
+      const { error: updErr } = await supabase
+        .from("documents")
+        .update({ ...fileMeta, current_version: newVersion })
+        .eq("id", existing.id);
+      if (updErr) throw updErr;
+      await logAudit(existing.id, "uploaded", { version: newVersion });
+      return `v${newVersion}`;
+    }
+
+    const { data: inserted, error: insErr } = await supabase
+      .from("documents")
+      .insert({
+        advogado: form.advogado,
+        numero_processo: form.numero_processo,
+        data_documento: form.data_documento,
+        data_processo: form.data_processo || null,
+        tipo_documento: tipo,
+        cliente: form.cliente,
+        cliente_id: form.cliente_id || null,
+        valor_total_processo: form.valor_total_processo ? Number(form.valor_total_processo) : null,
+        parte_autora: form.parte_autora || null,
+        parte_re: form.parte_re || null,
+        orgao_judicial: form.orgao_judicial || null,
+        materia: form.materia,
+        estado_processual: form.estado_processual,
+        confidencialidade: form.confidencialidade,
+        palavras_chave: palavras,
+        ...fileMeta,
+        created_by: userId,
+        internal_id: "",
+      })
+      .select("id, internal_id")
+      .single();
+    if (insErr) throw insErr;
+
+    await supabase.from("document_versions").insert({
+      document_id: inserted.id,
+      version_number: 1,
+      ...fileMeta,
+      uploaded_by: userId,
+      change_notes: "Versão inicial",
+    });
+    await logAudit(inserted.id, "uploaded", { internal_id: inserted.internal_id });
+    return inserted.internal_id;
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!file) {
-      toast.error("Selecione um arquivo");
+    const pendentes = queue.filter((i) => i.status !== "concluido");
+    if (!pendentes.length) {
+      toast.error("Selecione ao menos um arquivo");
       return;
     }
     // Validate required
-    const required: (keyof typeof form)[] = ["advogado", "numero_processo", "data_documento", "tipo_documento", "cliente", "materia", "estado_processual", "confidencialidade"];
+    const required: (keyof typeof form)[] = ["advogado", "numero_processo", "data_documento", "cliente", "materia", "estado_processual", "confidencialidade"];
     for (const k of required) {
       if (!form[k]) {
         toast.error("Preencha todos os campos obrigatórios", { description: `Campo faltando: ${k}` });
         return;
       }
+    }
+    const semTipo = pendentes.filter((i) => !(i.tipo_documento || form.tipo_documento));
+    if (semTipo.length) {
+      toast.error("Defina o Tipo de Documento de todos os arquivos", { description: "Use \"Aplicar a todos\" ou preencha individualmente." });
+      return;
     }
     setSubmitting(true);
     try {
@@ -97,107 +234,24 @@ function UploadPage() {
       const userId = userData.user?.id;
       if (!userId) throw new Error("Sessão expirada");
 
-      const ext = file.name.split(".").pop() ?? "bin";
-      const storagePath = buildStoragePath({
-        cliente: form.cliente,
-        numero_processo: form.numero_processo,
-        tipo_documento: form.tipo_documento,
-        data_documento: form.data_documento,
-        originalExt: ext,
-      });
-
-      // Check for existing doc with same numero_processo + tipo -> version bump
-      const { data: existing } = await supabase
-        .from("documents")
-        .select("id, current_version")
-        .eq("numero_processo", form.numero_processo)
-        .eq("tipo_documento", form.tipo_documento)
-        .maybeSingle();
-
-      const finalPath = existing ? `${storagePath.replace(/\.([^.]+)$/, `_v${existing.current_version + 1}.$1`)}` : storagePath;
-
-      const { error: upErr } = await supabase.storage.from("legal_docs").upload(finalPath, file, {
-        contentType: file.type,
-        upsert: false,
-      });
-      if (upErr) throw upErr;
-
-      const palavras = form.palavras_chave
-        .split(",")
-        .map((s) => s.trim())
-        .filter(Boolean);
-
-      if (existing) {
-        const newVersion = existing.current_version + 1;
-        const { error: verErr } = await supabase.from("document_versions").insert({
-          document_id: existing.id,
-          version_number: newVersion,
-          file_url: finalPath,
-          file_name: file.name,
-          file_size: Math.round(file.size / 1024),
-          uploaded_by: userId,
-          change_notes: "Nova versão enviada",
-        });
-        if (verErr) throw verErr;
-
-        const { error: updErr } = await supabase
-          .from("documents")
-          .update({
-            file_url: finalPath,
-            file_name: file.name,
-            file_size: Math.round(file.size / 1024),
-            current_version: newVersion,
-          })
-          .eq("id", existing.id);
-        if (updErr) throw updErr;
-
-        await logAudit(existing.id, "uploaded", { version: newVersion });
-        toast.success(`Nova versão (v${newVersion}) registrada`);
-        navigate({ to: "/search" });
-      } else {
-        const insertPayload = {
-          advogado: form.advogado,
-          numero_processo: form.numero_processo,
-          data_documento: form.data_documento,
-          data_processo: form.data_processo || null,
-          tipo_documento: form.tipo_documento,
-          cliente: form.cliente,
-          cliente_id: form.cliente_id || null,
-          valor_total_processo: form.valor_total_processo ? Number(form.valor_total_processo) : null,
-          parte_autora: form.parte_autora || null,
-          parte_re: form.parte_re || null,
-          orgao_judicial: form.orgao_judicial || null,
-          materia: form.materia,
-          estado_processual: form.estado_processual,
-          confidencialidade: form.confidencialidade,
-          palavras_chave: palavras,
-          file_url: finalPath,
-          file_name: file.name,
-          file_size: Math.round(file.size / 1024),
-          created_by: userId,
-          internal_id: "", // will be auto-generated by trigger
-        };
-        const { data: inserted, error: insErr } = await supabase
-          .from("documents")
-          .insert(insertPayload)
-          .select("id, internal_id")
-          .single();
-        if (insErr) throw insErr;
-
-        await supabase.from("document_versions").insert({
-          document_id: inserted.id,
-          version_number: 1,
-          file_url: finalPath,
-          file_name: file.name,
-          file_size: Math.round(file.size / 1024),
-          uploaded_by: userId,
-          change_notes: "Versão inicial",
-        });
-
-        await logAudit(inserted.id, "uploaded", { internal_id: inserted.internal_id });
-        toast.success(`Documento ${inserted.internal_id} cadastrado`);
-        navigate({ to: "/search" });
+      let sucesso = 0;
+      let falhas = 0;
+      for (const item of pendentes) {
+        setQueue((q) => q.map((i) => (i.id === item.id ? { ...i, status: "enviando", message: undefined } : i)));
+        try {
+          const ref = await uploadOne(item, userId);
+          sucesso++;
+          setQueue((q) => q.map((i) => (i.id === item.id ? { ...i, status: "concluido", message: ref } : i)));
+        } catch (err) {
+          falhas++;
+          const msg = err instanceof Error ? err.message : "Erro desconhecido";
+          setQueue((q) => q.map((i) => (i.id === item.id ? { ...i, status: "erro", message: msg } : i)));
+        }
       }
+
+      if (sucesso) toast.success(`${sucesso} arquivo(s) enviado(s) com sucesso`);
+      if (falhas) toast.error(`${falhas} arquivo(s) falharam`, { description: "Verifique a lista e tente novamente." });
+      if (sucesso && !falhas) navigate({ to: "/search" });
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Erro desconhecido";
       toast.error("Falha no envio", { description: msg });
@@ -214,7 +268,7 @@ function UploadPage() {
     <div className="mx-auto min-w-0 max-w-4xl space-y-6">
       <div>
         <h2 className="text-2xl font-bold tracking-tight text-foreground">Enviar Documento</h2>
-        <p className="text-sm text-muted-foreground">Envie um arquivo (PDF, DOCX, PNG ou JPG) e preencha os metadados.</p>
+        <p className="text-sm text-muted-foreground">Envie um ou vários arquivos (PDF, DOCX, PNG ou JPG) e preencha os metadados.</p>
       </div>
 
       <Card>
@@ -225,8 +279,7 @@ function UploadPage() {
             onDrop={(e) => {
               e.preventDefault();
               setDrag(false);
-              const f = e.dataTransfer.files[0];
-              if (f) handleFile(f);
+              if (e.dataTransfer.files.length) handleFiles(e.dataTransfer.files);
             }}
             onClick={() => inputRef.current?.click()}
             className={`flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed p-6 sm:p-10 transition-colors ${drag ? "border-primary bg-primary/5" : "border-border"}`}
@@ -234,36 +287,82 @@ function UploadPage() {
             <input
               ref={inputRef}
               type="file"
+              multiple
               accept=".pdf,.docx,.png,.jpg,.jpeg"
               className="hidden"
-              onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
+              onChange={(e) => { if (e.target.files?.length) handleFiles(e.target.files); e.target.value = ""; }}
             />
-            {file ? (
-              <div className="flex items-center gap-3">
-                <FileText className="h-8 w-8 text-primary" />
-                <div>
-                  <p className="font-medium text-foreground">{file.name}</p>
-                  <p className="text-xs text-muted-foreground">{(file.size / 1024).toFixed(1)} KB</p>
-                </div>
-                <Button type="button" size="icon" variant="ghost" onClick={(e) => { e.stopPropagation(); setFile(null); }}>
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-            ) : (
-              <>
-                <UploadCloud className="h-12 w-12 text-muted-foreground" />
-                <p className="mt-3 text-sm font-medium text-foreground">Arraste um arquivo ou clique para selecionar</p>
-                <p className="text-xs text-muted-foreground">PDF, DOCX, PNG ou JPG</p>
-              </>
-            )}
+            <UploadCloud className="h-12 w-12 text-muted-foreground" />
+            <p className="mt-3 text-sm font-medium text-foreground">Arraste vários arquivos ou clique para selecionar</p>
+            <p className="text-xs text-muted-foreground">PDF, DOCX, PNG ou JPG · seleção múltipla permitida</p>
           </div>
         </CardContent>
       </Card>
 
-      {file && (
+      {queue.length > 0 && (
+        <Card>
+          <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <CardTitle>Arquivos selecionados ({queue.length})</CardTitle>
+            <Button type="button" variant="outline" size="sm" onClick={aplicarATodos}>
+              Aplicar a todos
+            </Button>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {queue.map((item) => (
+              <div
+                key={item.id}
+                className={`rounded-lg border p-3 ${activeId === item.id ? "border-primary" : "border-border"}`}
+              >
+                <div className="flex items-start gap-3">
+                  <FileText className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+                  <button
+                    type="button"
+                    className="min-w-0 flex-1 text-left"
+                    onClick={() => setActiveId((a) => (a === item.id ? null : item.id))}
+                  >
+                    <p className="break-words text-sm font-medium text-foreground">{item.file.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {(item.file.size / 1024).toFixed(1)} KB · {item.tipo_documento || "Tipo não definido"}
+                    </p>
+                    {item.message && (
+                      <p className="break-words text-xs text-muted-foreground">{item.message}</p>
+                    )}
+                  </button>
+                  <div className="flex shrink-0 items-center gap-1">
+                    {item.status === "enviando" && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+                    {item.status === "concluido" && <CheckCircle2 className="h-4 w-4 text-primary" />}
+                    {item.status === "erro" && <AlertCircle className="h-4 w-4 text-destructive" />}
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="ghost"
+                      title="Remover da lista"
+                      onClick={() => removeFromQueue(item.id)}
+                      disabled={submitting}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+                {activeId === item.id && (
+                  <div className="mt-3 space-y-1.5">
+                    <Label>Tipo de Documento (deste arquivo)</Label>
+                    <Select value={item.tipo_documento} onValueChange={(v) => setItemTipo(item.id, v)}>
+                      <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                      <SelectContent>{TIPOS_DOCUMENTO.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
+      {queue.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>Metadados do Documento</CardTitle>
+            <CardTitle>Metadados dos Documentos</CardTitle>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="grid gap-4 sm:grid-cols-2">
@@ -294,7 +393,7 @@ function UploadPage() {
               <Field label="Parte Ré"><Input value={form.parte_re} onChange={(e) => set("parte_re", e.target.value)} /></Field>
               <Field label="Data do Documento *"><Input type="date" value={form.data_documento} onChange={(e) => set("data_documento", e.target.value)} required /></Field>
               <Field label="Data do Processo"><Input type="date" value={form.data_processo} onChange={(e) => set("data_processo", e.target.value)} /></Field>
-              <Field label="Tipo de Documento *">
+              <Field label="Tipo de Documento (padrão) *">
                 <Select value={form.tipo_documento} onValueChange={(v) => set("tipo_documento", v)}>
                   <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
                   <SelectContent>{TIPOS_DOCUMENTO.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
@@ -323,8 +422,8 @@ function UploadPage() {
                 <Textarea value={form.palavras_chave} onChange={(e) => set("palavras_chave", e.target.value)} placeholder="urgente, prazo, recurso" />
               </div>
               <div className="sm:col-span-2 flex justify-end gap-2">
-                <Button type="button" variant="outline" onClick={() => { setFile(null); }}>Cancelar</Button>
-                <Button type="submit" disabled={submitting}>{submitting ? "Enviando..." : "Salvar Documento"}</Button>
+                <Button type="button" variant="outline" onClick={() => { setQueue([]); setActiveId(null); }} disabled={submitting}>Cancelar</Button>
+                <Button type="submit" disabled={submitting}>{submitting ? "Enviando..." : "Enviar Todos"}</Button>
               </div>
             </form>
           </CardContent>
