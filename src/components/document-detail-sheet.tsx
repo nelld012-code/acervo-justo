@@ -9,9 +9,11 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, Download, ExternalLink, Plus, Printer, Trash2 } from "lucide-react";
+import { ArrowLeft, Download, ExternalLink, Pencil, Plus, Printer, Trash2 } from "lucide-react";
 import { type Documento, badgeVariantForStatus, formatFileSize, getSignedUrl, logAudit, METODOS_PAGAMENTO, formatBRL } from "@/lib/documents";
 import { ReceiptModal, type ReceiptData } from "@/components/receipt-modal";
+import { buildDossierPdf } from "@/lib/document-dossier";
+import { printReport } from "@/lib/print-report";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
@@ -57,6 +59,8 @@ export function DocumentDetailSheet({ doc, open, onOpenChange }: { doc: Document
   const [saving, setSaving] = useState(false);
   const [payDialogOpen, setPayDialogOpen] = useState(false);
   const [receipt, setReceipt] = useState<ReceiptData | null>(null);
+  const [editPayment, setEditPayment] = useState<Payment | null>(null);
+  const [downloading, setDownloading] = useState(false);
 
   useEffect(() => {
     if (!doc || !open) return;
@@ -126,6 +130,90 @@ export function DocumentDetailSheet({ doc, open, onOpenChange }: { doc: Document
     await reloadFinance();
   }
 
+  async function handleUpdatePayment() {
+    if (!editPayment) return;
+    const valor = Number(editPayment.valor);
+    if (!valor || valor <= 0) return toast.error("Informe um valor válido");
+    if (!editPayment.responsavel_recebimento.trim()) return toast.error("Informe o responsável pelo recebimento");
+    setSaving(true);
+    try {
+      const { error } = await supabase
+        .from("payments")
+        .update({
+          valor,
+          data_pagamento: editPayment.data_pagamento,
+          responsavel_recebimento: editPayment.responsavel_recebimento.trim(),
+          metodo_pagamento: editPayment.metodo_pagamento,
+          descricao: editPayment.descricao?.trim() || null,
+        })
+        .eq("id", editPayment.id);
+      if (error) throw error;
+      toast.success("Pagamento atualizado");
+      setEditPayment(null);
+      await reloadFinance();
+    } catch (e) {
+      toast.error("Falha ao atualizar pagamento", { description: e instanceof Error ? e.message : "" });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleDownloadDossier() {
+    if (!doc) return;
+    setDownloading(true);
+    try {
+      const blob = await buildDossierPdf(doc);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${doc.internal_id}-dossie.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      await logAudit(doc.id, "downloaded", { file_name: `${doc.internal_id}-dossie.pdf` });
+      toast.success("PDF gerado com todos os documentos do processo");
+    } catch (e) {
+      toast.error("Falha ao gerar o PDF", { description: e instanceof Error ? e.message : "" });
+    } finally {
+      setDownloading(false);
+    }
+  }
+
+  function handlePrintDetails() {
+    if (!doc) return;
+    printReport({
+      title: `Documento ${doc.internal_id}`,
+      subtitle: `Processo ${doc.numero_processo} — ${doc.tipo_documento}`,
+      sections: [
+        {
+          heading: "Detalhes do documento",
+          columns: ["Campo", "Informação"],
+          rows: [
+            ["Número do Documento", doc.internal_id],
+            ["Número do Processo", doc.numero_processo],
+            ["Tipo de Documento", doc.tipo_documento],
+            ["Estado Processual", doc.estado_processual],
+            ["Matéria", doc.materia],
+            ["Confidencialidade", doc.confidencialidade],
+            ["Advogado", doc.advogado],
+            ["Cliente", doc.cliente],
+            ["Parte Autora", doc.parte_autora ?? "—"],
+            ["Parte Ré", doc.parte_re ?? "—"],
+            ["Órgão Judicial", doc.orgao_judicial ?? "—"],
+            ["Data do Documento", format(new Date(doc.data_documento), "dd/MM/yyyy")],
+            ["Data de Ingresso", format(new Date(doc.data_ingresso), "dd/MM/yyyy")],
+            ["Data do Processo", doc.data_processo ? format(new Date(doc.data_processo), "dd/MM/yyyy") : "—"],
+            ["Arquivo", doc.file_name],
+            ["Tamanho", formatFileSize(doc.file_size)],
+            ["Versão Atual", `v${doc.current_version}`],
+            ["Palavras-chave", (doc.palavras_chave ?? []).join(", ") || "—"],
+          ],
+        },
+      ],
+    });
+  }
+
   async function handleDownload(url: string, name: string) {
     try {
       const signed = await getSignedUrl(url);
@@ -161,7 +249,7 @@ export function DocumentDetailSheet({ doc, open, onOpenChange }: { doc: Document
         <Tabs defaultValue="details" className="mt-6">
           <TabsList className="grid w-full grid-cols-2 gap-1 sm:grid-cols-4">
             <TabsTrigger value="details" className="text-xs sm:text-sm">Detalhes</TabsTrigger>
-            <TabsTrigger value="versions" className="text-xs sm:text-sm">Versões</TabsTrigger>
+            <TabsTrigger value="versions" className="text-xs sm:text-sm">Digitalizados</TabsTrigger>
             <TabsTrigger value="audit" className="text-xs sm:text-sm">Auditoria</TabsTrigger>
             <TabsTrigger value="finance" className="text-xs sm:text-sm">Financeiro</TabsTrigger>
           </TabsList>
@@ -194,19 +282,22 @@ export function DocumentDetailSheet({ doc, open, onOpenChange }: { doc: Document
               </div>
             )}
             <div className="flex flex-wrap gap-2">
-              <Button className="w-full sm:w-auto" onClick={() => handleDownload(doc.file_url, doc.file_name)}>
-                <Download className="mr-2 h-4 w-4" />Baixar arquivo atual
+              <Button className="w-full sm:w-auto" onClick={handleDownloadDossier} disabled={downloading}>
+                <Download className="mr-2 h-4 w-4" />{downloading ? "Gerando PDF..." : "Baixar arquivo atual"}
+              </Button>
+              <Button variant="outline" className="w-full sm:w-auto" onClick={handlePrintDetails}>
+                <Printer className="mr-2 h-4 w-4" />Imprimir
               </Button>
             </div>
           </TabsContent>
 
           <TabsContent value="versions" className="pt-4">
-            {versions.length === 0 ? <p className="text-sm text-muted-foreground">Nenhuma versão registrada.</p> : (
+            {versions.length === 0 ? <p className="text-sm text-muted-foreground">Nenhum documento digitalizado registrado.</p> : (
               <ul className="space-y-3">
                 {versions.map((v) => (
                   <li key={v.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border p-3">
                     <div className="min-w-0">
-                      <p className="font-medium">Versão {v.version_number}</p>
+                      <p className="font-medium">Digitalizado {v.version_number}</p>
                       <p className="text-xs text-muted-foreground">
                         {format(new Date(v.uploaded_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}
                       </p>
@@ -292,6 +383,9 @@ export function DocumentDetailSheet({ doc, open, onOpenChange }: { doc: Document
                       >
                         <Printer className="mr-1 h-3 w-3" />Recibo
                       </Button>
+                      <Button size="sm" variant="outline" onClick={() => setEditPayment({ ...p })}>
+                        <Pencil className="mr-1 h-3 w-3" />Editar
+                      </Button>
                       <Button size="icon" variant="ghost" onClick={() => handleDeletePayment(p.id)}>
                         <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>
@@ -330,6 +424,40 @@ export function DocumentDetailSheet({ doc, open, onOpenChange }: { doc: Document
               <Button variant="outline" onClick={() => setPayDialogOpen(false)}>Cancelar</Button>
               <Button onClick={handleAddPayment} disabled={saving} className="bg-primary hover:bg-primary/90">
                 <Plus className="mr-2 h-4 w-4" />{saving ? "Salvando..." : "Salvar Pagamento"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={!!editPayment} onOpenChange={(o) => !o && setEditPayment(null)}>
+          <DialogContent className="max-h-[85vh] w-[calc(100vw-2rem)] max-w-lg overflow-y-auto">
+            <DialogHeader><DialogTitle>Editar Pagamento</DialogTitle></DialogHeader>
+            {editPayment && (
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-1.5"><Label>Valor (R$) *</Label>
+                  <Input type="number" step="0.01" min="0" value={String(editPayment.valor)} onChange={(e) => setEditPayment({ ...editPayment, valor: Number(e.target.value) })} />
+                </div>
+                <div className="space-y-1.5"><Label>Data *</Label>
+                  <Input type="date" value={editPayment.data_pagamento} onChange={(e) => setEditPayment({ ...editPayment, data_pagamento: e.target.value })} />
+                </div>
+                <div className="space-y-1.5"><Label>Responsável *</Label>
+                  <Input value={editPayment.responsavel_recebimento} onChange={(e) => setEditPayment({ ...editPayment, responsavel_recebimento: e.target.value })} />
+                </div>
+                <div className="space-y-1.5"><Label>Forma de Pagamento *</Label>
+                  <Select value={editPayment.metodo_pagamento} onValueChange={(v) => setEditPayment({ ...editPayment, metodo_pagamento: v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>{METODOS_PAGAMENTO.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+                <div className="sm:col-span-2 space-y-1.5"><Label>Descrição</Label>
+                  <Input value={editPayment.descricao ?? ""} onChange={(e) => setEditPayment({ ...editPayment, descricao: e.target.value })} />
+                </div>
+              </div>
+            )}
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setEditPayment(null)}>Cancelar</Button>
+              <Button onClick={handleUpdatePayment} disabled={saving} className="bg-primary hover:bg-primary/90">
+                {saving ? "Salvando..." : "Salvar alterações"}
               </Button>
             </DialogFooter>
           </DialogContent>
