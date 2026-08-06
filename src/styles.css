@@ -156,3 +156,37 @@
   }
   .no-print { display: none !important; }
 }
+
+/* Recibo: 2 vias em uma folha A4, preto e branco */
+@media print {
+  @page { size: A4 portrait; margin: 8mm; }
+
+  .receipt-print {
+    padding: 0 !important;
+    display: block !important;
+    width: 194mm !important;
+  }
+  .receipt-print .receipt-second-copy { display: block !important; }
+  .receipt-print .receipt-copy {
+    box-sizing: border-box;
+    height: 138mm;
+    padding: 6mm 8mm !important;
+    margin: 0 0 3mm 0 !important;
+    border: 1px solid #000 !important;
+    border-radius: 0 !important;
+    background: #fff !important;
+    color: #000 !important;
+    overflow: hidden;
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+  .receipt-print .receipt-copy * {
+    background: transparent !important;
+    color: #000 !important;
+    border-color: #000 !important;
+    box-shadow: none !important;
+  }
+  .receipt-print .receipt-copy p,
+  .receipt-print .receipt-copy div { page-break-inside: avoid; }
+  .receipt-print { -webkit-print-color-adjust: exact; print-color-adjust: exact; filter: grayscale(100%); }
+}
