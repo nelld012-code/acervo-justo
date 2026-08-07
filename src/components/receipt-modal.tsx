@@ -3,6 +3,8 @@ import { Button } from "@/components/ui/button";
 import { Printer } from "lucide-react";
 import { formatBRL } from "@/lib/documents";
 import { format } from "date-fns";
+import { printReceipt } from "@/lib/print-receipt";
+import { toast } from "sonner";
 
 export type ReceiptData = {
   numero_processo: string;
@@ -78,16 +80,18 @@ export function ReceiptModal({ data, open, onOpenChange }: { data: ReceiptData |
           <DialogTitle>Recibo de Pagamento</DialogTitle>
         </DialogHeader>
 
-        <div className="print-area receipt-print space-y-6">
+        <div className="space-y-6">
           <ReceiptBody data={data} via="1ª via — Escritório" />
-          <div className="receipt-second-copy hidden">
-            <ReceiptBody data={data} via="2ª via — Cliente" />
-          </div>
         </div>
 
-        <div className="flex justify-end gap-2 no-print">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Fechar</Button>
-          <Button onClick={() => window.print()} className="bg-primary hover:bg-primary/90">
+        <div className="flex flex-col-reverse gap-2 no-print sm:flex-row sm:justify-end">
+          <Button variant="outline" className="w-full sm:w-auto" onClick={() => onOpenChange(false)}>Fechar</Button>
+          <Button
+            className="w-full bg-primary hover:bg-primary/90 sm:w-auto"
+            onClick={() => {
+              if (!printReceipt(data)) toast.error("Não foi possível abrir a impressão");
+            }}
+          >
             <Printer className="mr-2 h-4 w-4" />Imprimir
           </Button>
         </div>
