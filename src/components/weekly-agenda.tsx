@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { addDays, format, startOfWeek, isSameDay, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { CalendarPlus, Check, ChevronLeft, ChevronRight, Printer, Trash2, Undo2 } from "lucide-react";
+import { Bell, CalendarPlus, Check, ChevronLeft, ChevronRight, Printer, Trash2, Undo2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useProfile, CARGO_LABELS, type Cargo } from "@/hooks/use-profile";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -349,5 +349,104 @@ export function WeeklyAgenda() {
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+type ReminderTask = {
+  id: string;
+  titulo: string;
+  descricao: string | null;
+  data_tarefa: string;
+  hora_tarefa: string | null;
+};
+
+const REMINDER_STORAGE_KEY = "agenda-lembretes-exibidos";
+
+function readShown(): string[] {
+  try {
+    return JSON.parse(localStorage.getItem(REMINDER_STORAGE_KEY) ?? "[]") as string[];
+  } catch {
+    return [];
+  }
+}
+
+function TaskReminders() {
+  const { profile } = useProfile();
+  const [queue, setQueue] = useState<ReminderTask[]>([]);
+  const [tick, setTick] = useState(0);
+
+  useEffect(() => {
+    const i = setInterval(() => setTick((t) => t + 1), 30000);
+    return () => clearInterval(i);
+  }, []);
+
+  const { data: pending } = useQuery({
+    queryKey: ["task-reminders", profile?.id, tick],
+    enabled: !!profile?.id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("tasks")
+        .select("id, titulo, descricao, data_tarefa, hora_tarefa")
+        .eq("lembrar_popup", true)
+        .eq("status", "pendente")
+        .eq("assigned_to", profile!.id)
+        .lte("data_tarefa", format(new Date(), "yyyy-MM-dd"))
+        .order("data_tarefa", { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as ReminderTask[];
+    },
+  });
+
+  useEffect(() => {
+    if (!pending) return;
+    const shown = readShown();
+    const now = new Date();
+    const due = pending.filter((t) => {
+      if (shown.includes(t.id)) return false;
+      const when = new Date(`${t.data_tarefa}T${(t.hora_tarefa ? String(t.hora_tarefa).slice(0, 5) : "00:00")}:00`);
+      return when <= now;
+    });
+    if (due.length === 0) return;
+    setQueue((q) => {
+      const ids = new Set(q.map((t) => t.id));
+      return [...q, ...due.filter((t) => !ids.has(t.id))];
+    });
+  }, [pending]);
+
+  const current = queue[0];
+
+  function dismiss() {
+    if (!current) return;
+    try {
+      localStorage.setItem(REMINDER_STORAGE_KEY, JSON.stringify([...readShown(), current.id]));
+    } catch {
+      /* ignore */
+    }
+    setQueue((q) => q.slice(1));
+  }
+
+  if (!current) return null;
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && dismiss()}>
+      <DialogContent className="w-[calc(100vw-2rem)] sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Bell className="h-4 w-4 text-primary" /> Lembrete de atividade
+          </DialogTitle>
+        </DialogHeader>
+        <div className="space-y-2">
+          <p className="text-base font-semibold text-foreground">{current.titulo}</p>
+          <p className="text-sm text-muted-foreground">
+            {format(parseISO(current.data_tarefa), "dd/MM/yyyy", { locale: ptBR })}
+            {current.hora_tarefa ? ` · ${String(current.hora_tarefa).slice(0, 5)}` : ""}
+          </p>
+          <p className="whitespace-pre-wrap text-sm text-foreground">{current.descricao || "Sem observações."}</p>
+        </div>
+        <DialogFooter>
+          <Button onClick={dismiss}>Entendi</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
