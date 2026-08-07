@@ -401,6 +401,7 @@ export type Database = {
           document_id: string | null
           hora_tarefa: string | null
           id: string
+          lembrar_popup: boolean
           prioridade: string
           status: string
           titulo: string
@@ -415,6 +416,7 @@ export type Database = {
           document_id?: string | null
           hora_tarefa?: string | null
           id?: string
+          lembrar_popup?: boolean
           prioridade?: string
           status?: string
           titulo: string
@@ -429,6 +431,7 @@ export type Database = {
           document_id?: string | null
           hora_tarefa?: string | null
           id?: string
+          lembrar_popup?: boolean
           prioridade?: string
           status?: string
           titulo?: string
