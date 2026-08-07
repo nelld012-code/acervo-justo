@@ -415,7 +415,7 @@ function ClientesPage() {
                       <Input value={form.tipo_acao} onChange={(e) => setForm({ ...form, tipo_acao: e.target.value })} />
                     </div>
                     <div className="space-y-1.5">
-                      <Label>Número do processo (se houver)</Label>
+                      <Label>Número do processo</Label>
                       <Input value={form.numero_processo} onChange={(e) => setForm({ ...form, numero_processo: e.target.value })} />
                     </div>
                   </div>
