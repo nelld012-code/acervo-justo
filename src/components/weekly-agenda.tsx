@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { addDays, format, startOfWeek, isSameDay, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "sonner";
@@ -42,6 +43,7 @@ export function WeeklyAgenda() {
     hora_tarefa: "",
     prioridade: "media",
     assigned_to: "",
+    lembrar_popup: false,
   });
 
   const { data: tasks } = useQuery({
@@ -49,7 +51,7 @@ export function WeeklyAgenda() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("tasks")
-        .select("id, titulo, descricao, data_tarefa, hora_tarefa, prioridade, status, assigned_to, created_by")
+        .select("id, titulo, descricao, data_tarefa, hora_tarefa, prioridade, status, assigned_to, created_by, lembrar_popup")
         .gte("data_tarefa", from)
         .lte("data_tarefa", to)
         .order("hora_tarefa", { ascending: true, nullsFirst: true });
@@ -139,6 +141,7 @@ export function WeeklyAgenda() {
         data_tarefa: form.data_tarefa,
         hora_tarefa: form.hora_tarefa || null,
         prioridade: form.prioridade,
+        lembrar_popup: form.lembrar_popup,
         assigned_to: form.assigned_to || profile.id,
         created_by: profile.id,
       });
@@ -147,7 +150,7 @@ export function WeeklyAgenda() {
     onSuccess: () => {
       toast.success("Atividade adicionada à agenda");
       setOpen(false);
-      setForm({ ...form, titulo: "", descricao: "", hora_tarefa: "" });
+      setForm({ ...form, titulo: "", descricao: "", hora_tarefa: "", lembrar_popup: false });
       queryClient.invalidateQueries({ queryKey: ["tasks"] });
     },
     onError: (e: Error) => toast.error("Não foi possível salvar", { description: e.message }),
