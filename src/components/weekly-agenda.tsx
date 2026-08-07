@@ -253,6 +253,16 @@ export function WeeklyAgenda() {
                     </Select>
                   </div>
                 )}
+                <div className="flex items-center gap-2 rounded-md border border-border p-3">
+                  <Checkbox
+                    id="t-lembrete"
+                    checked={form.lembrar_popup}
+                    onCheckedChange={(v) => setForm({ ...form, lembrar_popup: v === true })}
+                  />
+                  <Label htmlFor="t-lembrete" className="cursor-pointer text-sm font-normal">
+                    Lembrar com pop-up
+                  </Label>
+                </div>
               </div>
               <DialogFooter>
                 <Button onClick={() => createTask.mutate()} disabled={!form.titulo || createTask.isPending}>
