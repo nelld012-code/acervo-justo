@@ -152,6 +152,12 @@ function MyDocs() {
                     <p className="text-xs text-muted-foreground">{g.docs.length} documento(s) · {expanded[g.key] ? "ocultar" : "ver documentos"}</p>
                   </button>
                   <div className="mt-2 flex flex-wrap gap-2">
+                    <Button size="sm" variant="outline" title="Editar documento" onClick={() => actions.setEditing(g.principal)}>
+                      <Pencil className="mr-1 h-4 w-4" />Editar
+                    </Button>
+                    <Button size="sm" variant="outline" title="Excluir documento" onClick={() => actions.setDeleting(g.principal)}>
+                      <Trash2 className="mr-1 h-4 w-4" />Excluir
+                    </Button>
                     <Button size="sm" variant="outline" title="Anexar arquivo a este processo" onClick={() => actions.setUploading(g.principal)}>
                       <UploadCloud className="mr-1 h-4 w-4" />Enviar
                     </Button>
@@ -226,6 +232,12 @@ function MyDocs() {
                       <TableCell>{format(new Date(g.principal.created_at), "dd/MM/yyyy HH:mm")}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-1">
+                          <Button size="icon" variant="ghost" title="Editar documento" onClick={(e) => { e.stopPropagation(); actions.setEditing(g.principal); }}>
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button size="icon" variant="ghost" title="Excluir documento" onClick={(e) => { e.stopPropagation(); actions.setDeleting(g.principal); }}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
                           <Button size="icon" variant="ghost" title="Anexar arquivo a este processo" onClick={(e) => { e.stopPropagation(); actions.setUploading(g.principal); }}>
                             <UploadCloud className="h-4 w-4" />
                           </Button>
