@@ -92,6 +92,23 @@ function FinanceiroPage() {
     },
   });
 
+  const { data: docsFin, isLoading: loadingDocsFin } = useQuery({
+    queryKey: ["fin-docs-receber"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("documents")
+        .select("id, valor_total_processo, valor_recebido_total");
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  const totalReceber = (docsFin ?? []).reduce((acc, d) => {
+    const tot = Number(d.valor_total_processo ?? 0);
+    const rec = Number(d.valor_recebido_total ?? 0);
+    return acc + Math.max(0, tot - rec);
+  }, 0);
+
   const monthPayments = useMemo(
     () => (payments ?? []).filter((p) => p.data_pagamento >= monthStart && p.data_pagamento <= monthEnd),
     [payments, monthStart, monthEnd],
@@ -263,6 +280,17 @@ function FinanceiroPage() {
         onOpenChange={setPayOpen}
         onSaved={() => qc.invalidateQueries({ queryKey: ["fin-payments"] })}
       />
+
+      <Card className="border-0 bg-gradient-to-r from-primary to-[oklch(0.53_0.22_260)] text-primary-foreground">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium opacity-90">Total a Receber</CardTitle>
+          <Wallet className="h-5 w-5 opacity-90" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold sm:text-4xl">{loadingDocsFin ? "—" : formatBRL(totalReceber)}</div>
+          <p className="mt-1 text-xs opacity-80">Saldo devedor consolidado em todos os processos</p>
+        </CardContent>
+      </Card>
 
       <div className="grid gap-4 md:grid-cols-3 [&>*]:min-w-0">
         <HeroCard title="Total de Entradas" value={formatBRL(totalEntradas)} icon={<TrendingUp className="h-5 w-5" />} tone="up" />
