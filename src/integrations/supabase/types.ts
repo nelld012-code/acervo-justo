@@ -391,6 +391,45 @@ export type Database = {
         }
         Relationships: []
       }
+      reception_entries: {
+        Row: {
+          advogado: string
+          atendente: string
+          cpf: string | null
+          created_at: string
+          created_by: string | null
+          data: string
+          id: string
+          nome_cliente: string
+          telefone: string
+          updated_at: string
+        }
+        Insert: {
+          advogado: string
+          atendente: string
+          cpf?: string | null
+          created_at?: string
+          created_by?: string | null
+          data?: string
+          id?: string
+          nome_cliente: string
+          telefone: string
+          updated_at?: string
+        }
+        Update: {
+          advogado?: string
+          atendente?: string
+          cpf?: string | null
+          created_at?: string
+          created_by?: string | null
+          data?: string
+          id?: string
+          nome_cliente?: string
+          telefone?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       tasks: {
         Row: {
           assigned_to: string
