@@ -1,5 +1,5 @@
 import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
-import { LayoutDashboard, Upload, Search, FolderOpen, ClipboardList, LogOut, Scale, Users, Wallet, UserCog } from "lucide-react";
+import { LayoutDashboard, Upload, Search, FolderOpen, ClipboardList, LogOut, Scale, Users, Wallet, UserCog, ConciergeBell } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -20,6 +20,7 @@ import { useProfile, CARGO_LABELS, type Cargo } from "@/hooks/use-profile";
 const items = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard, need: "all" },
   { title: "Clientes", url: "/clientes", icon: Users, need: "all" },
+  { title: "Recepção", url: "/recepcao", icon: ConciergeBell, need: "all" },
   { title: "Financeiro", url: "/financeiro", icon: Wallet, need: "finance" },
   { title: "Enviar Documento", url: "/upload", icon: Upload, need: "documents" },
   { title: "Buscar Documentos", url: "/search", icon: Search, need: "all" },
