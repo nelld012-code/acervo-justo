@@ -1,3 +1,4 @@
+import { openPrintDocument } from "./print-doc";
 // Printable expense voucher (comprovante de despesa) with signature lines.
 import { formatBRL } from "@/lib/documents";
 
@@ -77,26 +78,5 @@ ${signatures}
 <footer>Emitido em ${esc(now)}</footer>
 </body></html>`;
 
-  try {
-    const iframe = document.createElement("iframe");
-    iframe.setAttribute("aria-hidden", "true");
-    iframe.style.position = "fixed";
-    iframe.style.right = "0";
-    iframe.style.bottom = "0";
-    iframe.style.width = "0";
-    iframe.style.height = "0";
-    iframe.style.border = "0";
-    iframe.srcdoc = html;
-    iframe.onload = () => {
-      const win = iframe.contentWindow;
-      if (!win) return;
-      win.focus();
-      win.print();
-      setTimeout(() => iframe.remove(), 60000);
-    };
-    document.body.appendChild(iframe);
-    return true;
-  } catch {
-    return false;
-  }
+  return openPrintDocument(html);
 }
