@@ -1,3 +1,4 @@
+import { openPrintDocument } from "./print-doc";
 // Standalone printable receipt (2 vias per A4, black & white) rendered in a hidden iframe.
 import { formatBRL } from "@/lib/documents";
 
@@ -84,26 +85,5 @@ ${via(data, "1ª via — Escritório", emitido)}
 ${via(data, "2ª via — Cliente", emitido)}
 </body></html>`;
 
-  try {
-    const iframe = document.createElement("iframe");
-    iframe.setAttribute("aria-hidden", "true");
-    iframe.style.position = "fixed";
-    iframe.style.right = "0";
-    iframe.style.bottom = "0";
-    iframe.style.width = "0";
-    iframe.style.height = "0";
-    iframe.style.border = "0";
-    iframe.srcdoc = html;
-    iframe.onload = () => {
-      const win = iframe.contentWindow;
-      if (!win) return;
-      win.focus();
-      win.print();
-      setTimeout(() => iframe.remove(), 60000);
-    };
-    document.body.appendChild(iframe);
-    return true;
-  } catch {
-    return false;
-  }
+  return openPrintDocument(html);
 }
