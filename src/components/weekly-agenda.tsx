@@ -389,6 +389,7 @@ type ReminderTask = {
   descricao: string | null;
   data_tarefa: string;
   hora_tarefa: string | null;
+  lembrar_antecedencia_min: number | null;
 };
 
 const REMINDER_STORAGE_KEY = "agenda-lembretes-exibidos";
@@ -417,11 +418,11 @@ function TaskReminders() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("tasks")
-        .select("id, titulo, descricao, data_tarefa, hora_tarefa")
+        .select("id, titulo, descricao, data_tarefa, hora_tarefa, lembrar_antecedencia_min")
         .eq("lembrar_popup", true)
         .eq("status", "pendente")
         .eq("assigned_to", profile!.id)
-        .lte("data_tarefa", format(new Date(), "yyyy-MM-dd"))
+        .lte("data_tarefa", format(addDays(new Date(), 1), "yyyy-MM-dd"))
         .order("data_tarefa", { ascending: true });
       if (error) throw error;
       return (data ?? []) as ReminderTask[];
@@ -435,7 +436,8 @@ function TaskReminders() {
     const due = pending.filter((t) => {
       if (shown.includes(t.id)) return false;
       const when = new Date(`${t.data_tarefa}T${(t.hora_tarefa ? String(t.hora_tarefa).slice(0, 5) : "00:00")}:00`);
-      return when <= now;
+      const alerta = new Date(when.getTime() - (t.lembrar_antecedencia_min ?? 0) * 60000);
+      return alerta <= now;
     });
     if (due.length === 0) return;
     setQueue((q) => {
