@@ -14,7 +14,7 @@ export const Route = createFileRoute("/auth")({
   ssr: false,
   beforeLoad: async () => {
     const { data } = await supabase.auth.getSession();
-    if (data.session) throw redirect({ to: "/dashboard" });
+    if (data.session) throw redirect({ to: "/recepcao" });
   },
   head: () => ({
     meta: [
@@ -43,7 +43,7 @@ function AuthPage() {
       return;
     }
     toast.success("Bem-vindo(a)!");
-    navigate({ to: "/dashboard" });
+    navigate({ to: "/recepcao" });
   }
 
   async function handleSignup(e: React.FormEvent) {
@@ -53,7 +53,7 @@ function AuthPage() {
       email,
       password,
       options: {
-        emailRedirectTo: `${window.location.origin}/dashboard`,
+        emailRedirectTo: `${window.location.origin}/recepcao`,
         data: { nome, cargo },
       },
     });
