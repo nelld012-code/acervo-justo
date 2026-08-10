@@ -18,6 +18,15 @@ import { toast } from "sonner";
 import { printReport } from "@/lib/print-report";
 
 const PRIORIDADE_LABEL: Record<string, string> = { baixa: "Baixa", media: "Média", alta: "Alta" };
+const ANTECEDENCIA_OPTIONS: { value: number; label: string }[] = [
+  { value: 0, label: "Na hora da atividade" },
+  { value: 15, label: "15 minutos antes" },
+  { value: 30, label: "30 minutos antes" },
+  { value: 60, label: "1 hora antes" },
+  { value: 120, label: "2 horas antes" },
+  { value: 240, label: "4 horas antes" },
+  { value: 1440, label: "1 dia antes" },
+];
 const STATUS_LABEL: Record<string, string> = { pendente: "Pendente", concluida: "Concluída", cancelada: "Cancelada" };
 const PRIORIDADE_CLASS: Record<string, string> = {
   baixa: "border-slate-500/40 text-slate-300",
@@ -145,6 +154,7 @@ export function WeeklyAgenda() {
         hora_tarefa: form.hora_tarefa || null,
         prioridade: form.prioridade,
         lembrar_popup: form.lembrar_popup,
+        lembrar_antecedencia_min: form.lembrar_popup ? form.lembrar_antecedencia_min : 0,
         assigned_to: form.assigned_to || profile.id,
         created_by: profile.id,
       });
@@ -153,7 +163,7 @@ export function WeeklyAgenda() {
     onSuccess: () => {
       toast.success("Atividade adicionada à agenda");
       setOpen(false);
-      setForm({ ...form, titulo: "", descricao: "", hora_tarefa: "", lembrar_popup: false });
+      setForm({ ...form, titulo: "", descricao: "", hora_tarefa: "", lembrar_popup: false, lembrar_antecedencia_min: 0 });
       queryClient.invalidateQueries({ queryKey: ["tasks"] });
     },
     onError: (e: Error) => toast.error("Não foi possível salvar", { description: e.message }),
