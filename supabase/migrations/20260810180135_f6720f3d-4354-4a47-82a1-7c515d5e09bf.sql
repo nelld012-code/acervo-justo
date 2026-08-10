@@ -1,0 +1,1 @@
+ALTER TABLE public.tasks ADD COLUMN IF NOT EXISTS lembrar_antecedencia_min integer NOT NULL DEFAULT 0;
