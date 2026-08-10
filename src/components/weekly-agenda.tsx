@@ -44,6 +44,7 @@ export function WeeklyAgenda() {
     prioridade: "media",
     assigned_to: "",
     lembrar_popup: false,
+    lembrar_antecedencia_min: 0,
   });
 
   const { data: tasks } = useQuery({
@@ -51,7 +52,9 @@ export function WeeklyAgenda() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("tasks")
-        .select("id, titulo, descricao, data_tarefa, hora_tarefa, prioridade, status, assigned_to, created_by, lembrar_popup")
+        .select(
+          "id, titulo, descricao, data_tarefa, hora_tarefa, prioridade, status, assigned_to, created_by, lembrar_popup, lembrar_antecedencia_min",
+        )
         .gte("data_tarefa", from)
         .lte("data_tarefa", to)
         .order("hora_tarefa", { ascending: true, nullsFirst: true });
@@ -254,15 +257,33 @@ export function WeeklyAgenda() {
                     </Select>
                   </div>
                 )}
-                <div className="flex items-center gap-2 rounded-md border border-border p-3">
-                  <Checkbox
-                    id="t-lembrete"
-                    checked={form.lembrar_popup}
-                    onCheckedChange={(v) => setForm({ ...form, lembrar_popup: v === true })}
-                  />
-                  <Label htmlFor="t-lembrete" className="cursor-pointer text-sm font-normal">
-                    Lembrar com pop-up
-                  </Label>
+                <div className="space-y-3 rounded-md border border-border p-3">
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id="t-lembrete"
+                      checked={form.lembrar_popup}
+                      onCheckedChange={(v) => setForm({ ...form, lembrar_popup: v === true })}
+                    />
+                    <Label htmlFor="t-lembrete" className="cursor-pointer text-sm font-normal">
+                      Lembrar com pop-up
+                    </Label>
+                  </div>
+                  {form.lembrar_popup && (
+                    <div className="space-y-2">
+                      <Label>Antecedência do lembrete</Label>
+                      <Select
+                        value={String(form.lembrar_antecedencia_min)}
+                        onValueChange={(v) => setForm({ ...form, lembrar_antecedencia_min: Number(v) })}
+                      >
+                        <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                        <SelectContent>
+                          {ANTECEDENCIA_OPTIONS.map((o) => (
+                            <SelectItem key={o.value} value={String(o.value)}>{o.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
                 </div>
               </div>
               <DialogFooter>
