@@ -18,6 +18,15 @@ import { toast } from "sonner";
 import { printReport } from "@/lib/print-report";
 
 const PRIORIDADE_LABEL: Record<string, string> = { baixa: "Baixa", media: "Média", alta: "Alta" };
+const ANTECEDENCIA_OPTIONS: { value: number; label: string }[] = [
+  { value: 0, label: "Na hora da atividade" },
+  { value: 15, label: "15 minutos antes" },
+  { value: 30, label: "30 minutos antes" },
+  { value: 60, label: "1 hora antes" },
+  { value: 120, label: "2 horas antes" },
+  { value: 240, label: "4 horas antes" },
+  { value: 1440, label: "1 dia antes" },
+];
 const STATUS_LABEL: Record<string, string> = { pendente: "Pendente", concluida: "Concluída", cancelada: "Cancelada" };
 const PRIORIDADE_CLASS: Record<string, string> = {
   baixa: "border-slate-500/40 text-slate-300",
@@ -44,6 +53,7 @@ export function WeeklyAgenda() {
     prioridade: "media",
     assigned_to: "",
     lembrar_popup: false,
+    lembrar_antecedencia_min: 0,
   });
 
   const { data: tasks } = useQuery({
@@ -51,7 +61,9 @@ export function WeeklyAgenda() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("tasks")
-        .select("id, titulo, descricao, data_tarefa, hora_tarefa, prioridade, status, assigned_to, created_by, lembrar_popup")
+        .select(
+          "id, titulo, descricao, data_tarefa, hora_tarefa, prioridade, status, assigned_to, created_by, lembrar_popup, lembrar_antecedencia_min",
+        )
         .gte("data_tarefa", from)
         .lte("data_tarefa", to)
         .order("hora_tarefa", { ascending: true, nullsFirst: true });
@@ -142,6 +154,7 @@ export function WeeklyAgenda() {
         hora_tarefa: form.hora_tarefa || null,
         prioridade: form.prioridade,
         lembrar_popup: form.lembrar_popup,
+        lembrar_antecedencia_min: form.lembrar_popup ? form.lembrar_antecedencia_min : 0,
         assigned_to: form.assigned_to || profile.id,
         created_by: profile.id,
       });
@@ -150,7 +163,7 @@ export function WeeklyAgenda() {
     onSuccess: () => {
       toast.success("Atividade adicionada à agenda");
       setOpen(false);
-      setForm({ ...form, titulo: "", descricao: "", hora_tarefa: "", lembrar_popup: false });
+      setForm({ ...form, titulo: "", descricao: "", hora_tarefa: "", lembrar_popup: false, lembrar_antecedencia_min: 0 });
       queryClient.invalidateQueries({ queryKey: ["tasks"] });
     },
     onError: (e: Error) => toast.error("Não foi possível salvar", { description: e.message }),
@@ -254,15 +267,33 @@ export function WeeklyAgenda() {
                     </Select>
                   </div>
                 )}
-                <div className="flex items-center gap-2 rounded-md border border-border p-3">
-                  <Checkbox
-                    id="t-lembrete"
-                    checked={form.lembrar_popup}
-                    onCheckedChange={(v) => setForm({ ...form, lembrar_popup: v === true })}
-                  />
-                  <Label htmlFor="t-lembrete" className="cursor-pointer text-sm font-normal">
-                    Lembrar com pop-up
-                  </Label>
+                <div className="space-y-3 rounded-md border border-border p-3">
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id="t-lembrete"
+                      checked={form.lembrar_popup}
+                      onCheckedChange={(v) => setForm({ ...form, lembrar_popup: v === true })}
+                    />
+                    <Label htmlFor="t-lembrete" className="cursor-pointer text-sm font-normal">
+                      Lembrar com pop-up
+                    </Label>
+                  </div>
+                  {form.lembrar_popup && (
+                    <div className="space-y-2">
+                      <Label>Antecedência do lembrete</Label>
+                      <Select
+                        value={String(form.lembrar_antecedencia_min)}
+                        onValueChange={(v) => setForm({ ...form, lembrar_antecedencia_min: Number(v) })}
+                      >
+                        <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                        <SelectContent>
+                          {ANTECEDENCIA_OPTIONS.map((o) => (
+                            <SelectItem key={o.value} value={String(o.value)}>{o.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
                 </div>
               </div>
               <DialogFooter>
@@ -358,6 +389,7 @@ type ReminderTask = {
   descricao: string | null;
   data_tarefa: string;
   hora_tarefa: string | null;
+  lembrar_antecedencia_min: number | null;
 };
 
 const REMINDER_STORAGE_KEY = "agenda-lembretes-exibidos";
@@ -386,11 +418,11 @@ function TaskReminders() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("tasks")
-        .select("id, titulo, descricao, data_tarefa, hora_tarefa")
+        .select("id, titulo, descricao, data_tarefa, hora_tarefa, lembrar_antecedencia_min")
         .eq("lembrar_popup", true)
         .eq("status", "pendente")
         .eq("assigned_to", profile!.id)
-        .lte("data_tarefa", format(new Date(), "yyyy-MM-dd"))
+        .lte("data_tarefa", format(addDays(new Date(), 1), "yyyy-MM-dd"))
         .order("data_tarefa", { ascending: true });
       if (error) throw error;
       return (data ?? []) as ReminderTask[];
@@ -404,7 +436,8 @@ function TaskReminders() {
     const due = pending.filter((t) => {
       if (shown.includes(t.id)) return false;
       const when = new Date(`${t.data_tarefa}T${(t.hora_tarefa ? String(t.hora_tarefa).slice(0, 5) : "00:00")}:00`);
-      return when <= now;
+      const alerta = new Date(when.getTime() - (t.lembrar_antecedencia_min ?? 0) * 60000);
+      return alerta <= now;
     });
     if (due.length === 0) return;
     setQueue((q) => {

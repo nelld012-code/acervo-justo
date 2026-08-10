@@ -24,9 +24,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, Pencil, Trash2, Printer } from "lucide-react";
+import { Plus, Pencil, Trash2, Printer, MessageCircle } from "lucide-react";
 import { toast } from "sonner";
 import { printReport } from "@/lib/print-report";
+import { whatsappLink } from "@/lib/documents";
 
 export const Route = createFileRoute("/_authenticated/recepcao")({
   head: () => ({
@@ -259,7 +260,18 @@ function RecepcaoPage() {
                         <td className="p-2">{r.advogado}</td>
                         <td className="p-2 font-medium">{r.nome_cliente}</td>
                         <td className="p-2">{r.cpf || "—"}</td>
-                        <td className="p-2 whitespace-nowrap">{r.telefone}</td>
+                        <td className="p-2 whitespace-nowrap">
+                          <a
+                            href={whatsappLink(r.telefone)}
+                            target="_blank"
+                            rel="noreferrer"
+                            title="Abrir WhatsApp"
+                            className="inline-flex items-center gap-1 text-primary hover:underline"
+                          >
+                            <MessageCircle className="h-4 w-4" />
+                            {r.telefone}
+                          </a>
+                        </td>
                         <td className="p-2">{r.atendente}</td>
                         <td className="p-2">
                           <div className="flex justify-end gap-1">
@@ -301,22 +313,38 @@ function RecepcaoPage() {
                       </div>
                       <div className="flex justify-between gap-2">
                         <dt className="text-muted-foreground">Telefone</dt>
-                        <dd className="text-right">{r.telefone}</dd>
+                        <dd className="text-right">
+                          <a
+                            href={whatsappLink(r.telefone)}
+                            target="_blank"
+                            rel="noreferrer"
+                            title="Abrir WhatsApp"
+                            className="inline-flex items-center gap-1 text-primary"
+                          >
+                            <MessageCircle className="h-4 w-4" />
+                            {r.telefone}
+                          </a>
+                        </dd>
                       </div>
                       <div className="flex justify-between gap-2">
                         <dt className="text-muted-foreground">Atendente</dt>
                         <dd className="truncate text-right">{r.atendente}</dd>
                       </div>
                     </dl>
-                    <div className="mt-3 grid grid-cols-3 gap-2">
+                    <div className="mt-3 grid grid-cols-2 gap-2">
+                      <Button size="sm" variant="outline" asChild>
+                        <a href={whatsappLink(r.telefone)} target="_blank" rel="noreferrer">
+                          <MessageCircle className="mr-1 h-4 w-4" /> WhatsApp
+                        </a>
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => printOne(r)}>
+                        <Printer className="mr-1 h-4 w-4" /> Imprimir
+                      </Button>
                       <Button size="sm" variant="outline" onClick={() => openEdit(r)}>
                         <Pencil className="mr-1 h-4 w-4" /> Editar
                       </Button>
                       <Button size="sm" variant="outline" onClick={() => setToDelete(r)}>
                         <Trash2 className="mr-1 h-4 w-4 text-destructive" /> Excluir
-                      </Button>
-                      <Button size="sm" variant="outline" onClick={() => printOne(r)}>
-                        <Printer className="mr-1 h-4 w-4" /> Imprimir
                       </Button>
                     </div>
                   </div>
