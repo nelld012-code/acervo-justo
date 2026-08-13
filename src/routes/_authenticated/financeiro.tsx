@@ -94,11 +94,26 @@ function FinanceiroPage() {
   async function imprimirRegistro(rec: RegistroFinanceiro) {
     setImprimindo(rec.id);
     try {
+      if (rec.kind === "saida") {
+        const e = (expenses ?? []).find((x) => x.id === rec.id);
+        if (e && !printExpenseVoucher(e)) toast.error("Não foi possível abrir a impressão");
+        return;
+      }
       await printFinancialRecord(rec);
     } catch (e) {
       toast.error("Não foi possível gerar a impressão", { description: e instanceof Error ? e.message : "" });
     } finally {
       setImprimindo(null);
+    }
+  }
+
+  function abrirEdicao(rec: RegistroFinanceiro) {
+    if (rec.kind === "entrada") {
+      const p = (payments ?? []).find((x) => x.id === rec.id);
+      if (p) setEditPayment(p);
+    } else {
+      const e = (expenses ?? []).find((x) => x.id === rec.id);
+      if (e) setEditExpense(e);
     }
   }
 
