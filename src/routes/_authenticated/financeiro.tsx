@@ -9,14 +9,23 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, TrendingUp, TrendingDown, Wallet, Receipt, Pencil, Trash2, Printer } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Plus, TrendingUp, TrendingDown, Wallet, Receipt, Pencil, Trash2, Printer, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { useProfile } from "@/hooks/use-profile";
-import { CATEGORIAS_DESPESA, METODOS_PAGAMENTO, formatBRL, type Expense, type PaymentRow } from "@/lib/documents";
+import {
+  CATEGORIAS_DESPESA, METODOS_PAGAMENTO, formatBRL, logAudit, processoLabel,
+  type Expense, type PaymentRow,
+} from "@/lib/documents";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { printReport } from "@/lib/print-report";
 import { printExpenseVoucher } from "@/lib/print-expense";
+import { printFinancialRecord, type RegistroFinanceiro } from "@/lib/print-financeiro";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, LineChart, Line,
 } from "recharts";
