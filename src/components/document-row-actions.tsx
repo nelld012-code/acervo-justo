@@ -33,6 +33,7 @@ import {
   CONFIDENCIALIDADES,
   buildStoragePath,
   logAudit,
+  processoLabel,
   type Documento,
 } from "@/lib/documents";
 
@@ -272,7 +273,7 @@ export function DocumentDeleteDialog({
         <AlertDialogHeader>
           <AlertDialogTitle>Tem certeza que deseja excluir este documento?</AlertDialogTitle>
           <AlertDialogDescription>
-            {doc ? `${doc.internal_id} · ${doc.numero_processo} · ${doc.tipo_documento}` : ""} — esta ação não pode ser desfeita.
+            {doc ? `${doc.internal_id} · ${processoLabel(doc.numero_processo)} · ${doc.tipo_documento}` : ""} — esta ação não pode ser desfeita.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
@@ -333,12 +334,15 @@ export function DocumentUploadDialog({
         originalExt: ext,
       });
 
-      const { data: existing } = await supabase
-        .from("documents")
-        .select("id, current_version")
-        .eq("numero_processo", doc.numero_processo)
-        .eq("tipo_documento", tipo)
-        .maybeSingle();
+      const processo = (doc.numero_processo ?? "").trim();
+      const { data: existing } = processo
+        ? await supabase
+            .from("documents")
+            .select("id, current_version")
+            .eq("numero_processo", processo)
+            .eq("tipo_documento", tipo)
+            .maybeSingle()
+        : { data: null as { id: string; current_version: number } | null };
 
       const finalPath = existing
         ? basePath.replace(/\.([^.]+)$/, `_v${existing.current_version + 1}.$1`)
@@ -423,7 +427,7 @@ export function DocumentUploadDialog({
         <DialogHeader>
           <DialogTitle>Anexar documento ao processo</DialogTitle>
           <DialogDescription>
-            {doc ? `${doc.cliente} · ${doc.numero_processo}` : ""}
+            {doc ? `${doc.cliente} · ${processoLabel(doc.numero_processo)}` : ""}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={submit} className="space-y-4">
