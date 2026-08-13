@@ -24,8 +24,7 @@ import {
 import { format, startOfMonth, endOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { printReport } from "@/lib/print-report";
-import { printExpenseVoucher } from "@/lib/print-expense";
-import { printFinancialRecord, type RegistroFinanceiro } from "@/lib/print-financeiro";
+import { printFinancialRecord, isSalario, type RegistroFinanceiro } from "@/lib/print-financeiro";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, LineChart, Line,
 } from "recharts";
@@ -55,7 +54,7 @@ function FinanceiroPage() {
   const [form, setForm] = useState({
     descricao: "", categoria: "Outros", valor: "",
     data_despesa: new Date().toISOString().slice(0, 10),
-    responsavel_pagamento: "",
+    responsavel_pagamento: "", recebedor_salario: "",
   });
   const [payOpen, setPayOpen] = useState(false);
   const [editPayment, setEditPayment] = useState<PaymentWithDoc | null>(null);
@@ -94,11 +93,6 @@ function FinanceiroPage() {
   async function imprimirRegistro(rec: RegistroFinanceiro) {
     setImprimindo(rec.id);
     try {
-      if (rec.kind === "saida") {
-        const e = (expenses ?? []).find((x) => x.id === rec.id);
-        if (e && !printExpenseVoucher(e)) toast.error("Não foi possível abrir a impressão");
-        return;
-      }
       await printFinancialRecord(rec);
     } catch (e) {
       toast.error("Não foi possível gerar a impressão", { description: e instanceof Error ? e.message : "" });
