@@ -183,6 +183,8 @@ function FinanceiroPage() {
       status: "Recebido",
       observacao: p.descricao ?? null,
       document_id: p.document_id,
+      metodo_pagamento: p.metodo_pagamento ?? null,
+      responsavel_recebimento: p.responsavel_recebimento ?? null,
     }));
     const saidas: RegistroFinanceiro[] = (expenses ?? []).map((e) => ({
       kind: "saida",
@@ -194,6 +196,8 @@ function FinanceiroPage() {
       data: e.data_despesa,
       status: "Pago",
       observacao: e.descricao ?? null,
+      categoria: e.categoria ?? null,
+      responsavel_pagamento: e.responsavel_pagamento ?? null,
     }));
     return [...entradas, ...saidas].sort((a, b) => b.data.localeCompare(a.data));
   }, [payments, expenses]);
