@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import {
+  chaveLembrete,
   diasRestantes,
   prazoEmAlerta,
   processoOuTraco,
@@ -22,37 +23,45 @@ import {
 
 const SNOOZE_MS = 30 * 60 * 1000;
 const STORAGE_KEY = "prazos-snooze";
+const DISMISS_KEY = "prazos-dispensados";
 
-function readSnooze(): Record<string, number> {
+function readMap<T>(key: string): Record<string, T> {
   if (typeof window === "undefined") return {};
   try {
-    return JSON.parse(window.localStorage.getItem(STORAGE_KEY) ?? "{}") as Record<string, number>;
+    return JSON.parse(window.localStorage.getItem(key) ?? "{}") as Record<string, T>;
   } catch {
     return {};
   }
 }
 
-function writeSnooze(map: Record<string, number>) {
+function writeMap(key: string, map: Record<string, unknown>) {
   try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(map));
+    window.localStorage.setItem(key, JSON.stringify(map));
   } catch {
     /* armazenamento indisponível */
   }
 }
 
-/** Popup recorrente (a cada 30 minutos) dos prazos que entraram na janela de lembrete. */
+/** Popup de prazos: um único alerta por vez, sem timers duplicados nem vazamentos. */
 export function PrazoReminders() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const [tick, setTick] = useState(0);
   const [snooze, setSnooze] = useState<Record<string, number>>({});
+  const [dispensados, setDispensados] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
-    setSnooze(readSnooze());
+    // Verificação inicial (abertura do app / login) + limpeza de adiamentos expirados.
+    const agora = Date.now();
+    const s = readMap<number>(STORAGE_KEY);
+    const limpos = Object.fromEntries(Object.entries(s).filter(([, v]) => Number(v) > agora));
+    writeMap(STORAGE_KEY, limpos);
+    setSnooze(limpos);
+    setDispensados(readMap<boolean>(DISMISS_KEY));
   }, []);
 
   useEffect(() => {
-    // Verificação periódica leve: apenas recalcula quais prazos devem aparecer.
+    // Um único intervalo enquanto o componente estiver montado.
     const i = setInterval(() => setTick((t) => t + 1), 60_000);
     return () => clearInterval(i);
   }, []);
@@ -79,15 +88,33 @@ export function PrazoReminders() {
   const atual = useMemo(() => {
     void tick;
     const agora = Date.now();
-    return (data ?? []).find((p) => prazoEmAlerta(p) && (snooze[p.id] ?? 0) < agora) ?? null;
-  }, [data, snooze, tick]);
+    return (
+      (data ?? []).find((p) => {
+        if (!prazoEmAlerta(p)) return false;
+        if (dispensados[chaveLembrete(p)]) return false;
+        return (snooze[p.id] ?? 0) < agora;
+      }) ?? null
+    );
+  }, [data, snooze, dispensados, tick]);
 
-  function adiar(id: string) {
-    const next = { ...snooze, [id]: Date.now() + SNOOZE_MS };
-    setSnooze(next);
-    writeSnooze(next);
-    toast.success("Lembrete adiado por 30 minutos.");
-  }
+  const adiar = useCallback((p: Prazo) => {
+    if (p.repetir_alerta_diariamente) {
+      setSnooze((prev) => {
+        const next = { ...prev, [p.id]: Date.now() + SNOOZE_MS };
+        writeMap(STORAGE_KEY, next);
+        return next;
+      });
+      toast.success("Lembrete adiado por 30 minutos.");
+    } else {
+      // Sem repetição diária: o alerta não volta a aparecer para este prazo.
+      setDispensados((prev) => {
+        const next = { ...prev, [chaveLembrete(p)]: true };
+        writeMap(DISMISS_KEY, next);
+        return next;
+      });
+      toast.success("Lembrete encerrado para este prazo.");
+    }
+  }, []);
 
   async function desativar(id: string) {
     const { error } = await supabase.from("prazos").update({ lembrete_ativo: false }).eq("id", id);
@@ -100,11 +127,26 @@ export function PrazoReminders() {
     void qc.invalidateQueries({ queryKey: ["prazos"] });
   }
 
+  async function concluir(id: string) {
+    const { error } = await supabase
+      .from("prazos")
+      .update({ status: "Concluído", data_conclusao: new Date().toISOString().slice(0, 10), lembrete_ativo: false })
+      .eq("id", id);
+    if (error) {
+      toast.error("Não foi possível concluir o prazo.");
+      return;
+    }
+    toast.success("Prazo concluído com sucesso.");
+    void qc.invalidateQueries({ queryKey: ["prazos-lembretes"] });
+    void qc.invalidateQueries({ queryKey: ["prazos"] });
+    void qc.invalidateQueries({ queryKey: ["prazos-proximos"] });
+  }
+
   if (!atual) return null;
   const dias = diasRestantes(atual.data_limite);
 
   return (
-    <Dialog open onOpenChange={(o) => { if (!o) adiar(atual.id); }}>
+    <Dialog open onOpenChange={(o) => { if (!o) adiar(atual); }}>
       <DialogContent className="w-[calc(100vw-2rem)] max-w-md">
         <DialogHeader>
           <DialogTitle>⚠️ Lembrete de Prazo</DialogTitle>
@@ -120,12 +162,15 @@ export function PrazoReminders() {
         <DialogFooter className="flex-col gap-2 sm:flex-row">
           <Button
             className="min-h-11 w-full sm:w-auto"
-            onClick={() => { adiar(atual.id); void navigate({ to: "/prazos" }); }}
+            onClick={() => { adiar(atual); void navigate({ to: "/prazos" }); }}
           >
             Ver Prazo
           </Button>
-          <Button variant="outline" className="min-h-11 w-full sm:w-auto" onClick={() => adiar(atual.id)}>
-            Lembrar novamente em 30 minutos
+          <Button variant="outline" className="min-h-11 w-full sm:w-auto" onClick={() => adiar(atual)}>
+            {atual.repetir_alerta_diariamente ? "Lembrar novamente em 30 minutos" : "Fechar"}
+          </Button>
+          <Button variant="outline" className="min-h-11 w-full sm:w-auto" onClick={() => void concluir(atual.id)}>
+            Concluir
           </Button>
           <Button variant="ghost" className="min-h-11 w-full sm:w-auto" onClick={() => void desativar(atual.id)}>
             Desativar lembrete

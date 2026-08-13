@@ -9,14 +9,23 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, TrendingUp, TrendingDown, Wallet, Receipt, Pencil, Trash2, Printer } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Plus, TrendingUp, TrendingDown, Wallet, Receipt, Pencil, Trash2, Printer, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { useProfile } from "@/hooks/use-profile";
-import { CATEGORIAS_DESPESA, METODOS_PAGAMENTO, formatBRL, type Expense, type PaymentRow } from "@/lib/documents";
+import {
+  CATEGORIAS_DESPESA, METODOS_PAGAMENTO, formatBRL, logAudit, processoLabel,
+  type Expense, type PaymentRow,
+} from "@/lib/documents";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { printReport } from "@/lib/print-report";
 import { printExpenseVoucher } from "@/lib/print-expense";
+import { printFinancialRecord, type RegistroFinanceiro } from "@/lib/print-financeiro";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, LineChart, Line,
 } from "recharts";
@@ -51,21 +60,61 @@ function FinanceiroPage() {
   const [payOpen, setPayOpen] = useState(false);
   const [editPayment, setEditPayment] = useState<PaymentWithDoc | null>(null);
   const [editExpense, setEditExpense] = useState<Expense | null>(null);
+  const [busca, setBusca] = useState("");
+  const [filtroTipo, setFiltroTipo] = useState("Todos");
+  const [filtroStatus, setFiltroStatus] = useState("Todos");
+  const [dataDe, setDataDe] = useState("");
+  const [dataAte, setDataAte] = useState("");
+  const [valorMin, setValorMin] = useState("");
+  const [ficha, setFicha] = useState<RegistroFinanceiro | null>(null);
+  const [excluindo, setExcluindo] = useState<RegistroFinanceiro | null>(null);
+  const [imprimindo, setImprimindo] = useState<string | null>(null);
 
-  async function handleDeletePayment(p: PaymentWithDoc) {
-    if (!confirm("Excluir este pagamento?")) return;
-    const { error } = await supabase.from("payments").delete().eq("id", p.id);
-    if (error) return toast.error("Não foi possível excluir", { description: error.message });
-    toast.success("Pagamento excluído");
+  async function confirmarExclusao() {
+    const rec = excluindo;
+    if (!rec) return;
+    const tabela = rec.kind === "entrada" ? "payments" : "expenses";
+    const { error } = await supabase.from(tabela).delete().eq("id", rec.id);
+    if (error) {
+      toast.error("Não foi possível excluir", { description: error.message });
+      return;
+    }
+    await logAudit(rec.kind === "entrada" ? rec.document_id ?? null : null, "deleted", {
+      entidade: rec.kind === "entrada" ? "pagamento" : "despesa",
+      registro_id: rec.id,
+      nome: rec.nome,
+      valor: rec.valor,
+    });
+    toast.success("Registro financeiro excluído");
+    setExcluindo(null);
     qc.invalidateQueries({ queryKey: ["fin-payments"] });
+    qc.invalidateQueries({ queryKey: ["fin-expenses"] });
   }
 
-  async function handleDeleteExpense(e: Expense) {
-    if (!confirm("Excluir esta despesa?")) return;
-    const { error } = await supabase.from("expenses").delete().eq("id", e.id);
-    if (error) return toast.error("Não foi possível excluir", { description: error.message });
-    toast.success("Despesa excluída");
-    qc.invalidateQueries({ queryKey: ["fin-expenses"] });
+  async function imprimirRegistro(rec: RegistroFinanceiro) {
+    setImprimindo(rec.id);
+    try {
+      if (rec.kind === "saida") {
+        const e = (expenses ?? []).find((x) => x.id === rec.id);
+        if (e && !printExpenseVoucher(e)) toast.error("Não foi possível abrir a impressão");
+        return;
+      }
+      await printFinancialRecord(rec);
+    } catch (e) {
+      toast.error("Não foi possível gerar a impressão", { description: e instanceof Error ? e.message : "" });
+    } finally {
+      setImprimindo(null);
+    }
+  }
+
+  function abrirEdicao(rec: RegistroFinanceiro) {
+    if (rec.kind === "entrada") {
+      const p = (payments ?? []).find((x) => x.id === rec.id);
+      if (p) setEditPayment(p);
+    } else {
+      const e = (expenses ?? []).find((x) => x.id === rec.id);
+      if (e) setEditExpense(e);
+    }
   }
 
   const monthStart = startOfMonth(new Date()).toISOString().slice(0, 10);
@@ -121,6 +170,58 @@ function FinanceiroPage() {
   const totalEntradas = monthPayments.reduce((s, p) => s + Number(p.valor), 0);
   const totalSaidas = monthExpenses.reduce((s, e) => s + Number(e.valor), 0);
   const saldo = totalEntradas - totalSaidas;
+
+  const registros = useMemo<RegistroFinanceiro[]>(() => {
+    const entradas: RegistroFinanceiro[] = (payments ?? []).map((p) => ({
+      kind: "entrada",
+      id: p.id,
+      nome: p.documents?.cliente ?? "—",
+      numero_processo: p.documents?.numero_processo ?? null,
+      tipo: "Entrada",
+      valor: Number(p.valor),
+      data: p.data_pagamento,
+      status: "Recebido",
+      observacao: p.descricao ?? null,
+      document_id: p.document_id,
+    }));
+    const saidas: RegistroFinanceiro[] = (expenses ?? []).map((e) => ({
+      kind: "saida",
+      id: e.id,
+      nome: e.responsavel_pagamento || e.descricao,
+      numero_processo: null,
+      tipo: "Saída",
+      valor: Number(e.valor),
+      data: e.data_despesa,
+      status: "Pago",
+      observacao: e.descricao ?? null,
+    }));
+    return [...entradas, ...saidas].sort((a, b) => b.data.localeCompare(a.data));
+  }, [payments, expenses]);
+
+  const registrosFiltrados = useMemo(() => {
+    const termo = busca.trim().toLowerCase();
+    const min = Number(valorMin);
+    return registros.filter((r) => {
+      if (termo) {
+        const hay = `${r.nome} ${r.numero_processo ?? ""} ${r.tipo} ${r.status} ${r.observacao ?? ""}`.toLowerCase();
+        if (!hay.includes(termo)) return false;
+      }
+      if (filtroTipo !== "Todos" && r.tipo !== filtroTipo) return false;
+      if (filtroStatus !== "Todos" && r.status !== filtroStatus) return false;
+      if (dataDe && r.data < dataDe) return false;
+      if (dataAte && r.data > dataAte) return false;
+      if (valorMin && !Number.isNaN(min) && r.valor < min) return false;
+      return true;
+    });
+  }, [registros, busca, filtroTipo, filtroStatus, dataDe, dataAte, valorMin]);
+
+  const totalRecebidoFiltrado = registrosFiltrados
+    .filter((r) => r.kind === "entrada")
+    .reduce((s, r) => s + r.valor, 0);
+  const totalPagoFiltrado = registrosFiltrados
+    .filter((r) => r.kind === "saida")
+    .reduce((s, r) => s + r.valor, 0);
+  const totalGeralFiltrado = totalRecebidoFiltrado - totalPagoFiltrado;
 
   const rankingClientes = useMemo(() => {
     const map = new Map<string, number>();
@@ -333,73 +434,182 @@ function FinanceiroPage() {
         </Card>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2 [&>*]:min-w-0">
-        <Card>
-          <CardHeader><CardTitle>Últimos Pagamentos</CardTitle></CardHeader>
-          <CardContent className="overflow-x-auto p-0">
+      <Card>
+        <CardHeader className="gap-3">
+          <CardTitle>Registros Financeiros</CardTitle>
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            <Input
+              placeholder="Buscar por nome"
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+              className="sm:col-span-2 lg:col-span-1"
+            />
+            <Select value={filtroTipo} onValueChange={setFiltroTipo}>
+              <SelectTrigger><SelectValue placeholder="Tipo" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Todos">Todos os tipos</SelectItem>
+                <SelectItem value="Entrada">Entrada</SelectItem>
+                <SelectItem value="Saída">Saída</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={filtroStatus} onValueChange={setFiltroStatus}>
+              <SelectTrigger><SelectValue placeholder="Status" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Todos">Todos os status</SelectItem>
+                <SelectItem value="Recebido">Recebido</SelectItem>
+                <SelectItem value="Pago">Pago</SelectItem>
+              </SelectContent>
+            </Select>
+            <div className="space-y-1.5"><Label className="text-xs">Data inicial</Label>
+              <Input type="date" value={dataDe} onChange={(e) => setDataDe(e.target.value)} />
+            </div>
+            <div className="space-y-1.5"><Label className="text-xs">Data final</Label>
+              <Input type="date" value={dataAte} onChange={(e) => setDataAte(e.target.value)} />
+            </div>
+            <div className="space-y-1.5"><Label className="text-xs">Valor mínimo (R$)</Label>
+              <Input type="number" min="0" step="0.01" value={valorMin} onChange={(e) => setValorMin(e.target.value)} />
+            </div>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-3">
+            <div className="rounded-md border p-3">
+              <p className="text-xs text-muted-foreground">Total Recebido</p>
+              <p className="font-mono text-lg font-bold text-accent">{formatBRL(totalRecebidoFiltrado)}</p>
+            </div>
+            <div className="rounded-md border p-3">
+              <p className="text-xs text-muted-foreground">Total Pago</p>
+              <p className="font-mono text-lg font-bold text-destructive">{formatBRL(totalPagoFiltrado)}</p>
+            </div>
+            <div className="rounded-md border p-3">
+              <p className="text-xs text-muted-foreground">Total Geral</p>
+              <p className={`font-mono text-lg font-bold ${totalGeralFiltrado >= 0 ? "text-accent" : "text-destructive"}`}>
+                {formatBRL(totalGeralFiltrado)}
+              </p>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="p-0">
+          {/* Mobile */}
+          <div className="divide-y md:hidden">
+            {registrosFiltrados.length === 0 ? (
+              <p className="py-8 text-center text-sm text-muted-foreground">Nenhum registro encontrado.</p>
+            ) : registrosFiltrados.map((r) => (
+              <div key={`${r.kind}-${r.id}`} className="space-y-2 p-4">
+                <div className="flex items-start justify-between gap-2">
+                  <span className="min-w-0 break-words text-sm font-semibold text-foreground">{r.nome}</span>
+                  <Badge variant="outline" className="shrink-0">{r.tipo}</Badge>
+                </div>
+                <p className="break-words text-xs text-muted-foreground">{processoLabel(r.numero_processo)}</p>
+                <p className="text-xs text-muted-foreground">
+                  {format(new Date(`${r.data}T00:00:00`), "dd/MM/yyyy")} · {r.status}
+                </p>
+                <p className={`font-mono text-base font-bold ${r.kind === "entrada" ? "text-accent" : "text-destructive"}`}>
+                  {formatBRL(r.valor)}
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <Button size="sm" variant="outline" className="min-h-10" onClick={() => setFicha(r)}>
+                    <FileText className="mr-1 h-4 w-4" />Ficha
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="min-h-10"
+                    disabled={imprimindo === r.id}
+                    onClick={() => void imprimirRegistro(r)}
+                  >
+                    <Printer className="mr-1 h-4 w-4" />{imprimindo === r.id ? "Gerando..." : "Imprimir"}
+                  </Button>
+                  {perms.canAccessFinance && (
+                    <>
+                      <Button size="sm" variant="outline" className="min-h-10" onClick={() => abrirEdicao(r)}>
+                        <Pencil className="mr-1 h-4 w-4" />Editar
+                      </Button>
+                      <Button size="sm" variant="outline" className="min-h-10" onClick={() => setExcluindo(r)}>
+                        <Trash2 className="mr-1 h-4 w-4" />Excluir
+                      </Button>
+                    </>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop */}
+          <div className="hidden overflow-x-auto md:block">
             <Table>
               <TableHeader>
-                <TableRow><TableHead>Data</TableHead><TableHead>Cliente</TableHead><TableHead>Processo</TableHead><TableHead className="text-right">Valor</TableHead><TableHead className="w-[90px] text-right">Ações</TableHead></TableRow>
+                <TableRow>
+                  <TableHead>Nome</TableHead>
+                  <TableHead>Número do Processo</TableHead>
+                  <TableHead>Tipo</TableHead>
+                  <TableHead className="text-right">Valor</TableHead>
+                  <TableHead>Data</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Ações</TableHead>
+                </TableRow>
               </TableHeader>
               <TableBody>
-                {(payments ?? []).slice(0, 10).map((p) => (
-                  <TableRow key={p.id}>
-                    <TableCell className="text-xs">{format(new Date(p.data_pagamento), "dd/MM/yyyy")}</TableCell>
-                    <TableCell>{p.documents?.cliente ?? "—"}</TableCell>
-                    <TableCell className="text-xs">{p.documents?.numero_processo ?? "—"}</TableCell>
-                    <TableCell className="text-right font-mono font-semibold text-accent">{formatBRL(Number(p.valor))}</TableCell>
-                    <TableCell className="text-right whitespace-nowrap">
-                      <Button size="icon" variant="ghost" title="Editar" onClick={() => setEditPayment(p)}><Pencil className="h-4 w-4" /></Button>
-                      <Button size="icon" variant="ghost" title="Excluir" onClick={() => handleDeletePayment(p)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                {registrosFiltrados.length === 0 ? (
+                  <TableRow><TableCell colSpan={7} className="py-8 text-center text-sm text-muted-foreground">Nenhum registro encontrado.</TableCell></TableRow>
+                ) : registrosFiltrados.map((r) => (
+                  <TableRow key={`${r.kind}-${r.id}`}>
+                    <TableCell className="font-medium">{r.nome}</TableCell>
+                    <TableCell className="text-xs">{processoLabel(r.numero_processo)}</TableCell>
+                    <TableCell><Badge variant="outline">{r.tipo}</Badge></TableCell>
+                    <TableCell className={`text-right font-mono font-semibold ${r.kind === "entrada" ? "text-accent" : "text-destructive"}`}>
+                      {formatBRL(r.valor)}
                     </TableCell>
-                  </TableRow>
-                ))}
-                {(!payments || payments.length === 0) && (
-                  <TableRow><TableCell colSpan={5} className="text-center text-sm text-muted-foreground">Sem pagamentos.</TableCell></TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader><CardTitle>Últimas Despesas</CardTitle></CardHeader>
-          <CardContent className="overflow-x-auto p-0">
-            <Table>
-              <TableHeader>
-                <TableRow><TableHead>Data</TableHead><TableHead>Categoria</TableHead><TableHead>Descrição</TableHead><TableHead className="text-right">Valor</TableHead><TableHead className="w-[130px] text-right">Ações</TableHead></TableRow>
-              </TableHeader>
-              <TableBody>
-                {(expenses ?? []).slice(0, 10).map((e) => (
-                  <TableRow key={e.id}>
-                    <TableCell className="text-xs">{format(new Date(e.data_despesa), "dd/MM/yyyy")}</TableCell>
-                    <TableCell className="text-xs">{e.categoria}</TableCell>
-                    <TableCell>{e.descricao}</TableCell>
-                    <TableCell className="text-right font-mono font-semibold text-destructive">{formatBRL(Number(e.valor))}</TableCell>
+                    <TableCell className="text-xs">{format(new Date(`${r.data}T00:00:00`), "dd/MM/yyyy")}</TableCell>
+                    <TableCell className="text-xs">{r.status}</TableCell>
                     <TableCell className="text-right whitespace-nowrap">
+                      <Button size="icon" variant="ghost" title="Ver ficha" onClick={() => setFicha(r)}>
+                        <FileText className="h-4 w-4" />
+                      </Button>
+                      {perms.canAccessFinance && (
+                        <Button size="icon" variant="ghost" title="Editar" onClick={() => abrirEdicao(r)}>
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                      )}
+                      {perms.canAccessFinance && (
+                        <Button size="icon" variant="ghost" title="Excluir" onClick={() => setExcluindo(r)}>
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      )}
                       <Button
                         size="icon"
                         variant="ghost"
-                        title="Imprimir comprovante"
-                        onClick={() => {
-                          const ok = printExpenseVoucher(e);
-                          if (!ok) toast.error("Não foi possível abrir a impressão");
-                        }}
+                        title="Imprimir"
+                        disabled={imprimindo === r.id}
+                        onClick={() => void imprimirRegistro(r)}
                       >
                         <Printer className="h-4 w-4" />
                       </Button>
-                      <Button size="icon" variant="ghost" title="Editar" onClick={() => setEditExpense(e)}><Pencil className="h-4 w-4" /></Button>
-                      <Button size="icon" variant="ghost" title="Excluir" onClick={() => handleDeleteExpense(e)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                     </TableCell>
                   </TableRow>
                 ))}
-                {(!expenses || expenses.length === 0) && (
-                  <TableRow><TableCell colSpan={5} className="text-center text-sm text-muted-foreground">Sem despesas.</TableCell></TableRow>
-                )}
               </TableBody>
             </Table>
-          </CardContent>
-        </Card>
-      </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <FichaFinanceiraDialog registro={ficha} onClose={() => setFicha(null)} />
+
+      <AlertDialog open={!!excluindo} onOpenChange={(o) => !o && setExcluindo(null)}>
+        <AlertDialogContent className="w-[calc(100vw-2rem)] max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza de que deseja excluir este registro financeiro?
+              {excluindo ? ` (${excluindo.nome} — ${formatBRL(excluindo.valor)})` : ""}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={(e) => { e.preventDefault(); void confirmarExclusao(); }}>Excluir</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
 
       <EditPaymentDialog
         payment={editPayment}
@@ -758,6 +968,76 @@ function RegisterPaymentDialog({
           <Button onClick={handleSave} disabled={saving || !selected} className="bg-primary hover:bg-primary/90">
             {saving ? "Salvando..." : "Salvar Pagamento"}
           </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+function FichaFinanceiraDialog({
+  registro, onClose,
+}: { registro: RegistroFinanceiro | null; onClose: () => void }) {
+  const { data: docs } = useQuery({
+    queryKey: ["ficha-docs", registro?.id, registro?.numero_processo],
+    enabled: !!registro && registro.kind === "entrada",
+    queryFn: async () => {
+      if (!registro) return [];
+      const processo = (registro.numero_processo ?? "").trim();
+      if (processo) {
+        const { data } = await supabase
+          .from("documents")
+          .select("id, internal_id, tipo_documento, file_name, data_documento")
+          .eq("numero_processo", processo)
+          .order("created_at", { ascending: true });
+        if ((data ?? []).length) return data ?? [];
+      }
+      if (!registro.document_id) return [];
+      const { data } = await supabase
+        .from("documents")
+        .select("id, internal_id, tipo_documento, file_name, data_documento")
+        .eq("id", registro.document_id);
+      return data ?? [];
+    },
+  });
+
+  return (
+    <Dialog open={!!registro} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-h-[85vh] w-[calc(100vw-2rem)] max-w-lg overflow-y-auto">
+        <DialogHeader><DialogTitle>Ficha Financeira</DialogTitle></DialogHeader>
+        {registro && (
+          <div className="space-y-3 text-sm">
+            <div className="grid gap-2 sm:grid-cols-2">
+              <p><span className="text-muted-foreground">Nome:</span> {registro.nome}</p>
+              <p><span className="text-muted-foreground">Número do Processo:</span> {processoLabel(registro.numero_processo)}</p>
+              <p><span className="text-muted-foreground">Tipo:</span> {registro.tipo}</p>
+              <p><span className="text-muted-foreground">Status:</span> {registro.status}</p>
+              <p><span className="text-muted-foreground">Data:</span> {format(new Date(`${registro.data}T00:00:00`), "dd/MM/yyyy")}</p>
+              <p><span className="text-muted-foreground">Valor:</span>{" "}
+                <span className={`font-mono font-semibold ${registro.kind === "entrada" ? "text-accent" : "text-destructive"}`}>
+                  {formatBRL(registro.valor)}
+                </span>
+              </p>
+            </div>
+            <p className="break-words"><span className="text-muted-foreground">Observação:</span> {registro.observacao || "—"}</p>
+            {registro.kind === "entrada" && (
+              <div className="space-y-1">
+                <p className="font-medium">Documentos vinculados</p>
+                {(docs ?? []).length === 0 ? (
+                  <p className="text-xs text-muted-foreground">Nenhum documento vinculado.</p>
+                ) : (
+                  <ul className="list-inside list-disc text-xs text-muted-foreground">
+                    {(docs ?? []).map((d) => (
+                      <li key={d.id} className="break-words">
+                        {d.tipo_documento} — {d.file_name}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Fechar</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

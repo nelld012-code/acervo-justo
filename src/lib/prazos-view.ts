@@ -68,17 +68,27 @@ export function textoDiasRestantes(dias: number) {
   return `Faltam ${dias} ${dias === 1 ? "dia" : "dias"} para o prazo.`;
 }
 
+/** Limite de dias após o vencimento em que o alerta continua sendo exibido. */
+export const DIAS_MAX_ALERTA_VENCIDO = 30;
+
 /** Um prazo está em alerta quando o lembrete está ativo e já entrou na janela de antecedência. */
 export function prazoEmAlerta(p: Prazo, hoje = new Date()) {
   if (!p.lembrete_ativo || p.status === "Concluído") return false;
   const dias = diasRestantes(p.data_limite, hoje);
   if (dias > p.antecedencia_dias) return false;
-  if (dias < 0) return p.repetir_alerta_diariamente;
-  if (dias < p.antecedencia_dias && !p.repetir_alerta_diariamente) {
-    // Sem repetição diária, o alerta vale apenas a partir da data de antecedência.
-    return true;
+  if (dias < 0) {
+    // Prazos vencidos só continuam alertando quando a repetição diária está ligada,
+    // e ainda assim por um período limitado (evita alertas infinitos).
+    return p.repetir_alerta_diariamente && Math.abs(dias) <= DIAS_MAX_ALERTA_VENCIDO;
   }
   return true;
+}
+
+/** Chave de dispensa: por dia quando repete diariamente, permanente quando não repete. */
+export function chaveLembrete(p: Prazo, hoje = new Date()) {
+  if (!p.repetir_alerta_diariamente) return p.id;
+  const dia = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, "0")}-${String(hoje.getDate()).padStart(2, "0")}`;
+  return `${p.id}:${dia}`;
 }
 
 export function processoOuTraco(numero: string | null | undefined) {
