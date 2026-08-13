@@ -973,3 +973,73 @@ function RegisterPaymentDialog({
     </Dialog>
   );
 }
+function FichaFinanceiraDialog({
+  registro, onClose,
+}: { registro: RegistroFinanceiro | null; onClose: () => void }) {
+  const { data: docs } = useQuery({
+    queryKey: ["ficha-docs", registro?.id, registro?.numero_processo],
+    enabled: !!registro && registro.kind === "entrada",
+    queryFn: async () => {
+      if (!registro) return [];
+      const processo = (registro.numero_processo ?? "").trim();
+      if (processo) {
+        const { data } = await supabase
+          .from("documents")
+          .select("id, internal_id, tipo_documento, file_name, data_documento")
+          .eq("numero_processo", processo)
+          .order("created_at", { ascending: true });
+        if ((data ?? []).length) return data ?? [];
+      }
+      if (!registro.document_id) return [];
+      const { data } = await supabase
+        .from("documents")
+        .select("id, internal_id, tipo_documento, file_name, data_documento")
+        .eq("id", registro.document_id);
+      return data ?? [];
+    },
+  });
+
+  return (
+    <Dialog open={!!registro} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-h-[85vh] w-[calc(100vw-2rem)] max-w-lg overflow-y-auto">
+        <DialogHeader><DialogTitle>Ficha Financeira</DialogTitle></DialogHeader>
+        {registro && (
+          <div className="space-y-3 text-sm">
+            <div className="grid gap-2 sm:grid-cols-2">
+              <p><span className="text-muted-foreground">Nome:</span> {registro.nome}</p>
+              <p><span className="text-muted-foreground">Número do Processo:</span> {processoLabel(registro.numero_processo)}</p>
+              <p><span className="text-muted-foreground">Tipo:</span> {registro.tipo}</p>
+              <p><span className="text-muted-foreground">Status:</span> {registro.status}</p>
+              <p><span className="text-muted-foreground">Data:</span> {format(new Date(`${registro.data}T00:00:00`), "dd/MM/yyyy")}</p>
+              <p><span className="text-muted-foreground">Valor:</span>{" "}
+                <span className={`font-mono font-semibold ${registro.kind === "entrada" ? "text-accent" : "text-destructive"}`}>
+                  {formatBRL(registro.valor)}
+                </span>
+              </p>
+            </div>
+            <p className="break-words"><span className="text-muted-foreground">Observação:</span> {registro.observacao || "—"}</p>
+            {registro.kind === "entrada" && (
+              <div className="space-y-1">
+                <p className="font-medium">Documentos vinculados</p>
+                {(docs ?? []).length === 0 ? (
+                  <p className="text-xs text-muted-foreground">Nenhum documento vinculado.</p>
+                ) : (
+                  <ul className="list-inside list-disc text-xs text-muted-foreground">
+                    {(docs ?? []).map((d) => (
+                      <li key={d.id} className="break-words">
+                        {d.tipo_documento} — {d.file_name}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Fechar</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
