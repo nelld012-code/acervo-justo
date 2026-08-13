@@ -343,19 +343,53 @@ function FinanceiroPage() {
           <DialogTrigger asChild>
             <Button variant="outline" className="w-full sm:w-auto"><Plus className="mr-2 h-4 w-4" />Nova Despesa</Button>
           </DialogTrigger>
-          <DialogContent className="max-h-[85vh] w-[calc(100vw-2rem)] max-w-lg overflow-y-auto">
-            <DialogHeader><DialogTitle>Registrar Despesa</DialogTitle></DialogHeader>
-            <div className="grid gap-3">
-              <div className="space-y-1.5"><Label>Descrição *</Label>
-                <Input value={form.descricao} onChange={(e) => setForm({ ...form, descricao: e.target.value })} />
-              </div>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <div className="space-y-1.5"><Label>Categoria *</Label>
-                  <Select value={form.categoria} onValueChange={(v) => setForm({ ...form, categoria: v })}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>{CATEGORIAS_DESPESA.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
-                  </Select>
-                </div>
+<DialogContent className="max-h-[85vh] w-[calc(100vw-2rem)] max-w-lg overflow-y-auto">
+  <DialogHeader>
+    <DialogTitle>Registrar Despesa</DialogTitle>
+  </DialogHeader>
+
+  <div className="grid gap-3">
+    <div className="space-y-1.5">
+      <Label>Descrição *</Label>
+      <Input
+        value={form.descricao}
+        onChange={(e) => setForm({ ...form, descricao: e.target.value })}
+      />
+    </div>
+
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      <div className="space-y-1.5">
+        <Label>Categoria *</Label>
+        <Select
+          value={form.categoria}
+          onValueChange={(v) => setForm({ ...form, categoria: v })}
+        >
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {CATEGORIAS_DESPESA.map((c) => (
+              <SelectItem key={c} value={c}>
+                {c}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {isSalario(form.categoria) && (
+        <div className="space-y-1.5">
+          <Label>Recebedor do salário *</Label>
+          <Input
+            value={form.recebedor_salario}
+            onChange={(e) =>
+              setForm({ ...form, recebedor_salario: e.target.value })
+            }
+            placeholder="Nome do recebedor"
+          />
+        </div>
+      )}
+    </div>
                 <div className="space-y-1.5"><Label>Valor (R$) *</Label>
                   <Input type="number" step="0.01" min="0" value={form.valor} onChange={(e) => setForm({ ...form, valor: e.target.value })} />
                 </div>
