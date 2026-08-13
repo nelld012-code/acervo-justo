@@ -1,6 +1,6 @@
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import { supabase } from "@/integrations/supabase/client";
-import { getSignedUrl, type Documento } from "@/lib/documents";
+import { getSignedUrl, processoLabel, type Documento } from "@/lib/documents";
 
 function br(date: string | null | undefined) {
   if (!date) return "—";
@@ -10,12 +10,11 @@ function br(date: string | null | undefined) {
 
 /** Gera um PDF único com o resumo do processo e todos os documentos anexados. */
 export async function buildDossierPdf(doc: Documento): Promise<Blob> {
-  const { data: related } = await supabase
-    .from("documents")
-    .select("*")
-    .eq("numero_processo", doc.numero_processo)
-    .eq("cliente", doc.cliente)
-    .order("created_at", { ascending: true });
+  const processo = (doc.numero_processo ?? "").trim();
+  const query = supabase.from("documents").select("*").eq("cliente", doc.cliente);
+  const { data: related } = processo
+    ? await query.eq("numero_processo", processo).order("created_at", { ascending: true })
+    : await query.or("numero_processo.is.null,numero_processo.eq.").order("created_at", { ascending: true });
 
   const docs = ((related ?? []) as Documento[]).length
     ? ((related ?? []) as Documento[])
@@ -50,7 +49,7 @@ export async function buildDossierPdf(doc: Documento): Promise<Blob> {
 
   const info: [string, string][] = [
     ["Número do Documento", doc.internal_id],
-    ["Número do Processo", doc.numero_processo],
+    ["Número do Processo", processoLabel(doc.numero_processo)],
     ["Tipo de Documento", doc.tipo_documento],
     ["Cliente", doc.cliente],
     ["Advogado", doc.advogado],
