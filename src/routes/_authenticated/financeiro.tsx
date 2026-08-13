@@ -60,21 +60,46 @@ function FinanceiroPage() {
   const [payOpen, setPayOpen] = useState(false);
   const [editPayment, setEditPayment] = useState<PaymentWithDoc | null>(null);
   const [editExpense, setEditExpense] = useState<Expense | null>(null);
+  const [busca, setBusca] = useState("");
+  const [filtroTipo, setFiltroTipo] = useState("Todos");
+  const [filtroStatus, setFiltroStatus] = useState("Todos");
+  const [dataDe, setDataDe] = useState("");
+  const [dataAte, setDataAte] = useState("");
+  const [valorMin, setValorMin] = useState("");
+  const [ficha, setFicha] = useState<RegistroFinanceiro | null>(null);
+  const [excluindo, setExcluindo] = useState<RegistroFinanceiro | null>(null);
+  const [imprimindo, setImprimindo] = useState<string | null>(null);
 
-  async function handleDeletePayment(p: PaymentWithDoc) {
-    if (!confirm("Excluir este pagamento?")) return;
-    const { error } = await supabase.from("payments").delete().eq("id", p.id);
-    if (error) return toast.error("Não foi possível excluir", { description: error.message });
-    toast.success("Pagamento excluído");
+  async function confirmarExclusao() {
+    const rec = excluindo;
+    if (!rec) return;
+    const tabela = rec.kind === "entrada" ? "payments" : "expenses";
+    const { error } = await supabase.from(tabela).delete().eq("id", rec.id);
+    if (error) {
+      toast.error("Não foi possível excluir", { description: error.message });
+      return;
+    }
+    await logAudit(rec.kind === "entrada" ? rec.document_id ?? null : null, "deleted", {
+      entidade: rec.kind === "entrada" ? "pagamento" : "despesa",
+      registro_id: rec.id,
+      nome: rec.nome,
+      valor: rec.valor,
+    });
+    toast.success("Registro financeiro excluído");
+    setExcluindo(null);
     qc.invalidateQueries({ queryKey: ["fin-payments"] });
+    qc.invalidateQueries({ queryKey: ["fin-expenses"] });
   }
 
-  async function handleDeleteExpense(e: Expense) {
-    if (!confirm("Excluir esta despesa?")) return;
-    const { error } = await supabase.from("expenses").delete().eq("id", e.id);
-    if (error) return toast.error("Não foi possível excluir", { description: error.message });
-    toast.success("Despesa excluída");
-    qc.invalidateQueries({ queryKey: ["fin-expenses"] });
+  async function imprimirRegistro(rec: RegistroFinanceiro) {
+    setImprimindo(rec.id);
+    try {
+      await printFinancialRecord(rec);
+    } catch (e) {
+      toast.error("Não foi possível gerar a impressão", { description: e instanceof Error ? e.message : "" });
+    } finally {
+      setImprimindo(null);
+    }
   }
 
   const monthStart = startOfMonth(new Date()).toISOString().slice(0, 10);
