@@ -184,14 +184,14 @@ export function DocumentDetailSheet({ doc, open, onOpenChange }: { doc: Document
     if (!doc) return;
     printReport({
       title: `Documento ${doc.internal_id}`,
-      subtitle: `Processo ${doc.numero_processo} — ${doc.tipo_documento}`,
+      subtitle: `Processo ${processoLabel(doc.numero_processo)} — ${doc.tipo_documento}`,
       sections: [
         {
           heading: "Detalhes do documento",
           columns: ["Campo", "Informação"],
           rows: [
             ["Número do Documento", doc.internal_id],
-            ["Número do Processo", doc.numero_processo],
+            ["Número do Processo", processoLabel(doc.numero_processo)],
             ["Tipo de Documento", doc.tipo_documento],
             ["Estado Processual", doc.estado_processual],
             ["Matéria", doc.materia],
@@ -242,7 +242,7 @@ export function DocumentDetailSheet({ doc, open, onOpenChange }: { doc: Document
           </Button>
           <SheetTitle>{doc.internal_id}</SheetTitle>
           <SheetDescription>
-            Processo {doc.numero_processo} — {doc.tipo_documento}
+            Processo {processoLabel(doc.numero_processo)} — {doc.tipo_documento}
           </SheetDescription>
         </SheetHeader>
 

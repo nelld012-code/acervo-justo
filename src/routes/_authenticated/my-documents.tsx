@@ -77,7 +77,7 @@ function MyDocs() {
       sections: [{
         columns: ["ID", "Processo", "Cliente", "Tipo", "Data", "Estado", "Enviado em"],
         rows: rows.map((d) => [
-          d.internal_id, d.numero_processo, d.cliente, d.tipo_documento,
+          d.internal_id, processoLabel(d.numero_processo), d.cliente, d.tipo_documento,
           format(new Date(d.data_documento), "dd/MM/yyyy"),
           d.estado_processual,
           format(new Date(d.created_at), "dd/MM/yyyy HH:mm"),
@@ -107,12 +107,12 @@ function MyDocs() {
   function printOne(d: Documento) {
     const ok = printReport({
       title: `Documento ${d.internal_id}`,
-      subtitle: d.numero_processo,
+      subtitle: processoLabel(d.numero_processo),
       sections: [{
         columns: ["Campo", "Valor"],
         rows: [
           ["ID interno", d.internal_id],
-          ["Processo", d.numero_processo],
+          ["Processo", processoLabel(d.numero_processo)],
           ["Cliente", d.cliente],
           ["Tipo", d.tipo_documento],
           ["Data do documento", format(new Date(d.data_documento), "dd/MM/yyyy")],

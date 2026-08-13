@@ -80,7 +80,7 @@ function SearchPage() {
       sections: [{
         columns: ["ID", "Processo", "Cliente", "Tipo", "Advogado", "Data", "Estado", "Versão"],
         rows: rows.map((d) => [
-          d.internal_id, d.numero_processo, d.cliente, d.tipo_documento, d.advogado,
+          d.internal_id, processoLabel(d.numero_processo), d.cliente, d.tipo_documento, d.advogado,
           format(new Date(d.data_documento), "dd/MM/yyyy"), d.estado_processual, `v${d.current_version}`,
         ]),
       }],
@@ -91,12 +91,12 @@ function SearchPage() {
   function printOne(d: Documento) {
     const ok = printReport({
       title: `Documento ${d.internal_id}`,
-      subtitle: d.numero_processo,
+      subtitle: processoLabel(d.numero_processo),
       sections: [{
         columns: ["Campo", "Valor"],
         rows: [
           ["ID interno", d.internal_id],
-          ["Processo", d.numero_processo],
+          ["Processo", processoLabel(d.numero_processo)],
           ["Cliente", d.cliente],
           ["Tipo", d.tipo_documento],
           ["Advogado", d.advogado],
@@ -188,7 +188,7 @@ function SearchPage() {
                 <div key={d.id} className="p-4">
                   <button onClick={() => setSelected(d)} className="block w-full space-y-1 text-left">
                   <div className="flex items-start justify-between gap-2">
-                    <span className="min-w-0 break-words text-sm font-semibold text-foreground">{d.numero_processo}</span>
+                    <span className="min-w-0 break-words text-sm font-semibold text-foreground">{processoLabel(d.numero_processo)}</span>
                     <Badge variant={badgeVariantForStatus(d.estado_processual)} className="shrink-0">{d.estado_processual}</Badge>
                   </div>
                   <p className="break-words text-sm text-muted-foreground">{d.cliente} · {d.tipo_documento}</p>
@@ -237,7 +237,7 @@ function SearchPage() {
                 data.rows.map((d) => (
                   <TableRow key={d.id} className="cursor-pointer" onClick={() => setSelected(d)}>
                     <TableCell className="font-mono text-xs">{d.internal_id}</TableCell>
-                    <TableCell>{d.numero_processo}</TableCell>
+                    <TableCell>{processoLabel(d.numero_processo)}</TableCell>
                     <TableCell>{d.cliente}</TableCell>
                     <TableCell>{d.tipo_documento}</TableCell>
                     <TableCell>{d.advogado}</TableCell>
