@@ -80,3 +80,8 @@ export function prazoEmAlerta(p: Prazo, hoje = new Date()) {
   }
   return true;
 }
+
+export function processoOuTraco(numero: string | null | undefined) {
+  const v = (numero ?? "").trim();
+  return v ? v : "Sem número de processo";
+}
