@@ -144,6 +144,14 @@ export function sanitize(s: string) {
   return s.replace(/[^\w-]+/g, "_").replace(/_+/g, "_");
 }
 
+/** Rótulo seguro para processos sem número cadastrado. */
+export const SEM_PROCESSO_LABEL = "Sem número de processo";
+
+export function processoLabel(numero: string | null | undefined) {
+  const v = (numero ?? "").trim();
+  return v ? v : SEM_PROCESSO_LABEL;
+}
+
 export function buildStoragePath(params: {
   cliente: string;
   numero_processo: string;
@@ -153,8 +161,11 @@ export function buildStoragePath(params: {
 }) {
   const year = new Date().getFullYear();
   const dateCompact = params.data_documento.replaceAll("-", "");
-  const folder = `${year}/${sanitize(params.cliente)}/${sanitize(params.numero_processo)}`;
-  const filename = `PROC_${sanitize(params.numero_processo)}_${sanitize(params.tipo_documento)}_${dateCompact}.${params.originalExt}`;
+  const cliente = sanitize((params.cliente ?? "").trim() || "sem_cliente");
+  const rawProcesso = (params.numero_processo ?? "").trim();
+  const processo = rawProcesso ? sanitize(rawProcesso) : "sem_processo";
+  const folder = `${year}/${cliente}/${processo}`;
+  const filename = `PROC_${processo}_${sanitize(params.tipo_documento)}_${dateCompact}.${params.originalExt}`;
   return `${folder}/${filename}`;
 }
 

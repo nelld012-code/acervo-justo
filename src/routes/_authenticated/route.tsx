@@ -1,6 +1,7 @@
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { AppSidebar } from "@/components/app-sidebar";
+import { PrazoReminders } from "@/components/prazo-reminders";
 import { SidebarProvider, useSidebar } from "@/components/ui/sidebar";
 import { Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -45,6 +46,7 @@ function AuthenticatedLayout() {
           </main>
         </div>
       </div>
+      <PrazoReminders />
     </SidebarProvider>
   );
 }

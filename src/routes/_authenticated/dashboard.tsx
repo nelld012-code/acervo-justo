@@ -3,12 +3,13 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { FileText, FolderOpen, Archive, CheckCircle2, Clock, TrendingUp } from "lucide-react";
+import { FileText, FolderOpen, Archive, CheckCircle2, Clock, TrendingUp, CalendarClock } from "lucide-react";
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid } from "recharts";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { formatBRL } from "@/lib/documents";
 import { WeeklyAgenda } from "@/components/weekly-agenda";
+import { diasRestantes, type Prazo } from "@/lib/prazos-view";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({ meta: [{ title: "Dashboard - Gestão Judicial" }] }),
@@ -49,6 +50,20 @@ function Dashboard() {
     },
   });
 
+  const { data: prazos } = useQuery({
+    queryKey: ["prazos-proximos"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("prazos")
+        .select("id, data_limite, status")
+        .eq("status", "Em andamento");
+      if (error) throw error;
+      return (data ?? []) as Pick<Prazo, "id" | "data_limite" | "status">[];
+    },
+  });
+
+  const prazosProximos = (prazos ?? []).filter((p) => diasRestantes(p.data_limite) <= 6).length;
+
   const total = data?.length ?? 0;
   const counts = {
     Aberto: data?.filter((d) => d.estado_processual === "Aberto").length ?? 0,
@@ -81,6 +96,7 @@ function Dashboard() {
     { title: "Em Revisão", value: counts["Em revisão"], icon: Clock, color: "text-amber-600" },
     { title: "Arquivados", value: counts.Arquivado, icon: Archive, color: "text-muted-foreground" },
     { title: "Encerrados", value: counts.Encerrado, icon: CheckCircle2, color: "text-emerald-600" },
+    { title: "Prazos próximos", value: prazosProximos, icon: CalendarClock, color: "text-amber-500" },
   ];
 
   const actionLabel: Record<string, string> = {
@@ -98,7 +114,7 @@ function Dashboard() {
         <p className="text-sm text-muted-foreground">Visão geral do acervo documental.</p>
       </div>
 
-      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 [&>*]:min-w-0">
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 [&>*]:min-w-0">
         {cards.map((c) => (
           <Card key={c.title}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">

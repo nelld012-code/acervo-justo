@@ -361,6 +361,60 @@ export type Database = {
           },
         ]
       }
+      prazos: {
+        Row: {
+          advogado: string | null
+          antecedencia_dias: number
+          created_at: string
+          created_by: string | null
+          data_conclusao: string | null
+          data_limite: string
+          id: string
+          lembrete_ativo: boolean
+          nome: string
+          numero_processo: string | null
+          observacao: string | null
+          parte: string
+          repetir_alerta_diariamente: boolean
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          advogado?: string | null
+          antecedencia_dias?: number
+          created_at?: string
+          created_by?: string | null
+          data_conclusao?: string | null
+          data_limite: string
+          id?: string
+          lembrete_ativo?: boolean
+          nome: string
+          numero_processo?: string | null
+          observacao?: string | null
+          parte?: string
+          repetir_alerta_diariamente?: boolean
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          advogado?: string | null
+          antecedencia_dias?: number
+          created_at?: string
+          created_by?: string | null
+          data_conclusao?: string | null
+          data_limite?: string
+          id?: string
+          lembrete_ativo?: boolean
+          nome?: string
+          numero_processo?: string | null
+          observacao?: string | null
+          parte?: string
+          repetir_alerta_diariamente?: boolean
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           cargo: string

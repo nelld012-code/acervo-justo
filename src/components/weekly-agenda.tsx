@@ -26,6 +26,11 @@ const ANTECEDENCIA_OPTIONS: { value: number; label: string }[] = [
   { value: 120, label: "2 horas antes" },
   { value: 240, label: "4 horas antes" },
   { value: 1440, label: "1 dia antes" },
+  { value: 2880, label: "2 dias antes" },
+  { value: 4320, label: "3 dias antes" },
+  { value: 5760, label: "4 dias antes" },
+  { value: 7200, label: "5 dias antes" },
+  { value: 8640, label: "6 dias antes" },
 ];
 const STATUS_LABEL: Record<string, string> = { pendente: "Pendente", concluida: "Concluída", cancelada: "Cancelada" };
 const PRIORIDADE_CLASS: Record<string, string> = {
