@@ -207,7 +207,7 @@ function FinanceiroPage() {
     const min = Number(valorMin);
     return registros.filter((r) => {
       if (termo) {
-        const hay = `${r.nome} ${r.numero_processo ?? ""} ${r.tipo} ${r.status} ${r.observacao ?? ""}`.toLowerCase();
+        const hay = `${r.nome} ${r.numero_processo ?? ""} ${r.tipo} ${r.status} ${r.observacao ?? ""} ${r.responsavel_recebimento ?? ""} ${r.responsavel_pagamento ?? ""} ${r.metodo_pagamento ?? ""} ${r.categoria ?? ""}`.toLowerCase();
         if (!hay.includes(termo)) return false;
       }
       if (filtroTipo !== "Todos" && r.tipo !== filtroTipo) return false;
