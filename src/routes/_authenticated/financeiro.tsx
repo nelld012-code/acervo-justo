@@ -192,6 +192,7 @@ function FinanceiroPage() {
       observacao: e.descricao ?? null,
       categoria: e.categoria ?? null,
       responsavel_pagamento: e.responsavel_pagamento ?? null,
+      recebedor_salario: e.recebedor_salario ?? null,
     }));
     return [...entradas, ...saidas].sort((a, b) => b.data.localeCompare(a.data));
   }, [payments, expenses]);
@@ -252,6 +253,8 @@ function FinanceiroPage() {
     if (!form.descricao.trim()) return toast.error("Informe a descrição");
     const valor = Number(form.valor);
     if (!valor || valor <= 0) return toast.error("Valor inválido");
+    if (isSalario(form.categoria) && !form.recebedor_salario.trim())
+      return toast.error("Informe o nome do recebedor do salário.");
     setSaving(true);
     try {
       const { data: u } = await supabase.auth.getUser();
@@ -261,12 +264,13 @@ function FinanceiroPage() {
         valor,
         data_despesa: form.data_despesa,
         responsavel_pagamento: form.responsavel_pagamento.trim() || null,
+        recebedor_salario: form.recebedor_salario.trim() || null,
         user_id: u.user?.id,
       });
       if (error) throw error;
       toast.success("Despesa registrada");
       setOpen(false);
-      setForm({ descricao: "", categoria: "Outros", valor: "", data_despesa: new Date().toISOString().slice(0, 10), responsavel_pagamento: "" });
+      setForm({ descricao: "", categoria: "Outros", valor: "", data_despesa: new Date().toISOString().slice(0, 10), responsavel_pagamento: "", recebedor_salario: "" });
       qc.invalidateQueries({ queryKey: ["fin-expenses"] });
     } catch (e) {
       toast.error("Falha ao salvar despesa", { description: e instanceof Error ? e.message : "" });
