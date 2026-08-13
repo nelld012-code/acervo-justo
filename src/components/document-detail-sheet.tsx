@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { ArrowLeft, Download, ExternalLink, Pencil, Plus, Printer, Trash2 } from "lucide-react";
-import { type Documento, badgeVariantForStatus, formatFileSize, getSignedUrl, logAudit, METODOS_PAGAMENTO, formatBRL } from "@/lib/documents";
+import { type Documento, badgeVariantForStatus, formatFileSize, getSignedUrl, logAudit, METODOS_PAGAMENTO, formatBRL, processoLabel } from "@/lib/documents";
 import { ReceiptModal, type ReceiptData } from "@/components/receipt-modal";
 import { buildDossierPdf } from "@/lib/document-dossier";
 import { printReport } from "@/lib/print-report";

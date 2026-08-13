@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { DocumentDetailSheet } from "@/components/document-detail-sheet";
-import { TIPOS_DOCUMENTO, ESTADOS, type Documento, badgeVariantForStatus } from "@/lib/documents";
+import { TIPOS_DOCUMENTO, ESTADOS, type Documento, badgeVariantForStatus, processoLabel } from "@/lib/documents";
 import { format } from "date-fns";
 import { Search as SearchIcon, X, Pencil, Trash2, UploadCloud, Printer } from "lucide-react";
 import { toast } from "sonner";
