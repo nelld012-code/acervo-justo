@@ -6,7 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { DocumentDetailSheet } from "@/components/document-detail-sheet";
-import { type Documento, badgeVariantForStatus } from "@/lib/documents";
+import { type Documento, badgeVariantForStatus, processoLabel } from "@/lib/documents";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Printer, Pencil, Trash2, UploadCloud, ChevronDown, ChevronRight } from "lucide-react";
@@ -54,10 +54,12 @@ function MyDocs() {
   const grupos = useMemo<Grupo[]>(() => {
     const map = new Map<string, Grupo>();
     for (const d of data ?? []) {
-      const key = `${d.numero_processo}__${d.cliente}`;
+      const processo = (d.numero_processo ?? "").trim();
+      // Sem número de processo: agrupa apenas por cliente para não misturar processos distintos.
+      const key = processo ? `proc:${processo}__${d.cliente}` : `sem-proc__${d.cliente}`;
       const g = map.get(key);
       if (g) g.docs.push(d);
-      else map.set(key, { key, numero_processo: d.numero_processo, cliente: d.cliente, docs: [d], principal: d });
+      else map.set(key, { key, numero_processo: processoLabel(processo), cliente: d.cliente, docs: [d], principal: d });
     }
     return [...map.values()];
   }, [data]);
