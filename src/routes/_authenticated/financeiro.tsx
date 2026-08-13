@@ -183,6 +183,8 @@ function FinanceiroPage() {
       status: "Recebido",
       observacao: p.descricao ?? null,
       document_id: p.document_id,
+      metodo_pagamento: p.metodo_pagamento ?? null,
+      responsavel_recebimento: p.responsavel_recebimento ?? null,
     }));
     const saidas: RegistroFinanceiro[] = (expenses ?? []).map((e) => ({
       kind: "saida",
@@ -194,6 +196,8 @@ function FinanceiroPage() {
       data: e.data_despesa,
       status: "Pago",
       observacao: e.descricao ?? null,
+      categoria: e.categoria ?? null,
+      responsavel_pagamento: e.responsavel_pagamento ?? null,
     }));
     return [...entradas, ...saidas].sort((a, b) => b.data.localeCompare(a.data));
   }, [payments, expenses]);
@@ -203,7 +207,7 @@ function FinanceiroPage() {
     const min = Number(valorMin);
     return registros.filter((r) => {
       if (termo) {
-        const hay = `${r.nome} ${r.numero_processo ?? ""} ${r.tipo} ${r.status} ${r.observacao ?? ""}`.toLowerCase();
+        const hay = `${r.nome} ${r.numero_processo ?? ""} ${r.tipo} ${r.status} ${r.observacao ?? ""} ${r.responsavel_recebimento ?? ""} ${r.responsavel_pagamento ?? ""} ${r.metodo_pagamento ?? ""} ${r.categoria ?? ""}`.toLowerCase();
         if (!hay.includes(termo)) return false;
       }
       if (filtroTipo !== "Todos" && r.tipo !== filtroTipo) return false;
@@ -1017,6 +1021,17 @@ function FichaFinanceiraDialog({
                 </span>
               </p>
             </div>
+            {registro.kind === "entrada" ? (
+              <div className="grid gap-2 sm:grid-cols-2">
+                <p><span className="text-muted-foreground">Método de pagamento:</span> {registro.metodo_pagamento || "—"}</p>
+                <p><span className="text-muted-foreground">Responsável pelo recebimento:</span> {registro.responsavel_recebimento || "—"}</p>
+              </div>
+            ) : (
+              <div className="grid gap-2 sm:grid-cols-2">
+                <p><span className="text-muted-foreground">Categoria:</span> {registro.categoria || "—"}</p>
+                <p><span className="text-muted-foreground">Responsável pelo pagamento:</span> {registro.responsavel_pagamento || "—"}</p>
+              </div>
+            )}
             <p className="break-words"><span className="text-muted-foreground">Observação:</span> {registro.observacao || "—"}</p>
             {registro.kind === "entrada" && (
               <div className="space-y-1">

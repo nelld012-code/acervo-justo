@@ -1,6 +1,5 @@
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
-import { supabase } from "@/integrations/supabase/client";
-import { formatBRL, getSignedUrl, processoLabel, type Documento } from "@/lib/documents";
+import { formatBRL, processoLabel } from "@/lib/documents";
 
 /** Registro financeiro unificado (entrada = pagamento, saída = despesa). */
 export type RegistroFinanceiro = {
@@ -14,6 +13,12 @@ export type RegistroFinanceiro = {
   status: string;
   observacao: string | null;
   document_id?: string | null;
+  /** Somente entradas (tabela payments) */
+  metodo_pagamento?: string | null;
+  responsavel_recebimento?: string | null;
+  /** Somente saídas (tabela expenses) */
+  categoria?: string | null;
+  responsavel_pagamento?: string | null;
 };
 
 function br(date: string | null | undefined) {
@@ -22,103 +27,92 @@ function br(date: string | null | undefined) {
   return d ? `${d}/${m}/${y}` : String(date);
 }
 
-/** Busca todos os documentos anexados relacionados ao registro (mesmo cliente/processo). */
-async function fetchRelatedDocs(rec: RegistroFinanceiro): Promise<Documento[]> {
-  if (rec.kind !== "entrada") return [];
-  const processo = (rec.numero_processo ?? "").trim();
-  if (processo) {
-    const { data } = await supabase
-      .from("documents")
-      .select("*")
-      .eq("numero_processo", processo)
-      .order("created_at", { ascending: true });
-    if ((data ?? []).length) return (data ?? []) as Documento[];
-  }
-  if (rec.document_id) {
-    const { data } = await supabase.from("documents").select("*").eq("id", rec.document_id);
-    return (data ?? []) as Documento[];
-  }
-  return [];
-}
-
-/** Gera um PDF real do registro financeiro incluindo TODOS os documentos anexados. */
+/**
+ * Gera o PDF do recibo/registro financeiro selecionado.
+ * Contém APENAS os dados da transação — nenhum documento jurídico é anexado.
+ */
 export async function buildFinancialRecordPdf(rec: RegistroFinanceiro): Promise<Blob> {
-  const docs = await fetchRelatedDocs(rec);
-
   const pdf = await PDFDocument.create();
   const font = await pdf.embedFont(StandardFonts.Helvetica);
   const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
   const A4: [number, number] = [595.28, 841.89];
-  const margin = 48;
-  let page = pdf.addPage(A4);
+  const margin = 56;
+  const page = pdf.addPage(A4);
+  const width = A4[0];
   let y = A4[1] - margin;
 
-  const line = (text: string, size = 10, isBold = false) => {
-    if (y < margin + 20) {
-      page = pdf.addPage(A4);
-      y = A4[1] - margin;
-    }
-    page.drawText(text, { x: margin, y, size, font: isBold ? bold : font, color: rgb(0, 0, 0) });
-    y -= size + 6;
+  const text = (t: string, size = 10, isBold = false, x = margin) => {
+    page.drawText(t, { x, y, size, font: isBold ? bold : font, color: rgb(0.08, 0.09, 0.16) });
+    y -= size + 8;
   };
 
-  line("REGISTRO FINANCEIRO", 16, true);
-  line(`Gerado em ${new Date().toLocaleString("pt-BR")}`, 9);
+  // Cabeçalho
+  page.drawRectangle({ x: 0, y: A4[1] - 96, width, height: 96, color: rgb(0.06, 0.09, 0.16) });
+  page.drawText("Sistema de Gestão Judicial", {
+    x: margin, y: A4[1] - 44, size: 10, font, color: rgb(0.78, 0.81, 0.9),
+  });
+  page.drawText(rec.kind === "entrada" ? "RECIBO / REGISTRO FINANCEIRO" : "REGISTRO FINANCEIRO", {
+    x: margin, y: A4[1] - 70, size: 17, font: bold, color: rgb(1, 1, 1),
+  });
+  y = A4[1] - 130;
+
+  text(`Emitido em ${new Date().toLocaleString("pt-BR")}`, 9);
   y -= 6;
 
-  const info: [string, string][] = [
+  const linhas: [string, string][] = [
     ["Nome", rec.nome || "—"],
     ["Número do Processo", processoLabel(rec.numero_processo)],
     ["Tipo", rec.tipo],
     ["Valor", formatBRL(Number(rec.valor))],
     ["Data", br(rec.data)],
     ["Status", rec.status],
-    ["Observação", rec.observacao || "—"],
   ];
-  for (const [label, value] of info) line(`${label}: ${value}`, 11);
-
-  y -= 8;
-  line("Documentos anexados", 12, true);
-  if (docs.length === 0) {
-    line("Nenhum documento anexado.", 10);
+  if (rec.kind === "entrada") {
+    if (rec.metodo_pagamento) linhas.push(["Método de pagamento", rec.metodo_pagamento]);
+    if (rec.responsavel_recebimento) linhas.push(["Responsável pelo recebimento", rec.responsavel_recebimento]);
   } else {
-    docs.forEach((d, i) => line(`${i + 1}. ${d.tipo_documento} — ${d.file_name} (${br(d.data_documento)})`, 10));
+    if (rec.categoria) linhas.push(["Categoria", rec.categoria]);
+    if (rec.responsavel_pagamento) linhas.push(["Responsável pelo pagamento", rec.responsavel_pagamento]);
+  }
+  linhas.push(["Observação", rec.observacao || "—"]);
+
+  for (const [label, value] of linhas) {
+    page.drawText(`${label}:`, { x: margin, y, size: 10, font: bold, color: rgb(0.35, 0.38, 0.45) });
+    const val = String(value);
+    const max = 70;
+    page.drawText(val.length > max ? `${val.slice(0, max)}…` : val, {
+      x: margin + 190, y, size: 11, font, color: rgb(0.08, 0.09, 0.16),
+    });
+    y -= 24;
   }
 
-  // Anexa todos os arquivos antes de gerar o PDF final (sem condição de corrida).
-  for (const d of docs) {
-    try {
-      const url = await getSignedUrl(d.file_url);
-      const res = await fetch(url);
-      if (!res.ok) continue;
-      const bytes = new Uint8Array(await res.arrayBuffer());
-      const name = d.file_name.toLowerCase();
-      if (name.endsWith(".pdf")) {
-        const src = await PDFDocument.load(bytes, { ignoreEncryption: true });
-        const pages = await pdf.copyPages(src, src.getPageIndices());
-        pages.forEach((p) => pdf.addPage(p));
-      } else if (name.endsWith(".png") || name.endsWith(".jpg") || name.endsWith(".jpeg")) {
-        const img = name.endsWith(".png") ? await pdf.embedPng(bytes) : await pdf.embedJpg(bytes);
-        const p = pdf.addPage(A4);
-        const max = { w: A4[0] - margin * 2, h: A4[1] - margin * 2 };
-        const scale = Math.min(max.w / img.width, max.h / img.height, 1);
-        p.drawImage(img, {
-          x: margin,
-          y: A4[1] - margin - img.height * scale,
-          width: img.width * scale,
-          height: img.height * scale,
-        });
-      }
-    } catch {
-      // arquivo não incorporável — permanece listado no índice
-    }
+  y -= 10;
+  page.drawLine({
+    start: { x: margin, y }, end: { x: width - margin, y },
+    thickness: 0.8, color: rgb(0.8, 0.82, 0.87),
+  });
+  y -= 26;
+
+  if (rec.kind === "entrada") {
+    text("Recebemos o valor acima informado referente ao registro financeiro deste processo.", 10);
   }
+
+  // Assinatura
+  y -= 70;
+  const sigW = 240;
+  page.drawLine({
+    start: { x: margin, y }, end: { x: margin + sigW, y },
+    thickness: 0.8, color: rgb(0.2, 0.22, 0.3),
+  });
+  page.drawText("Assinatura / Responsável", {
+    x: margin, y: y - 14, size: 9, font, color: rgb(0.35, 0.38, 0.45),
+  });
 
   const out = await pdf.save();
   return new Blob([out as unknown as BlobPart], { type: "application/pdf" });
 }
 
-/** Abre o PDF em nova guia (compatível com desktop, tablet e celular). */
+/** Abre o recibo em nova guia (compatível com desktop, tablet e celular). */
 export async function printFinancialRecord(rec: RegistroFinanceiro) {
   const blob = await buildFinancialRecordPdf(rec);
   const url = URL.createObjectURL(blob);
@@ -126,7 +120,7 @@ export async function printFinancialRecord(rec: RegistroFinanceiro) {
   if (!win) {
     const a = document.createElement("a");
     a.href = url;
-    a.download = `registro-financeiro-${rec.id}.pdf`;
+    a.download = `recibo-financeiro-${rec.id}.pdf`;
     document.body.appendChild(a);
     a.click();
     a.remove();
