@@ -110,6 +110,7 @@ export type Expense = {
   valor: number;
   data_despesa: string;
   responsavel_pagamento: string | null;
+  recebedor_salario: string | null;
   comprovante_url: string | null;
   created_at: string;
 };
