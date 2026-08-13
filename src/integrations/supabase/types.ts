@@ -286,6 +286,7 @@ export type Database = {
           data_despesa: string
           descricao: string
           id: string
+          recebedor_salario: string | null
           responsavel_pagamento: string | null
           updated_at: string
           user_id: string | null
@@ -298,6 +299,7 @@ export type Database = {
           data_despesa: string
           descricao: string
           id?: string
+          recebedor_salario?: string | null
           responsavel_pagamento?: string | null
           updated_at?: string
           user_id?: string | null
@@ -310,6 +312,7 @@ export type Database = {
           data_despesa?: string
           descricao?: string
           id?: string
+          recebedor_salario?: string | null
           responsavel_pagamento?: string | null
           updated_at?: string
           user_id?: string | null
