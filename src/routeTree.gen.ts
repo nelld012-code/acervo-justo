@@ -15,6 +15,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedUploadRouteImport } from './routes/_authenticated/upload'
 import { Route as AuthenticatedSearchRouteImport } from './routes/_authenticated/search'
 import { Route as AuthenticatedRecepcaoRouteImport } from './routes/_authenticated/recepcao'
+import { Route as AuthenticatedPrazosRouteImport } from './routes/_authenticated/prazos'
 import { Route as AuthenticatedPerfilRouteImport } from './routes/_authenticated/perfil'
 import { Route as AuthenticatedMyDocumentsRouteImport } from './routes/_authenticated/my-documents'
 import { Route as AuthenticatedFinanceiroRouteImport } from './routes/_authenticated/financeiro'
@@ -49,6 +50,11 @@ const AuthenticatedSearchRoute = AuthenticatedSearchRouteImport.update({
 const AuthenticatedRecepcaoRoute = AuthenticatedRecepcaoRouteImport.update({
   id: '/recepcao',
   path: '/recepcao',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedPrazosRoute = AuthenticatedPrazosRouteImport.update({
+  id: '/prazos',
+  path: '/prazos',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedPerfilRoute = AuthenticatedPerfilRouteImport.update({
@@ -92,6 +98,7 @@ export interface FileRoutesByFullPath {
   '/financeiro': typeof AuthenticatedFinanceiroRoute
   '/my-documents': typeof AuthenticatedMyDocumentsRoute
   '/perfil': typeof AuthenticatedPerfilRoute
+  '/prazos': typeof AuthenticatedPrazosRoute
   '/recepcao': typeof AuthenticatedRecepcaoRoute
   '/search': typeof AuthenticatedSearchRoute
   '/upload': typeof AuthenticatedUploadRoute
@@ -105,6 +112,7 @@ export interface FileRoutesByTo {
   '/financeiro': typeof AuthenticatedFinanceiroRoute
   '/my-documents': typeof AuthenticatedMyDocumentsRoute
   '/perfil': typeof AuthenticatedPerfilRoute
+  '/prazos': typeof AuthenticatedPrazosRoute
   '/recepcao': typeof AuthenticatedRecepcaoRoute
   '/search': typeof AuthenticatedSearchRoute
   '/upload': typeof AuthenticatedUploadRoute
@@ -120,6 +128,7 @@ export interface FileRoutesById {
   '/_authenticated/financeiro': typeof AuthenticatedFinanceiroRoute
   '/_authenticated/my-documents': typeof AuthenticatedMyDocumentsRoute
   '/_authenticated/perfil': typeof AuthenticatedPerfilRoute
+  '/_authenticated/prazos': typeof AuthenticatedPrazosRoute
   '/_authenticated/recepcao': typeof AuthenticatedRecepcaoRoute
   '/_authenticated/search': typeof AuthenticatedSearchRoute
   '/_authenticated/upload': typeof AuthenticatedUploadRoute
@@ -135,6 +144,7 @@ export interface FileRouteTypes {
     | '/financeiro'
     | '/my-documents'
     | '/perfil'
+    | '/prazos'
     | '/recepcao'
     | '/search'
     | '/upload'
@@ -148,6 +158,7 @@ export interface FileRouteTypes {
     | '/financeiro'
     | '/my-documents'
     | '/perfil'
+    | '/prazos'
     | '/recepcao'
     | '/search'
     | '/upload'
@@ -162,6 +173,7 @@ export interface FileRouteTypes {
     | '/_authenticated/financeiro'
     | '/_authenticated/my-documents'
     | '/_authenticated/perfil'
+    | '/_authenticated/prazos'
     | '/_authenticated/recepcao'
     | '/_authenticated/search'
     | '/_authenticated/upload'
@@ -217,6 +229,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedRecepcaoRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/prazos': {
+      id: '/_authenticated/prazos'
+      path: '/prazos'
+      fullPath: '/prazos'
+      preLoaderRoute: typeof AuthenticatedPrazosRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/perfil': {
       id: '/_authenticated/perfil'
       path: '/perfil'
@@ -269,6 +288,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedFinanceiroRoute: typeof AuthenticatedFinanceiroRoute
   AuthenticatedMyDocumentsRoute: typeof AuthenticatedMyDocumentsRoute
   AuthenticatedPerfilRoute: typeof AuthenticatedPerfilRoute
+  AuthenticatedPrazosRoute: typeof AuthenticatedPrazosRoute
   AuthenticatedRecepcaoRoute: typeof AuthenticatedRecepcaoRoute
   AuthenticatedSearchRoute: typeof AuthenticatedSearchRoute
   AuthenticatedUploadRoute: typeof AuthenticatedUploadRoute
@@ -281,6 +301,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedFinanceiroRoute: AuthenticatedFinanceiroRoute,
   AuthenticatedMyDocumentsRoute: AuthenticatedMyDocumentsRoute,
   AuthenticatedPerfilRoute: AuthenticatedPerfilRoute,
+  AuthenticatedPrazosRoute: AuthenticatedPrazosRoute,
   AuthenticatedRecepcaoRoute: AuthenticatedRecepcaoRoute,
   AuthenticatedSearchRoute: AuthenticatedSearchRoute,
   AuthenticatedUploadRoute: AuthenticatedUploadRoute,
