@@ -79,6 +79,7 @@ export function DocumentEditDialog({
     parte_autora: "",
     parte_re: "",
     palavras_chave: "",
+    valor_total_processo: "",
   });
 
   useEffect(() => {
@@ -97,6 +98,10 @@ export function DocumentEditDialog({
       parte_autora: doc.parte_autora ?? "",
       parte_re: doc.parte_re ?? "",
       palavras_chave: (doc.palavras_chave ?? []).join(", "),
+      valor_total_processo:
+        doc.valor_total_processo === null || doc.valor_total_processo === undefined
+          ? ""
+          : String(doc.valor_total_processo),
     });
   }, [doc]);
 
@@ -113,7 +118,7 @@ export function DocumentEditDialog({
         .from("documents")
         .update({
           advogado: form.advogado,
-          numero_processo: form.numero_processo,
+          numero_processo: form.numero_processo.trim(),
           cliente: form.cliente,
           tipo_documento: form.tipo_documento,
           materia: form.materia,
@@ -124,6 +129,8 @@ export function DocumentEditDialog({
           orgao_judicial: form.orgao_judicial || null,
           parte_autora: form.parte_autora || null,
           parte_re: form.parte_re || null,
+          valor_total_processo:
+            form.valor_total_processo === "" ? null : Number(form.valor_total_processo),
           palavras_chave: form.palavras_chave
             .split(",")
             .map((s) => s.trim())
@@ -155,8 +162,8 @@ export function DocumentEditDialog({
           <Field label="Advogado *">
             <Input value={form.advogado} onChange={(e) => set("advogado", e.target.value)} required />
           </Field>
-          <Field label="Número do Processo *">
-            <Input value={form.numero_processo} onChange={(e) => set("numero_processo", e.target.value)} required />
+          <Field label="Número do Processo">
+            <Input value={form.numero_processo} onChange={(e) => set("numero_processo", e.target.value)} placeholder="Opcional" />
           </Field>
           <Field label="Cliente *">
             <Input value={form.cliente} onChange={(e) => set("cliente", e.target.value)} required />
@@ -199,6 +206,16 @@ export function DocumentEditDialog({
           </Field>
           <Field label="Parte Ré">
             <Input value={form.parte_re} onChange={(e) => set("parte_re", e.target.value)} />
+          </Field>
+          <Field label="Valor Total do Processo (R$)">
+            <Input
+              type="number"
+              step="0.01"
+              min="0"
+              value={form.valor_total_processo}
+              onChange={(e) => set("valor_total_processo", e.target.value)}
+              placeholder="0,00"
+            />
           </Field>
           <div className="sm:col-span-2 space-y-1.5">
             <Label>Palavras-chave (separadas por vírgula)</Label>
