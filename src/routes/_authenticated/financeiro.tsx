@@ -156,6 +156,58 @@ function FinanceiroPage() {
   const totalSaidas = monthExpenses.reduce((s, e) => s + Number(e.valor), 0);
   const saldo = totalEntradas - totalSaidas;
 
+  const registros = useMemo<RegistroFinanceiro[]>(() => {
+    const entradas: RegistroFinanceiro[] = (payments ?? []).map((p) => ({
+      kind: "entrada",
+      id: p.id,
+      nome: p.documents?.cliente ?? "—",
+      numero_processo: p.documents?.numero_processo ?? null,
+      tipo: "Entrada",
+      valor: Number(p.valor),
+      data: p.data_pagamento,
+      status: "Recebido",
+      observacao: p.descricao ?? null,
+      document_id: p.document_id,
+    }));
+    const saidas: RegistroFinanceiro[] = (expenses ?? []).map((e) => ({
+      kind: "saida",
+      id: e.id,
+      nome: e.responsavel_pagamento || e.descricao,
+      numero_processo: null,
+      tipo: "Saída",
+      valor: Number(e.valor),
+      data: e.data_despesa,
+      status: "Pago",
+      observacao: e.descricao ?? null,
+    }));
+    return [...entradas, ...saidas].sort((a, b) => b.data.localeCompare(a.data));
+  }, [payments, expenses]);
+
+  const registrosFiltrados = useMemo(() => {
+    const termo = busca.trim().toLowerCase();
+    const min = Number(valorMin);
+    return registros.filter((r) => {
+      if (termo) {
+        const hay = `${r.nome} ${r.numero_processo ?? ""} ${r.tipo} ${r.status} ${r.observacao ?? ""}`.toLowerCase();
+        if (!hay.includes(termo)) return false;
+      }
+      if (filtroTipo !== "Todos" && r.tipo !== filtroTipo) return false;
+      if (filtroStatus !== "Todos" && r.status !== filtroStatus) return false;
+      if (dataDe && r.data < dataDe) return false;
+      if (dataAte && r.data > dataAte) return false;
+      if (valorMin && !Number.isNaN(min) && r.valor < min) return false;
+      return true;
+    });
+  }, [registros, busca, filtroTipo, filtroStatus, dataDe, dataAte, valorMin]);
+
+  const totalRecebidoFiltrado = registrosFiltrados
+    .filter((r) => r.kind === "entrada")
+    .reduce((s, r) => s + r.valor, 0);
+  const totalPagoFiltrado = registrosFiltrados
+    .filter((r) => r.kind === "saida")
+    .reduce((s, r) => s + r.valor, 0);
+  const totalGeralFiltrado = totalRecebidoFiltrado - totalPagoFiltrado;
+
   const rankingClientes = useMemo(() => {
     const map = new Map<string, number>();
     for (const p of monthPayments) {
