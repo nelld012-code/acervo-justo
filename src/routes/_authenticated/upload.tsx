@@ -126,12 +126,15 @@ function UploadPage() {
       originalExt: ext,
     });
 
-    const { data: existing } = await supabase
-      .from("documents")
-      .select("id, current_version")
-      .eq("numero_processo", form.numero_processo)
-      .eq("tipo_documento", tipo)
-      .maybeSingle();
+    const processo = form.numero_processo.trim();
+    const { data: existing } = processo
+      ? await supabase
+          .from("documents")
+          .select("id, current_version")
+          .eq("numero_processo", processo)
+          .eq("tipo_documento", tipo)
+          .maybeSingle()
+      : { data: null as { id: string; current_version: number } | null };
 
     const versionSuffix = existing ? existing.current_version + 1 : 0;
     const finalPath = existing
@@ -175,7 +178,7 @@ function UploadPage() {
       .from("documents")
       .insert({
         advogado: form.advogado,
-        numero_processo: form.numero_processo,
+        numero_processo: processo,
         data_documento: form.data_documento,
         data_processo: form.data_processo || null,
         tipo_documento: tipo,
@@ -216,7 +219,7 @@ function UploadPage() {
       return;
     }
     // Validate required
-    const required: (keyof typeof form)[] = ["advogado", "numero_processo", "data_documento", "cliente", "materia", "estado_processual", "confidencialidade"];
+    const required: (keyof typeof form)[] = ["advogado", "data_documento", "cliente", "materia", "estado_processual", "confidencialidade"];
     for (const k of required) {
       if (!form[k]) {
         toast.error("Preencha todos os campos obrigatórios", { description: `Campo faltando: ${k}` });
@@ -367,7 +370,7 @@ function UploadPage() {
           <CardContent>
             <form onSubmit={handleSubmit} className="grid gap-4 sm:grid-cols-2">
               <Field label="Advogado *"><Input value={form.advogado} onChange={(e) => set("advogado", e.target.value)} required /></Field>
-              <Field label="Número do Processo *"><Input value={form.numero_processo} onChange={(e) => set("numero_processo", e.target.value)} required /></Field>
+              <Field label="Número do Processo"><Input value={form.numero_processo} onChange={(e) => set("numero_processo", e.target.value)} placeholder="Opcional" /></Field>
               <Field label="Cliente Cadastrado">
                 <Select
                   value={form.cliente_id || "none"}
