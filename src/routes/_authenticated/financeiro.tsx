@@ -1021,6 +1021,17 @@ function FichaFinanceiraDialog({
                 </span>
               </p>
             </div>
+            {registro.kind === "entrada" ? (
+              <div className="grid gap-2 sm:grid-cols-2">
+                <p><span className="text-muted-foreground">Método de pagamento:</span> {registro.metodo_pagamento || "—"}</p>
+                <p><span className="text-muted-foreground">Responsável pelo recebimento:</span> {registro.responsavel_recebimento || "—"}</p>
+              </div>
+            ) : (
+              <div className="grid gap-2 sm:grid-cols-2">
+                <p><span className="text-muted-foreground">Categoria:</span> {registro.categoria || "—"}</p>
+                <p><span className="text-muted-foreground">Responsável pelo pagamento:</span> {registro.responsavel_pagamento || "—"}</p>
+              </div>
+            )}
             <p className="break-words"><span className="text-muted-foreground">Observação:</span> {registro.observacao || "—"}</p>
             {registro.kind === "entrada" && (
               <div className="space-y-1">
