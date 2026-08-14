@@ -502,7 +502,7 @@ function PrazosPage() {
       )}
 
       <Dialog open={detalhesOpen} onOpenChange={setDetalhesOpen}>
-        <DialogContent className="max-h-[85vh] w-[calc(100vw-2rem)] max-w-xl overflow-y-auto">
+        <DialogContent className="max-h-[85vh] w-[calc(100vw-2rem)] max-w-[680px] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Detalhes do Prazo</DialogTitle>
             <DialogDescription>Todos os dados cadastrados para este prazo.</DialogDescription>
