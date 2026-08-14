@@ -1428,6 +1428,9 @@ function FinanceiroPage() {
         monthExpenses={monthExpenses}
         monthStart={monthStart}
         monthEnd={monthEnd}
+        onEdit={abrirEdicao}
+        onDelete={setExcluindo}
+        onPrint={imprimirRegistro}
       />
 
       <AlertDialog
@@ -2017,6 +2020,9 @@ function RelatorioDialog({
   monthExpenses,
   monthStart,
   monthEnd,
+  onEdit,
+  onDelete,
+  onPrint,
 }: {
   tipo: "entradas" | "saidas" | "saldo" | null;
   onClose: () => void;
@@ -2026,6 +2032,9 @@ function RelatorioDialog({
   monthExpenses: Expense[];
   monthStart: string;
   monthEnd: string;
+  onEdit: (registro: RegistroFinanceiro) => void;
+  onDelete: (registro: RegistroFinanceiro) => void;
+  onPrint: (registro: RegistroFinanceiro) => void;
 }) {
   const [busca, setBusca] = useState("");
 
@@ -2033,715 +2042,136 @@ function RelatorioDialog({
     setBusca("");
   }, [tipo]);
 
-  const fmtData = (d: string) =>
-    format(new Date(`${d}T00:00:00`), "dd/MM/yyyy");
+  if (!tipo) return null;
 
-  const config = useMemo(() => {
-    if (tipo === "entradas") {
-      const linhas: RelatorioLinha[] = [...payments]
-        .sort((a, b) => b.data_pagamento.localeCompare(a.data_pagamento))
-        .map((p) => ({
-          valor: Number(p.valor),
-          cols: [
-            fmtData(p.data_pagamento),
-            p.documents?.cliente ?? "—",
-            processoLabel(p.documents?.numero_processo),
-            p.metodo_pagamento ?? "—",
-            p.responsavel_recebimento ?? "—",
-            formatBRL(Number(p.valor)),
-          ],
-        }));
+  const entradas: RegistroFinanceiro[] = payments.map((p) => ({
+    kind: "entrada",
+    id: p.id,
+    nome: p.documents?.cliente ?? "—",
+    numero_processo: p.documents?.numero_processo ?? null,
+    tipo: "Entrada",
+    valor: Number(p.valor),
+    data: p.data_pagamento,
+    status: "Recebido",
+    observacao: p.descricao ?? null,
+    document_id: p.document_id,
+    metodo_pagamento: p.metodo_pagamento ?? null,
+    responsavel_recebimento: p.responsavel_recebimento ?? null,
+  }));
 
-      return {
-        titulo: "Relatório de Entradas",
-        periodo: "Todas as entradas registradas",
-        colunas: [
-          "Data",
-          "Cliente",
-          "Processo",
-          "Método",
-          "Responsável",
-          "Valor",
-        ],
-        linhas,
-        rotuloTotal: "Total de entradas",
-      };
-    }
+  const saidas: RegistroFinanceiro[] = expenses.map((e) => ({
+    kind: "saida",
+    id: e.id,
+    nome: e.responsavel_pagamento || e.descricao,
+    numero_processo: null,
+    tipo: "Saída",
+    valor: Number(e.valor),
+    data: e.data_despesa,
+    status: "Pago",
+    observacao: e.descricao ?? null,
+    categoria: e.categoria ?? null,
+    responsavel_pagamento: e.responsavel_pagamento ?? null,
+    recebedor_salario: e.recebedor_salario ?? null,
+  }));
 
-    if (tipo === "saidas") {
-      const linhas: RelatorioLinha[] = [...expenses]
-        .sort((a, b) => b.data_despesa.localeCompare(a.data_despesa))
-        .map((e) => ({
-          valor: Number(e.valor),
-          cols: [
-            fmtData(e.data_despesa),
-            e.descricao,
-            e.categoria,
-            e.responsavel_pagamento ?? "—",
-            e.recebedor_salario ?? "—",
-            formatBRL(Number(e.valor)),
-          ],
-        }));
+  const monthRecords = [
+    ...monthPayments.map((p) => entradas.find((r) => r.id === p.id)).filter(Boolean),
+    ...monthExpenses.map((e) => saidas.find((r) => r.id === e.id)).filter(Boolean),
+  ] as RegistroFinanceiro[];
 
-      return {
-        titulo: "Relatório de Saídas",
-        periodo: "Todas as saídas registradas",
-        colunas: [
-          "Data",
-          "Descrição",
-          "Categoria",
-          "Responsável",
-          "Recebedor do salário",
-          "Valor",
-        ],
-        linhas,
-        rotuloTotal: "Total de saídas",
-      };
-    }
+  const base = tipo === "entradas" ? entradas : tipo === "saidas" ? saidas : monthRecords;
+  const termo = busca.trim().toLowerCase();
+  const linhas = base.filter((r) => {
+    if (!termo) return true;
+    const hay = [
+      r.nome, r.numero_processo ?? "", r.tipo, r.status,
+      r.observacao ?? "", r.responsavel_recebimento ?? "",
+      r.responsavel_pagamento ?? "", r.metodo_pagamento ?? "",
+      r.categoria ?? "", r.recebedor_salario ?? "",
+    ].join(" ").toLowerCase();
+    return hay.includes(termo);
+  }).sort((a, b) => b.data.localeCompare(a.data));
 
-    const movs = [
-      ...monthPayments.map((p) => ({
-        data: p.data_pagamento,
-        tipo: "Entrada",
-        nome: p.documents?.cliente ?? "—",
-        valor: Number(p.valor),
-      })),
-      ...monthExpenses.map((e) => ({
-        data: e.data_despesa,
-        tipo: "Saída",
-        nome: e.descricao,
-        valor: -Number(e.valor),
-      })),
-    ].sort((a, b) => a.data.localeCompare(b.data));
+  const totalEntradas = linhas.filter((r) => r.kind === "entrada").reduce((s, r) => s + r.valor, 0);
+  const totalSaidas = linhas.filter((r) => r.kind === "saida").reduce((s, r) => s + r.valor, 0);
+  const total = tipo === "saldo" ? totalEntradas - totalSaidas : tipo === "entradas" ? totalEntradas : totalSaidas;
+  const titulo = tipo === "entradas" ? "Relatório de Entradas" : tipo === "saidas" ? "Relatório de Saídas" : "Relatório do Saldo do Mês";
+  const periodo = tipo === "saldo"
+    ? `${format(new Date(`${monthStart}T00:00:00`), "dd/MM/yyyy")} a ${format(new Date(`${monthEnd}T00:00:00`), "dd/MM/yyyy")}`
+    : "Todos os registros";
 
-    let acc = 0;
-
-    const linhas: RelatorioLinha[] = movs.map((m) => {
-      acc += m.valor;
-
-      return {
-        valor: m.valor,
-        cols: [
-          fmtData(m.data),
-          m.tipo,
-          m.nome,
-          formatBRL(Math.abs(m.valor)),
-          formatBRL(acc),
-        ],
-      };
-    });
-
-    return {
-      titulo: "Relatório do Saldo do Mês",
-      periodo: `Período: ${fmtData(monthStart)} a ${fmtData(monthEnd)}`,
-      colunas: [
-        "Data",
-        "Tipo",
-        "Nome / Descrição",
-        "Valor",
-        "Saldo acumulado",
-      ],
-      linhas,
-      rotuloTotal: "Saldo do período",
-    };
-  }, [tipo, payments, expenses, monthPayments, monthExpenses, monthStart, monthEnd]);
-
-  const linhasFiltradas = useMemo(() => {
-    const termo = busca.trim().toLowerCase();
-    if (!termo) return config.linhas;
-
-    return config.linhas.filter((l) =>
-      l.cols.join(" ").toLowerCase().includes(termo),
-    );
-  }, [config, busca]);
-
-  const total = linhasFiltradas.reduce((s, l) => s + l.valor, 0);
-
-  function imprimir() {
-    printReport({
-      title: config.titulo,
-      subtitle: config.periodo,
+  function imprimirRelatorio() {
+    const ok = printReport({
+      title: titulo,
+      subtitle: periodo,
       summary: [
-        { label: "Registros", value: String(linhasFiltradas.length) },
-        { label: config.rotuloTotal, value: formatBRL(total) },
-        ...(busca.trim()
-          ? [{ label: "Busca", value: busca.trim() }]
-          : []),
+        { label: "Registros", value: String(linhas.length) },
+        { label: tipo === "saldo" ? "Saldo" : "Total", value: formatBRL(total) },
       ],
-      sections: [
-        {
-          columns: config.colunas,
-          rows: linhasFiltradas.map((l) => l.cols),
-        },
-      ],
+      columns: ["Data", "Tipo", "Nome / Descrição", "Status", "Valor"],
+      rows: linhas.map((r) => [
+        format(new Date(`${r.data}T00:00:00`), "dd/MM/yyyy"),
+        r.tipo,
+        r.nome,
+        r.status,
+        formatBRL(r.valor),
+      ]),
     });
+    if (!ok) toast.error("Não foi possível abrir a impressão");
   }
 
   return (
-    <Dialog open={!!tipo} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-h-[85vh] w-[calc(100vw-2rem)] max-w-3xl overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{config.titulo}</DialogTitle>
-        </DialogHeader>
-
-        <p className="text-xs text-muted-foreground">{config.periodo}</p>
-
-        <Input
-          placeholder="Buscar no relatório"
-          value={busca}
-          onChange={(e) => setBusca(e.target.value)}
-        />
-
-        <div className="rounded-md border p-3">
-          <p className="text-xs text-muted-foreground">
-            {config.rotuloTotal} ({linhasFiltradas.length} registros)
-          </p>
-
-          <p
-            className={`font-mono text-lg font-bold ${
-              total >= 0 ? "text-accent" : "text-destructive"
-            }`}
-          >
-            {formatBRL(total)}
-          </p>
-        </div>
-
-        <div className="space-y-2 md:hidden">
-          {linhasFiltradas.length === 0 ? (
-            <p className="py-6 text-center text-sm text-muted-foreground">
-              Nenhum registro encontrado.
-            </p>
-          ) : (
-            linhasFiltradas.map((l, i) => (
-              <div key={i} className="rounded-md border p-3 text-xs">
-                {config.colunas.map((c, ci) => (
-                  <div
-                    key={c}
-                    className="flex justify-between gap-2 py-0.5"
-                  >
-                    <span className="text-muted-foreground">{c}</span>
-                    <span className="break-words text-right font-medium">
-                      {l.cols[ci]}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            ))
-          )}
-        </div>
-
-        <div className="hidden overflow-x-auto md:block">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                {config.colunas.map((c) => (
-                  <TableHead key={c}>{c}</TableHead>
-                ))}
-              </TableRow>
-            </TableHeader>
-
-            <TableBody>
-              {linhasFiltradas.length === 0 ? (
-                <TableRow>
-                  <TableCell
-                    colSpan={config.colunas.length}
-                    className="py-6 text-center text-sm text-muted-foreground"
-                  >
-                    Nenhum registro encontrado.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                linhasFiltradas.map((l, i) => (
-                  <TableRow key={i}>
-                    {l.cols.map((c, ci) => (
-                      <TableCell key={ci} className="text-xs">
-                        {c}
-                      </TableCell>
-                    ))}
+    <Dialog open={Boolean(tipo)} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="max-h-[90vh] max-w-6xl overflow-y-auto">
+        <DialogHeader><DialogTitle>{titulo}</DialogTitle></DialogHeader>
+        <div className="space-y-4">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <Input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar no relatório..." className="w-full sm:max-w-md" />
+            <Button variant="outline" className="w-full sm:w-auto" onClick={imprimirRelatorio}>
+              <Printer className="mr-2 h-4 w-4" /> Imprimir relatório
+            </Button>
+          </div>
+          <div className="rounded-lg border border-border">
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Data</TableHead><TableHead>Tipo</TableHead><TableHead>Nome / Descrição</TableHead>
+                    <TableHead>Status</TableHead><TableHead className="text-right">Valor</TableHead><TableHead className="text-right">Ações</TableHead>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
-
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
-            Fechar
-          </Button>
-
-          <Button onClick={imprimir}>
-            <Printer className="mr-2 h-4 w-4" />
-            Imprimir
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-function _HeroCardBody({
-  title,
-  value,
-  icon,
-  tone,
-  onClick,
-}: {
-  title: string;
-  value: string;
-  icon: React.ReactNode;
-  tone: "up" | "down";
-  onClick?: () => void;
-}) {
-  return (
-    <Card
-      role={onClick ? "button" : undefined}
-      tabIndex={onClick ? 0 : undefined}
-      onClick={onClick}
-      onKeyDown={(e) => {
-        if (!onClick) return;
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          onClick();
-        }
-      }}
-      className={`relative overflow-hidden border-primary/30 bg-gradient-to-br from-indigo-600/20 via-card to-blue-600/10 ${
-        onClick
-          ? "cursor-pointer transition-colors hover:border-primary focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-          : ""
-      }`}
-      title={onClick ? "Clique para ver o relatório" : undefined}
-    >
-      <CardContent className="pt-6">
-        <div className="flex items-center justify-between text-muted-foreground">
-          <p className="text-sm font-medium">
-            {title}
-          </p>
-
-          <span
-            className={
-              tone === "up"
-                ? "text-accent"
-                : "text-destructive"
-            }
-          >
-            {icon}
-          </span>
-        </div>
-
-        <p
-          className={`mt-2 font-mono text-3xl font-bold ${
-            tone === "up"
-              ? "text-accent"
-              : "text-destructive"
-          }`}
-        >
-          {value}
-        </p>
-
-        {onClick && (
-          <p className="mt-1 text-[11px] text-muted-foreground">
-            Clique para ver o relatório
-          </p>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-
-type ProcessOption = {
-  id: string;
-  numero_processo: string;
-  cliente: string;
-  valor_total_processo: number | null;
-  valor_recebido_total: number | null;
-};
-
-function RegisterPaymentDialog({
-  open,
-  onOpenChange,
-  onSaved,
-}: {
-  open: boolean;
-  onOpenChange: (v: boolean) => void;
-  onSaved: () => void;
-}) {
-  const [query, setQuery] = useState("");
-  const [selected, setSelected] =
-    useState<ProcessOption | null>(null);
-  const [saving, setSaving] = useState(false);
-
-  const [form, setForm] = useState({
-    valor: "",
-    data_pagamento: new Date()
-      .toISOString()
-      .slice(0, 10),
-    responsavel_recebimento: "",
-    metodo_pagamento: "PIX",
-    descricao: "",
-  });
-
-  const { data: results } = useQuery({
-    queryKey: ["proc-search", query],
-    enabled:
-      open &&
-      query.trim().length >= 2 &&
-      !selected,
-
-    queryFn: async () => {
-      const q = `%${query.trim()}%`;
-
-      const { data, error } = await supabase
-        .from("documents")
-        .select(
-          "id, numero_processo, cliente, valor_total_processo, valor_recebido_total",
-        )
-        .or(
-          `numero_processo.ilike.${q},cliente.ilike.${q}`,
-        )
-        .limit(8);
-
-      if (error) throw error;
-
-      return (data ?? []) as ProcessOption[];
-    },
-  });
-
-  function reset() {
-    setQuery("");
-    setSelected(null);
-
-    setForm({
-      valor: "",
-      data_pagamento: new Date()
-        .toISOString()
-        .slice(0, 10),
-      responsavel_recebimento: "",
-      metodo_pagamento: "PIX",
-      descricao: "",
-    });
-  }
-
-  async function handleSave() {
-    if (!selected) {
-      return toast.error(
-        "Selecione um processo",
-      );
-    }
-
-    const valor = Number(form.valor);
-
-    if (!valor || valor <= 0) {
-      return toast.error("Valor inválido");
-    }
-
-    if (!form.responsavel_recebimento.trim()) {
-      return toast.error(
-        "Informe o responsável",
-      );
-    }
-
-    const total = Number(
-      selected.valor_total_processo ?? 0,
-    );
-
-    const recebido = Number(
-      selected.valor_recebido_total ?? 0,
-    );
-
-    if (
-      total > 0 &&
-      recebido + valor > total
-    ) {
-      return toast.error(
-        "Valor excede o saldo devedor",
-        {
-          description: `Saldo restante: ${formatBRL(
-            total - recebido,
-          )}`,
-        },
-      );
-    }
-
-    setSaving(true);
-
-    try {
-      const { data: u } =
-        await supabase.auth.getUser();
-
-      const { error } = await supabase
-        .from("payments")
-        .insert({
-          document_id: selected.id,
-          valor,
-          data_pagamento:
-            form.data_pagamento,
-          responsavel_recebimento:
-            form.responsavel_recebimento.trim(),
-          metodo_pagamento:
-            form.metodo_pagamento,
-          descricao:
-            form.descricao.trim() || null,
-          created_by: u.user?.id,
-        });
-
-      if (error) throw error;
-
-      toast.success(
-        "Pagamento registrado",
-      );
-
-      onSaved();
-      reset();
-      onOpenChange(false);
-    } catch (e) {
-      toast.error(
-        "Falha ao registrar pagamento",
-        {
-          description:
-            e instanceof Error ? e.message : "",
-        },
-      );
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  return (
-    <Dialog
-      open={open}
-      onOpenChange={(o) => {
-        onOpenChange(o);
-
-        if (!o) reset();
-      }}
-    >
-      <DialogContent className="max-h-[85vh] w-[calc(100vw-2rem)] max-w-lg overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>
-            Registrar Entrada (Pagamento)
-          </DialogTitle>
-        </DialogHeader>
-
-        {!selected ? (
-          <div className="space-y-3">
-            <div className="space-y-1.5">
-              <Label>
-                Buscar processo *
-              </Label>
-
-              <Input
-                autoFocus
-                placeholder="Nº do processo ou nome do cliente..."
-                value={query}
-                onChange={(e) =>
-                  setQuery(e.target.value)
-                }
-              />
-            </div>
-
-            <div className="max-h-64 overflow-y-auto rounded-md border">
-              {query.trim().length < 2 ? (
-                <p className="p-3 text-xs text-muted-foreground">
-                  Digite ao menos 2 caracteres
-                  para buscar.
-                </p>
-              ) : (results ?? []).length ===
-                0 ? (
-                <p className="p-3 text-xs text-muted-foreground">
-                  Nenhum processo encontrado.
-                </p>
-              ) : (
-                <ul>
-                  {(results ?? []).map((r) => (
-                    <li key={r.id}>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setSelected(r)
-                        }
-                        className="flex w-full items-center justify-between border-b p-3 text-left text-sm last:border-none hover:bg-muted/40"
-                      >
-                        <div>
-                          <p className="font-medium">
-                            {r.numero_processo}
-                          </p>
-
-                          <p className="text-xs text-muted-foreground">
-                            {r.cliente}
-                          </p>
+                </TableHeader>
+                <TableBody>
+                  {linhas.length === 0 ? (
+                    <TableRow><TableCell colSpan={6} className="py-8 text-center text-sm text-muted-foreground">Nenhum registro encontrado.</TableCell></TableRow>
+                  ) : linhas.map((r) => (
+                    <TableRow key={`${r.kind}-${r.id}`}>
+                      <TableCell className="whitespace-nowrap">{format(new Date(`${r.data}T00:00:00`), "dd/MM/yyyy")}</TableCell>
+                      <TableCell>{r.tipo}</TableCell>
+                      <TableCell className="min-w-[180px]">
+                        <div className="font-medium">{r.nome}</div>
+                        {r.numero_processo && <div className="text-xs text-muted-foreground">{r.numero_processo}</div>}
+                      </TableCell>
+                      <TableCell>{r.status}</TableCell>
+                      <TableCell className="whitespace-nowrap text-right font-medium">{formatBRL(r.valor)}</TableCell>
+                      <TableCell>
+                        <div className="flex justify-end gap-1">
+                          <Button type="button" variant="outline" size="icon" title="Editar" aria-label="Editar" onClick={() => onEdit(r)}><Pencil className="h-4 w-4" /></Button>
+                          <Button type="button" variant="outline" size="icon" title="Excluir" aria-label="Excluir" onClick={() => onDelete(r)}><Trash2 className="h-4 w-4" /></Button>
+                          <Button type="button" variant="outline" size="icon" title="Imprimir" aria-label="Imprimir" onClick={() => onPrint(r)}><Printer className="h-4 w-4" /></Button>
                         </div>
-
-                        <span className="font-mono text-xs text-muted-foreground">
-                          {formatBRL(
-                            Number(
-                              r.valor_recebido_total ??
-                                0,
-                            ),
-                          )}{" "}
-                          /{" "}
-                          {formatBRL(
-                            Number(
-                              r.valor_total_processo ??
-                                0,
-                            ),
-                          )}
-                        </span>
-                      </button>
-                    </li>
+                      </TableCell>
+                    </TableRow>
                   ))}
-                </ul>
-              )}
+                </TableBody>
+              </Table>
             </div>
           </div>
-        ) : (
-          <div className="space-y-3">
-            <div className="rounded-md border bg-muted/30 p-3 text-sm">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">
-                    {selected.numero_processo}
-                  </p>
-
-                  <p className="text-xs text-muted-foreground">
-                    {selected.cliente}
-                  </p>
-                </div>
-
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() =>
-                    setSelected(null)
-                  }
-                >
-                  Trocar
-                </Button>
-              </div>
-            </div>
-
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="space-y-1.5">
-                <Label>Valor (R$) *</Label>
-
-                <Input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={form.valor}
-                  onChange={(e) =>
-                    setForm({
-                      ...form,
-                      valor: e.target.value,
-                    })
-                  }
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label>Data *</Label>
-
-                <Input
-                  type="date"
-                  value={form.data_pagamento}
-                  onChange={(e) =>
-                    setForm({
-                      ...form,
-                      data_pagamento:
-                        e.target.value,
-                    })
-                  }
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label>
-                  Responsável *
-                </Label>
-
-                <Input
-                  value={
-                    form.responsavel_recebimento
-                  }
-                  onChange={(e) =>
-                    setForm({
-                      ...form,
-                      responsavel_recebimento:
-                        e.target.value,
-                    })
-                  }
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label>Método *</Label>
-
-                <Select
-                  value={form.metodo_pagamento}
-                  onValueChange={(v) =>
-                    setForm({
-                      ...form,
-                      metodo_pagamento: v,
-                    })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-
-                  <SelectContent>
-                    {METODOS_PAGAMENTO.map(
-                      (m) => (
-                        <SelectItem
-                          key={m}
-                          value={m}
-                        >
-                          {m}
-                        </SelectItem>
-                      ),
-                    )}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-1.5 sm:col-span-2">
-                <Label>Descrição</Label>
-
-                <Input
-                  value={form.descricao}
-                  onChange={(e) =>
-                    setForm({
-                      ...form,
-                      descricao: e.target.value,
-                    })
-                  }
-                />
-              </div>
-            </div>
+          <div className="flex flex-col gap-2 border-t pt-4 text-sm sm:flex-row sm:items-center sm:justify-between">
+            <span className="text-muted-foreground">{linhas.length} registro(s)</span>
+            <span className="font-semibold">{tipo === "saldo" ? "Saldo do mês" : tipo === "entradas" ? "Total de entradas" : "Total de saídas"}: {formatBRL(total)}</span>
           </div>
-        )}
-
-        <DialogFooter>
-          <Button
-            variant="outline"
-            onClick={() => {
-              onOpenChange(false);
-              reset();
-            }}
-          >
-            Cancelar
-          </Button>
-
-          <Button
-            onClick={handleSave}
-            disabled={saving || !selected}
-            className="bg-primary hover:bg-primary/90"
-          >
-            {saving
-              ? "Salvando..."
-              : "Salvar Pagamento"}
-          </Button>
-        </DialogFooter>
+        </div>
+        <DialogFooter><Button variant="outline" onClick={onClose}>Fechar</Button></DialogFooter>
       </DialogContent>
     </Dialog>
   );
