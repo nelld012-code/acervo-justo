@@ -206,3 +206,13 @@ body:not(:has([data-state="open"][role="dialog"])):not(:has([data-state="open"][
     right: 0.75rem !important;
   }
 }
+
+/* Prazos: ampliar o diálogo de detalhes no PC e evitar rolagem vertical.
+   O seletor usa a classe específica existente apenas nesse diálogo. */
+@media (min-width: 768px) {
+  [class~="max-w-[730px]"] {
+    max-width: 780px !important;
+    max-height: none !important;
+    overflow-y: visible !important;
+  }
+}
