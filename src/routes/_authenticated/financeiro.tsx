@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -111,6 +111,10 @@ function FinanceiroPage() {
   const [ficha, setFicha] = useState<RegistroFinanceiro | null>(null);
   const [excluindo, setExcluindo] = useState<RegistroFinanceiro | null>(null);
   const [imprimindo, setImprimindo] = useState<string | null>(null);
+  const [pagina, setPagina] = useState(1);
+  const [relatorio, setRelatorio] = useState<
+    "entradas" | "saidas" | "saldo" | null
+  >(null);
 
   async function confirmarExclusao() {
     const rec = excluindo;
@@ -357,6 +361,28 @@ function FinanceiroPage() {
   const totalRecebidoFiltrado = registrosFiltrados
     .filter((r) => r.kind === "entrada")
     .reduce((s, r) => s + r.valor, 0);
+
+  const PAGE_SIZE = 8;
+
+  const totalPaginas = Math.max(
+    1,
+    Math.ceil(registrosFiltrados.length / PAGE_SIZE),
+  );
+
+  useEffect(() => {
+    setPagina(1);
+  }, [busca, filtroTipo, filtroStatus, dataDe, dataAte, valorMin]);
+
+  const paginaAtual = Math.min(pagina, totalPaginas);
+
+  const registrosPagina = useMemo(
+    () =>
+      registrosFiltrados.slice(
+        (paginaAtual - 1) * PAGE_SIZE,
+        paginaAtual * PAGE_SIZE,
+      ),
+    [registrosFiltrados, paginaAtual],
+  );
 
   const totalPagoFiltrado = registrosFiltrados
     .filter((r) => r.kind === "saida")
@@ -804,6 +830,7 @@ function FinanceiroPage() {
             <TrendingUp className="h-5 w-5" />
           }
           tone="up"
+          onClick={() => setRelatorio("entradas")}
         />
 
         <HeroCard
@@ -813,6 +840,7 @@ function FinanceiroPage() {
             <TrendingDown className="h-5 w-5" />
           }
           tone="down"
+          onClick={() => setRelatorio("saidas")}
         />
 
         <HeroCard
@@ -822,6 +850,7 @@ function FinanceiroPage() {
             <Wallet className="h-5 w-5" />
           }
           tone={saldo >= 0 ? "up" : "down"}
+          onClick={() => setRelatorio("saldo")}
         />
       </div>
 
@@ -1097,7 +1126,7 @@ function FinanceiroPage() {
                 Nenhum registro encontrado.
               </p>
             ) : (
-              registrosFiltrados.map((r) => (
+              registrosPagina.map((r) => (
                 <div
                   key={`${r.kind}-${r.id}`}
                   className="space-y-2 p-4"
@@ -1229,7 +1258,7 @@ function FinanceiroPage() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  registrosFiltrados.map((r) => (
+                  registrosPagina.map((r) => (
                     <TableRow
                       key={`${r.kind}-${r.id}`}
                     >
@@ -1324,12 +1353,81 @@ function FinanceiroPage() {
               </TableBody>
             </Table>
           </div>
+
+          {registrosFiltrados.length > 0 && (
+            <div className="flex flex-col items-center justify-between gap-3 border-t p-4 sm:flex-row">
+              <p className="text-xs text-muted-foreground">
+                Mostrando{" "}
+                {(paginaAtual - 1) * PAGE_SIZE + 1}–
+                {Math.min(
+                  paginaAtual * PAGE_SIZE,
+                  registrosFiltrados.length,
+                )}{" "}
+                de {registrosFiltrados.length} registros
+              </p>
+
+              <div className="flex flex-wrap items-center justify-center gap-1">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={paginaAtual <= 1}
+                  onClick={() => setPagina(paginaAtual - 1)}
+                >
+                  Anterior
+                </Button>
+
+                {totalPaginas <= 7 ? (
+                  Array.from(
+                    { length: totalPaginas },
+                    (_, i) => i + 1,
+                  ).map((n) => (
+                    <Button
+                      key={n}
+                      size="sm"
+                      variant={
+                        n === paginaAtual
+                          ? "default"
+                          : "outline"
+                      }
+                      onClick={() => setPagina(n)}
+                    >
+                      {n}
+                    </Button>
+                  ))
+                ) : (
+                  <span className="px-2 text-xs text-muted-foreground">
+                    Página {paginaAtual} de {totalPaginas}
+                  </span>
+                )}
+
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={paginaAtual >= totalPaginas}
+                  onClick={() => setPagina(paginaAtual + 1)}
+                >
+                  Próxima
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
       <FichaFinanceiraDialog
         registro={ficha}
         onClose={() => setFicha(null)}
+      />
+
+      <RelatorioDialog
+        tipo={relatorio}
+        onClose={() => setRelatorio(null)}
+        payments={payments ?? []}
+        expenses={expenses ?? []}
+        monthPayments={monthPayments}
+        monthExpenses={monthExpenses}
+        monthStart={monthStart}
+        monthEnd={monthEnd}
       />
 
       <AlertDialog
@@ -1894,14 +1992,326 @@ function HeroCard({
   value,
   icon,
   tone,
+  onClick,
 }: {
   title: string;
   value: string;
   icon: React.ReactNode;
   tone: "up" | "down";
+  onClick?: () => void;
+}) {
+  return _HeroCardBody({ title, value, icon, tone, onClick });
+}
+
+type RelatorioLinha = {
+  cols: string[];
+  valor: number;
+};
+
+function RelatorioDialog({
+  tipo,
+  onClose,
+  payments,
+  expenses,
+  monthPayments,
+  monthExpenses,
+  monthStart,
+  monthEnd,
+}: {
+  tipo: "entradas" | "saidas" | "saldo" | null;
+  onClose: () => void;
+  payments: PaymentWithDoc[];
+  expenses: Expense[];
+  monthPayments: PaymentWithDoc[];
+  monthExpenses: Expense[];
+  monthStart: string;
+  monthEnd: string;
+}) {
+  const [busca, setBusca] = useState("");
+
+  useEffect(() => {
+    setBusca("");
+  }, [tipo]);
+
+  const fmtData = (d: string) =>
+    format(new Date(`${d}T00:00:00`), "dd/MM/yyyy");
+
+  const config = useMemo(() => {
+    if (tipo === "entradas") {
+      const linhas: RelatorioLinha[] = [...payments]
+        .sort((a, b) => b.data_pagamento.localeCompare(a.data_pagamento))
+        .map((p) => ({
+          valor: Number(p.valor),
+          cols: [
+            fmtData(p.data_pagamento),
+            p.documents?.cliente ?? "—",
+            processoLabel(p.documents?.numero_processo),
+            p.metodo_pagamento ?? "—",
+            p.responsavel_recebimento ?? "—",
+            formatBRL(Number(p.valor)),
+          ],
+        }));
+
+      return {
+        titulo: "Relatório de Entradas",
+        periodo: "Todas as entradas registradas",
+        colunas: [
+          "Data",
+          "Cliente",
+          "Processo",
+          "Método",
+          "Responsável",
+          "Valor",
+        ],
+        linhas,
+        rotuloTotal: "Total de entradas",
+      };
+    }
+
+    if (tipo === "saidas") {
+      const linhas: RelatorioLinha[] = [...expenses]
+        .sort((a, b) => b.data_despesa.localeCompare(a.data_despesa))
+        .map((e) => ({
+          valor: Number(e.valor),
+          cols: [
+            fmtData(e.data_despesa),
+            e.descricao,
+            e.categoria,
+            e.responsavel_pagamento ?? "—",
+            e.recebedor_salario ?? "—",
+            formatBRL(Number(e.valor)),
+          ],
+        }));
+
+      return {
+        titulo: "Relatório de Saídas",
+        periodo: "Todas as saídas registradas",
+        colunas: [
+          "Data",
+          "Descrição",
+          "Categoria",
+          "Responsável",
+          "Recebedor do salário",
+          "Valor",
+        ],
+        linhas,
+        rotuloTotal: "Total de saídas",
+      };
+    }
+
+    const movs = [
+      ...monthPayments.map((p) => ({
+        data: p.data_pagamento,
+        tipo: "Entrada",
+        nome: p.documents?.cliente ?? "—",
+        valor: Number(p.valor),
+      })),
+      ...monthExpenses.map((e) => ({
+        data: e.data_despesa,
+        tipo: "Saída",
+        nome: e.descricao,
+        valor: -Number(e.valor),
+      })),
+    ].sort((a, b) => a.data.localeCompare(b.data));
+
+    let acc = 0;
+
+    const linhas: RelatorioLinha[] = movs.map((m) => {
+      acc += m.valor;
+
+      return {
+        valor: m.valor,
+        cols: [
+          fmtData(m.data),
+          m.tipo,
+          m.nome,
+          formatBRL(Math.abs(m.valor)),
+          formatBRL(acc),
+        ],
+      };
+    });
+
+    return {
+      titulo: "Relatório do Saldo do Mês",
+      periodo: `Período: ${fmtData(monthStart)} a ${fmtData(monthEnd)}`,
+      colunas: [
+        "Data",
+        "Tipo",
+        "Nome / Descrição",
+        "Valor",
+        "Saldo acumulado",
+      ],
+      linhas,
+      rotuloTotal: "Saldo do período",
+    };
+  }, [tipo, payments, expenses, monthPayments, monthExpenses, monthStart, monthEnd]);
+
+  const linhasFiltradas = useMemo(() => {
+    const termo = busca.trim().toLowerCase();
+    if (!termo) return config.linhas;
+
+    return config.linhas.filter((l) =>
+      l.cols.join(" ").toLowerCase().includes(termo),
+    );
+  }, [config, busca]);
+
+  const total = linhasFiltradas.reduce((s, l) => s + l.valor, 0);
+
+  function imprimir() {
+    printReport({
+      title: config.titulo,
+      subtitle: config.periodo,
+      summary: [
+        { label: "Registros", value: String(linhasFiltradas.length) },
+        { label: config.rotuloTotal, value: formatBRL(total) },
+        ...(busca.trim()
+          ? [{ label: "Busca", value: busca.trim() }]
+          : []),
+      ],
+      sections: [
+        {
+          columns: config.colunas,
+          rows: linhasFiltradas.map((l) => l.cols),
+        },
+      ],
+    });
+  }
+
+  return (
+    <Dialog open={!!tipo} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-h-[85vh] w-[calc(100vw-2rem)] max-w-3xl overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{config.titulo}</DialogTitle>
+        </DialogHeader>
+
+        <p className="text-xs text-muted-foreground">{config.periodo}</p>
+
+        <Input
+          placeholder="Buscar no relatório"
+          value={busca}
+          onChange={(e) => setBusca(e.target.value)}
+        />
+
+        <div className="rounded-md border p-3">
+          <p className="text-xs text-muted-foreground">
+            {config.rotuloTotal} ({linhasFiltradas.length} registros)
+          </p>
+
+          <p
+            className={`font-mono text-lg font-bold ${
+              total >= 0 ? "text-accent" : "text-destructive"
+            }`}
+          >
+            {formatBRL(total)}
+          </p>
+        </div>
+
+        <div className="space-y-2 md:hidden">
+          {linhasFiltradas.length === 0 ? (
+            <p className="py-6 text-center text-sm text-muted-foreground">
+              Nenhum registro encontrado.
+            </p>
+          ) : (
+            linhasFiltradas.map((l, i) => (
+              <div key={i} className="rounded-md border p-3 text-xs">
+                {config.colunas.map((c, ci) => (
+                  <div
+                    key={c}
+                    className="flex justify-between gap-2 py-0.5"
+                  >
+                    <span className="text-muted-foreground">{c}</span>
+                    <span className="break-words text-right font-medium">
+                      {l.cols[ci]}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ))
+          )}
+        </div>
+
+        <div className="hidden overflow-x-auto md:block">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                {config.colunas.map((c) => (
+                  <TableHead key={c}>{c}</TableHead>
+                ))}
+              </TableRow>
+            </TableHeader>
+
+            <TableBody>
+              {linhasFiltradas.length === 0 ? (
+                <TableRow>
+                  <TableCell
+                    colSpan={config.colunas.length}
+                    className="py-6 text-center text-sm text-muted-foreground"
+                  >
+                    Nenhum registro encontrado.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                linhasFiltradas.map((l, i) => (
+                  <TableRow key={i}>
+                    {l.cols.map((c, ci) => (
+                      <TableCell key={ci} className="text-xs">
+                        {c}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
+            Fechar
+          </Button>
+
+          <Button onClick={imprimir}>
+            <Printer className="mr-2 h-4 w-4" />
+            Imprimir
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function _HeroCardBody({
+  title,
+  value,
+  icon,
+  tone,
+  onClick,
+}: {
+  title: string;
+  value: string;
+  icon: React.ReactNode;
+  tone: "up" | "down";
+  onClick?: () => void;
 }) {
   return (
-    <Card className="relative overflow-hidden border-primary/30 bg-gradient-to-br from-indigo-600/20 via-card to-blue-600/10">
+    <Card
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onClick={onClick}
+      onKeyDown={(e) => {
+        if (!onClick) return;
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onClick();
+        }
+      }}
+      className={`relative overflow-hidden border-primary/30 bg-gradient-to-br from-indigo-600/20 via-card to-blue-600/10 ${
+        onClick
+          ? "cursor-pointer transition-colors hover:border-primary focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+          : ""
+      }`}
+      title={onClick ? "Clique para ver o relatório" : undefined}
+    >
       <CardContent className="pt-6">
         <div className="flex items-center justify-between text-muted-foreground">
           <p className="text-sm font-medium">
@@ -1928,6 +2338,12 @@ function HeroCard({
         >
           {value}
         </p>
+
+        {onClick && (
+          <p className="mt-1 text-[11px] text-muted-foreground">
+            Clique para ver o relatório
+          </p>
+        )}
       </CardContent>
     </Card>
   );
