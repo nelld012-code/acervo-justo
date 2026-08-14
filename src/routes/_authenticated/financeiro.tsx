@@ -1428,6 +1428,9 @@ function FinanceiroPage() {
         monthExpenses={monthExpenses}
         monthStart={monthStart}
         monthEnd={monthEnd}
+        onEdit={abrirEdicao}
+        onDelete={setExcluindo}
+        onPrint={imprimirRegistro}
       />
 
       <AlertDialog
@@ -2017,6 +2020,9 @@ function RelatorioDialog({
   monthExpenses,
   monthStart,
   monthEnd,
+  onEdit,
+  onDelete,
+  onPrint,
 }: {
   tipo: "entradas" | "saidas" | "saldo" | null;
   onClose: () => void;
@@ -2026,6 +2032,9 @@ function RelatorioDialog({
   monthExpenses: Expense[];
   monthStart: string;
   monthEnd: string;
+  onEdit: (registro: RegistroFinanceiro) => void;
+  onDelete: (registro: RegistroFinanceiro) => void;
+  onPrint: (registro: RegistroFinanceiro) => void;
 }) {
   const [busca, setBusca] = useState("");
 
@@ -2155,6 +2164,110 @@ function RelatorioDialog({
     );
   }, [config, busca]);
 
+  const registrosAcoes = useMemo<RegistroFinanceiro[]>(() => {
+    const entradas: RegistroFinanceiro[] = payments.map((p) => ({
+      kind: "entrada",
+      id: p.id,
+      nome: p.documents?.cliente ?? "—",
+      numero_processo: p.documents?.numero_processo ?? null,
+      tipo: "Entrada",
+      valor: Number(p.valor),
+      data: p.data_pagamento,
+      status: "Recebido",
+      observacao: p.descricao ?? null,
+      document_id: p.document_id,
+      metodo_pagamento: p.metodo_pagamento ?? null,
+      responsavel_recebimento: p.responsavel_recebimento ?? null,
+    }));
+
+    const saidas: RegistroFinanceiro[] = expenses.map((e) => ({
+      kind: "saida",
+      id: e.id,
+      nome: e.descricao,
+      numero_processo: null,
+      tipo: "Saída",
+      valor: Number(e.valor),
+      data: e.data_despesa,
+      status: "Pago",
+      observacao: e.descricao ?? null,
+      categoria: e.categoria ?? null,
+      responsavel_pagamento: e.responsavel_pagamento ?? null,
+      recebedor_salario: e.recebedor_salario ?? null,
+    }));
+
+    type Candidate = { registro: RegistroFinanceiro; extra: string };
+    let candidates: Candidate[];
+
+    if (tipo === "entradas") {
+      candidates = payments.map((p, index) => ({
+        registro: entradas[index],
+        extra: [
+          fmtData(p.data_pagamento),
+          p.documents?.cliente ?? "—",
+          processoLabel(p.documents?.numero_processo),
+          p.metodo_pagamento ?? "—",
+          p.responsavel_recebimento ?? "—",
+          formatBRL(Number(p.valor)),
+        ].join(" "),
+      }));
+    } else if (tipo === "saidas") {
+      candidates = expenses.map((e, index) => ({
+        registro: saidas[index],
+        extra: [
+          fmtData(e.data_despesa),
+          e.descricao,
+          e.categoria,
+          e.responsavel_pagamento ?? "—",
+          e.recebedor_salario ?? "—",
+          formatBRL(Number(e.valor)),
+        ].join(" "),
+      }));
+    } else {
+      const movs = [
+        ...monthPayments.map((p) => ({
+          registro: entradas.find((r) => r.id === p.id)!,
+          data: p.data_pagamento,
+          signed: Number(p.valor),
+          extraName: p.documents?.cliente ?? "—",
+        })),
+        ...monthExpenses.map((e) => ({
+          registro: saidas.find((r) => r.id === e.id)!,
+          data: e.data_despesa,
+          signed: -Number(e.valor),
+          extraName: e.descricao,
+        })),
+      ].sort((a, b) => a.data.localeCompare(b.data));
+
+      let acc = 0;
+      candidates = movs.map((m) => {
+        acc += m.signed;
+        return {
+          registro: m.registro,
+          extra: [
+            fmtData(m.data),
+            m.registro.tipo,
+            m.extraName,
+            formatBRL(Math.abs(m.signed)),
+            formatBRL(acc),
+          ].join(" "),
+        };
+      });
+    }
+
+    const termo = busca.trim().toLowerCase();
+    if (termo) {
+      candidates = candidates.filter((c) => c.extra.toLowerCase().includes(termo));
+    }
+
+    if (tipo === "saldo") {
+      return candidates.map((c) => c.registro);
+    }
+
+    return candidates
+      .sort((a, b) => b.registro.data.localeCompare(a.registro.data))
+      .map((c) => c.registro);
+  }, [tipo, payments, expenses, monthPayments, monthExpenses, busca]);
+
   const total = linhasFiltradas.reduce((s, l) => s + l.valor, 0);
 
   function imprimir() {
@@ -2225,6 +2338,19 @@ function RelatorioDialog({
                     </span>
                   </div>
                 ))}
+                {registrosAcoes[i] && (
+                  <div className="mt-2 flex justify-end gap-1 border-t pt-2">
+                    <Button type="button" variant="outline" size="icon" title="Editar" aria-label="Editar" onClick={() => onEdit(registrosAcoes[i])}>
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button type="button" variant="outline" size="icon" title="Excluir" aria-label="Excluir" onClick={() => onDelete(registrosAcoes[i])}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                    <Button type="button" variant="outline" size="icon" title="Imprimir" aria-label="Imprimir" onClick={() => onPrint(registrosAcoes[i])}>
+                      <Printer className="h-4 w-4" />
+                    </Button>
+                  </div>
+                )}
               </div>
             ))
           )}
@@ -2237,6 +2363,7 @@ function RelatorioDialog({
                 {config.colunas.map((c) => (
                   <TableHead key={c}>{c}</TableHead>
                 ))}
+                <TableHead className="text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
 
@@ -2258,6 +2385,21 @@ function RelatorioDialog({
                         {c}
                       </TableCell>
                     ))}
+                    {registrosAcoes[i] && (
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-1">
+                          <Button type="button" variant="outline" size="icon" title="Editar" aria-label="Editar" onClick={() => onEdit(registrosAcoes[i])}>
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button type="button" variant="outline" size="icon" title="Excluir" aria-label="Excluir" onClick={() => onDelete(registrosAcoes[i])}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                          <Button type="button" variant="outline" size="icon" title="Imprimir" aria-label="Imprimir" onClick={() => onPrint(registrosAcoes[i])}>
+                            <Printer className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))
               )}
