@@ -1419,6 +1419,17 @@ function FinanceiroPage() {
         onClose={() => setFicha(null)}
       />
 
+      <RelatorioDialog
+        tipo={relatorio}
+        onClose={() => setRelatorio(null)}
+        payments={payments ?? []}
+        expenses={expenses ?? []}
+        monthPayments={monthPayments}
+        monthExpenses={monthExpenses}
+        monthStart={monthStart}
+        monthEnd={monthEnd}
+      />
+
       <AlertDialog
         open={!!excluindo}
         onOpenChange={(o) =>
