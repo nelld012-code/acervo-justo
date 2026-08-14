@@ -2000,6 +2000,299 @@ function HeroCard({
   tone: "up" | "down";
   onClick?: () => void;
 }) {
+  return _HeroCardBody({ title, value, icon, tone, onClick });
+}
+
+type RelatorioLinha = {
+  cols: string[];
+  valor: number;
+};
+
+function RelatorioDialog({
+  tipo,
+  onClose,
+  payments,
+  expenses,
+  monthPayments,
+  monthExpenses,
+  monthStart,
+  monthEnd,
+}: {
+  tipo: "entradas" | "saidas" | "saldo" | null;
+  onClose: () => void;
+  payments: PaymentWithDoc[];
+  expenses: Expense[];
+  monthPayments: PaymentWithDoc[];
+  monthExpenses: Expense[];
+  monthStart: string;
+  monthEnd: string;
+}) {
+  const [busca, setBusca] = useState("");
+
+  useEffect(() => {
+    setBusca("");
+  }, [tipo]);
+
+  const fmtData = (d: string) =>
+    format(new Date(`${d}T00:00:00`), "dd/MM/yyyy");
+
+  const config = useMemo(() => {
+    if (tipo === "entradas") {
+      const linhas: RelatorioLinha[] = [...payments]
+        .sort((a, b) => b.data_pagamento.localeCompare(a.data_pagamento))
+        .map((p) => ({
+          valor: Number(p.valor),
+          cols: [
+            fmtData(p.data_pagamento),
+            p.documents?.cliente ?? "—",
+            processoLabel(p.documents?.numero_processo),
+            p.metodo_pagamento ?? "—",
+            p.responsavel_recebimento ?? "—",
+            formatBRL(Number(p.valor)),
+          ],
+        }));
+
+      return {
+        titulo: "Relatório de Entradas",
+        periodo: "Todas as entradas registradas",
+        colunas: [
+          "Data",
+          "Cliente",
+          "Processo",
+          "Método",
+          "Responsável",
+          "Valor",
+        ],
+        linhas,
+        rotuloTotal: "Total de entradas",
+      };
+    }
+
+    if (tipo === "saidas") {
+      const linhas: RelatorioLinha[] = [...expenses]
+        .sort((a, b) => b.data_despesa.localeCompare(a.data_despesa))
+        .map((e) => ({
+          valor: Number(e.valor),
+          cols: [
+            fmtData(e.data_despesa),
+            e.descricao,
+            e.categoria,
+            e.responsavel_pagamento ?? "—",
+            e.recebedor_salario ?? "—",
+            formatBRL(Number(e.valor)),
+          ],
+        }));
+
+      return {
+        titulo: "Relatório de Saídas",
+        periodo: "Todas as saídas registradas",
+        colunas: [
+          "Data",
+          "Descrição",
+          "Categoria",
+          "Responsável",
+          "Recebedor do salário",
+          "Valor",
+        ],
+        linhas,
+        rotuloTotal: "Total de saídas",
+      };
+    }
+
+    const movs = [
+      ...monthPayments.map((p) => ({
+        data: p.data_pagamento,
+        tipo: "Entrada",
+        nome: p.documents?.cliente ?? "—",
+        valor: Number(p.valor),
+      })),
+      ...monthExpenses.map((e) => ({
+        data: e.data_despesa,
+        tipo: "Saída",
+        nome: e.descricao,
+        valor: -Number(e.valor),
+      })),
+    ].sort((a, b) => a.data.localeCompare(b.data));
+
+    let acc = 0;
+
+    const linhas: RelatorioLinha[] = movs.map((m) => {
+      acc += m.valor;
+
+      return {
+        valor: m.valor,
+        cols: [
+          fmtData(m.data),
+          m.tipo,
+          m.nome,
+          formatBRL(Math.abs(m.valor)),
+          formatBRL(acc),
+        ],
+      };
+    });
+
+    return {
+      titulo: "Relatório do Saldo do Mês",
+      periodo: `Período: ${fmtData(monthStart)} a ${fmtData(monthEnd)}`,
+      colunas: [
+        "Data",
+        "Tipo",
+        "Nome / Descrição",
+        "Valor",
+        "Saldo acumulado",
+      ],
+      linhas,
+      rotuloTotal: "Saldo do período",
+    };
+  }, [tipo, payments, expenses, monthPayments, monthExpenses, monthStart, monthEnd]);
+
+  const linhasFiltradas = useMemo(() => {
+    const termo = busca.trim().toLowerCase();
+    if (!termo) return config.linhas;
+
+    return config.linhas.filter((l) =>
+      l.cols.join(" ").toLowerCase().includes(termo),
+    );
+  }, [config, busca]);
+
+  const total = linhasFiltradas.reduce((s, l) => s + l.valor, 0);
+
+  function imprimir() {
+    printReport({
+      title: config.titulo,
+      subtitle: config.periodo,
+      summary: [
+        { label: "Registros", value: String(linhasFiltradas.length) },
+        { label: config.rotuloTotal, value: formatBRL(total) },
+        ...(busca.trim()
+          ? [{ label: "Busca", value: busca.trim() }]
+          : []),
+      ],
+      sections: [
+        {
+          columns: config.colunas,
+          rows: linhasFiltradas.map((l) => l.cols),
+        },
+      ],
+    });
+  }
+
+  return (
+    <Dialog open={!!tipo} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-h-[85vh] w-[calc(100vw-2rem)] max-w-3xl overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{config.titulo}</DialogTitle>
+        </DialogHeader>
+
+        <p className="text-xs text-muted-foreground">{config.periodo}</p>
+
+        <Input
+          placeholder="Buscar no relatório"
+          value={busca}
+          onChange={(e) => setBusca(e.target.value)}
+        />
+
+        <div className="rounded-md border p-3">
+          <p className="text-xs text-muted-foreground">
+            {config.rotuloTotal} ({linhasFiltradas.length} registros)
+          </p>
+
+          <p
+            className={`font-mono text-lg font-bold ${
+              total >= 0 ? "text-accent" : "text-destructive"
+            }`}
+          >
+            {formatBRL(total)}
+          </p>
+        </div>
+
+        <div className="space-y-2 md:hidden">
+          {linhasFiltradas.length === 0 ? (
+            <p className="py-6 text-center text-sm text-muted-foreground">
+              Nenhum registro encontrado.
+            </p>
+          ) : (
+            linhasFiltradas.map((l, i) => (
+              <div key={i} className="rounded-md border p-3 text-xs">
+                {config.colunas.map((c, ci) => (
+                  <div
+                    key={c}
+                    className="flex justify-between gap-2 py-0.5"
+                  >
+                    <span className="text-muted-foreground">{c}</span>
+                    <span className="break-words text-right font-medium">
+                      {l.cols[ci]}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ))
+          )}
+        </div>
+
+        <div className="hidden overflow-x-auto md:block">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                {config.colunas.map((c) => (
+                  <TableHead key={c}>{c}</TableHead>
+                ))}
+              </TableRow>
+            </TableHeader>
+
+            <TableBody>
+              {linhasFiltradas.length === 0 ? (
+                <TableRow>
+                  <TableCell
+                    colSpan={config.colunas.length}
+                    className="py-6 text-center text-sm text-muted-foreground"
+                  >
+                    Nenhum registro encontrado.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                linhasFiltradas.map((l, i) => (
+                  <TableRow key={i}>
+                    {l.cols.map((c, ci) => (
+                      <TableCell key={ci} className="text-xs">
+                        {c}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
+            Fechar
+          </Button>
+
+          <Button onClick={imprimir}>
+            <Printer className="mr-2 h-4 w-4" />
+            Imprimir
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function _HeroCardBody({
+  title,
+  value,
+  icon,
+  tone,
+  onClick,
+}: {
+  title: string;
+  value: string;
+  icon: React.ReactNode;
+  tone: "up" | "down";
+  onClick?: () => void;
+}) {
   return (
     <Card
       role={onClick ? "button" : undefined}
