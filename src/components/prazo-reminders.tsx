@@ -171,7 +171,7 @@ export function PrazoReminders() {
             className="min-h-11 w-full min-w-0 px-3 text-sm"
             onClick={() => adiar(atual)}
           >
-            {atual.repetir_alerta_diariamente ? "Lembrar novamente em 30 minutos" : "Fechar"}
+            {atual.repetir_alerta_diariamente ? "Lembrar em 30 min." : "Fechar"}
           </Button>
           <Button
             variant="outline"
@@ -181,7 +181,7 @@ export function PrazoReminders() {
             Concluir
           </Button>
           <Button
-            variant="ghost"
+            variant="outline"
             className="min-h-11 w-full min-w-0 px-3 text-sm"
             onClick={() => void desativar(atual.id)}
           >
