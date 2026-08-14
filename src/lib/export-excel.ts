@@ -100,7 +100,6 @@ function zipStore(files: ZipFile[]) {
       name,
     );
     centralParts.push(centralHeader);
-
     offset += localHeader.length + data.length;
   }
 
@@ -121,15 +120,9 @@ function zipStore(files: ZipFile[]) {
 }
 
 function cellXml(value: ExcelValue) {
-  if (value === null || value === undefined || value === "") {
-    return "<c/>";
-  }
-  if (typeof value === "number" && Number.isFinite(value)) {
-    return `<c><v>${value}</v></c>`;
-  }
-  if (typeof value === "boolean") {
-    return `<c t="b"><v>${value ? 1 : 0}</v></c>`;
-  }
+  if (value === null || value === undefined || value === "") return "<c/>";
+  if (typeof value === "number" && Number.isFinite(value)) return `<c><v>${value}</v></c>`;
+  if (typeof value === "boolean") return `<c t="b"><v>${value ? 1 : 0}</v></c>`;
   return `<c t="inlineStr"><is><t xml:space="preserve">${escapeXml(String(value))}</t></is></c>`;
 }
 
@@ -151,15 +144,6 @@ function worksheetXml(headers: string[], rows: ExcelValue[][]) {
   const xmlRows = allRows.map((row, rowIndex) => {
     const cells = row.map((value, columnIndex) => {
       const ref = `${columnName(columnIndex)}${rowIndex + 1}`;
-      return `<c r="${ref}">${cellXml(value).replace(/^<c>|<c /, (match) => match).replace(/^<c><v>/, "<c><v>")}</c>`;
-    });
-    return `<row r="${rowIndex + 1}">${cells.join("")}</row>`;
-  });
-
-  // cellXml already returns a complete <c> element; keep row generation explicit to avoid styles/dependencies.
-  const cleanRows = allRows.map((row, rowIndex) => {
-    const cells = row.map((value, columnIndex) => {
-      const ref = `${columnName(columnIndex)}${rowIndex + 1}`;
       const cell = cellXml(value);
       if (cell === "<c/>") return `<c r="${ref}"/>`;
       return cell.replace(/^<c(?=[ >])/, `<c r="${ref}"`);
@@ -167,7 +151,7 @@ function worksheetXml(headers: string[], rows: ExcelValue[][]) {
     return `<row r="${rowIndex + 1}">${cells.join("")}</row>`;
   });
 
-  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><dimension ref="A1:${lastColumn}${lastRow}"/><sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><sheetData>${cleanRows.join("")}</sheetData></worksheet>`;
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><dimension ref="A1:${lastColumn}${lastRow}"/><sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><sheetData>${xmlRows.join("")}</sheetData></worksheet>`;
 }
 
 function workbookXml() {
