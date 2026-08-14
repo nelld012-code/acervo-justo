@@ -18,7 +18,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { CalendarClock, CheckCircle2, FileSpreadsheet, Pencil, Plus, Printer, Trash2 } from "lucide-react";
+import { CalendarClock, CheckCircle2, Eye, FileSpreadsheet, Pencil, Plus, Printer, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useProfile } from "@/hooks/use-profile";
 import { logAudit } from "@/lib/documents";
@@ -88,7 +88,6 @@ function escapeHtml(value: string) {
 }
 
 function printHtml(title: string, body: string) {
-  // Sem "noopener/noreferrer": precisamos de acesso ao documento da nova janela.
   const win = window.open("", "_blank", "width=1000,height=800");
   if (!win || !win.document) {
     toast.error("Não foi possível abrir a janela de impressão. Verifique o bloqueador de pop-ups.");
@@ -116,7 +115,6 @@ function printHtml(title: string, body: string) {
     try {
       win.focus();
       win.print();
-      // Fecha após o diálogo de impressão, quando o navegador permitir.
       win.setTimeout(() => { if (!win.closed) win.close(); }, 500);
     } catch {
       /* usuário pode imprimir manualmente */
@@ -128,7 +126,6 @@ function printHtml(title: string, body: string) {
     win.document.write(html);
     win.document.close();
     win.addEventListener("load", imprimir, { once: true });
-    // Fallback: alguns navegadores não disparam "load" em document.write.
     win.setTimeout(imprimir, 500);
   } catch {
     toast.error("Não foi possível preparar a impressão.");
@@ -145,6 +142,8 @@ function PrazosPage() {
   const [ordem, setOrdem] = useState<string>("data_limite");
   const [pagina, setPagina] = useState(1);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [detalhesOpen, setDetalhesOpen] = useState(false);
+  const [prazoDetalhes, setPrazoDetalhes] = useState<Prazo | null>(null);
   const [editando, setEditando] = useState<Prazo | null>(null);
   const [excluindo, setExcluindo] = useState<Prazo | null>(null);
   const [form, setForm] = useState({ ...emptyForm });
@@ -184,6 +183,11 @@ function PrazosPage() {
       repetir_alerta_diariamente: p.repetir_alerta_diariamente,
     });
     setDialogOpen(true);
+  }
+
+  function abrirDetalhes(p: Prazo) {
+    setPrazoDetalhes(p);
+    setDetalhesOpen(true);
   }
 
   async function salvar(e: React.FormEvent) {
@@ -329,19 +333,8 @@ function PrazosPage() {
     }
 
     const headers = [
-      "Nome",
-      "Número do Processo",
-      "Parte",
-      "Advogado",
-      "Data Limite",
-      "Dias Restantes",
-      "Status",
-      "Situação",
-      "Lembrete",
-      "Antecedência",
-      "Repetição diária",
-      "Observação",
-      "Data de Conclusão",
+      "Nome", "Número do Processo", "Parte", "Advogado", "Data Limite", "Dias Restantes",
+      "Status", "Situação", "Lembrete", "Antecedência", "Repetição diária", "Observação", "Data de Conclusão",
     ];
 
     const rows = lista.map((p) => [
@@ -450,6 +443,7 @@ function PrazosPage() {
                     </p>
                     {podeGerenciar && (
                       <div className="flex flex-wrap gap-2">
+                        <Button size="sm" variant="outline" className="min-h-10" onClick={() => abrirDetalhes(p)}><Eye className="mr-1 h-4 w-4" />Ver</Button>
                         <Button size="sm" variant="outline" className="min-h-10" onClick={() => abrirEdicao(p)}><Pencil className="mr-1 h-4 w-4" />Editar</Button>
                         {p.status !== "Concluído" && <Button size="sm" variant="outline" className="min-h-10" onClick={() => void concluir(p)}><CheckCircle2 className="mr-1 h-4 w-4" />Concluir</Button>}
                         <Button size="sm" variant="outline" className="min-h-10" onClick={() => setExcluindo(p)}><Trash2 className="mr-1 h-4 w-4" />Excluir</Button>
@@ -482,6 +476,7 @@ function PrazosPage() {
                     <TableCell className="text-xs">{p.lembrete_ativo ? `${p.antecedencia_dias} dia(s) antes` : "Desativado"}</TableCell>
                     <TableCell className="text-right">
                       {podeGerenciar ? <div className="flex items-center justify-end gap-1">
+                        <Button size="icon" variant="ghost" title="Ver detalhes" onClick={() => abrirDetalhes(p)}><Eye className="h-4 w-4" /></Button>
                         <Button size="icon" variant="ghost" title="Editar" onClick={() => abrirEdicao(p)}><Pencil className="h-4 w-4" /></Button>
                         {p.status !== "Concluído" && <Button size="icon" variant="ghost" title="Concluir" onClick={() => void concluir(p)}><CheckCircle2 className="h-4 w-4" /></Button>}
                         <Button size="icon" variant="ghost" title="Excluir" onClick={() => setExcluindo(p)}><Trash2 className="h-4 w-4" /></Button>
@@ -505,6 +500,50 @@ function PrazosPage() {
           <Button size="sm" variant="outline" onClick={() => setPagina((p) => Math.min(totalPaginas, p + 1))} disabled={paginaAtual === totalPaginas}>Próxima</Button>
         </div>
       )}
+
+      <Dialog open={detalhesOpen} onOpenChange={setDetalhesOpen}>
+        <DialogContent className="max-h-[85vh] w-[calc(100vw-2rem)] max-w-lg overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Detalhes do Prazo</DialogTitle>
+            <DialogDescription>Todos os dados cadastrados para este prazo.</DialogDescription>
+          </DialogHeader>
+          {prazoDetalhes && (() => {
+            const s = situacaoDoPrazo(prazoDetalhes);
+            const dias = diasRestantes(prazoDetalhes.data_limite);
+            return (
+              <div className="space-y-3 rounded-lg border border-border bg-muted/20 p-4">
+                <div className="flex items-start justify-between gap-3 border-b border-border pb-3">
+                  <div className="min-w-0">
+                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Nome do prazo</p>
+                    <p className="break-words text-base font-semibold text-foreground">{prazoDetalhes.nome}</p>
+                  </div>
+                  <Badge variant="outline" className={`shrink-0 ${SITUACAO_CLASS[s]}`}>{SITUACAO_LABEL[s]}</Badge>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div><p className="text-xs text-muted-foreground">Número do Processo</p><p className="break-words text-sm font-medium">{processoOuTraco(prazoDetalhes.numero_processo)}</p></div>
+                  <div><p className="text-xs text-muted-foreground">Parte</p><p className="text-sm font-medium">{prazoDetalhes.parte}</p></div>
+                  <div><p className="text-xs text-muted-foreground">Advogado</p><p className="break-words text-sm font-medium">{prazoDetalhes.advogado || "—"}</p></div>
+                  <div><p className="text-xs text-muted-foreground">Data Limite</p><p className="text-sm font-medium">{brDate(prazoDetalhes.data_limite)}</p></div>
+                  <div><p className="text-xs text-muted-foreground">Dias Restantes</p><p className="text-sm font-medium">{prazoDetalhes.status === "Concluído" ? "—" : dias}</p></div>
+                  <div><p className="text-xs text-muted-foreground">Status</p><p className="text-sm font-medium">{prazoDetalhes.status}</p></div>
+                  <div><p className="text-xs text-muted-foreground">Lembrete</p><p className="text-sm font-medium">{prazoDetalhes.lembrete_ativo ? "Ativo" : "Desativado"}</p></div>
+                  <div><p className="text-xs text-muted-foreground">Antecedência</p><p className="text-sm font-medium">{prazoDetalhes.lembrete_ativo ? `${prazoDetalhes.antecedencia_dias} dia(s) antes` : "—"}</p></div>
+                  <div><p className="text-xs text-muted-foreground">Repetição diária</p><p className="text-sm font-medium">{prazoDetalhes.lembrete_ativo ? (prazoDetalhes.repetir_alerta_diariamente ? "Sim" : "Não") : "—"}</p></div>
+                  <div><p className="text-xs text-muted-foreground">Data de Conclusão</p><p className="text-sm font-medium">{brDate(prazoDetalhes.data_conclusao)}</p></div>
+                </div>
+                <div className="border-t border-border pt-3">
+                  <p className="text-xs text-muted-foreground">Observação</p>
+                  <p className="whitespace-pre-wrap break-words text-sm">{prazoDetalhes.observacao || "—"}</p>
+                </div>
+              </div>
+            );
+          })()}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDetalhesOpen(false)}>Fechar</Button>
+            {prazoDetalhes && <Button onClick={() => { setDetalhesOpen(false); abrirEdicao(prazoDetalhes); }}><Pencil className="mr-2 h-4 w-4" />Editar</Button>}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-h-[85vh] w-[calc(100vw-2rem)] max-w-lg overflow-y-auto">
