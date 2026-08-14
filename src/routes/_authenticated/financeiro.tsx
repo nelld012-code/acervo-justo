@@ -830,6 +830,7 @@ function FinanceiroPage() {
             <TrendingUp className="h-5 w-5" />
           }
           tone="up"
+          onClick={() => setRelatorio("entradas")}
         />
 
         <HeroCard
@@ -839,6 +840,7 @@ function FinanceiroPage() {
             <TrendingDown className="h-5 w-5" />
           }
           tone="down"
+          onClick={() => setRelatorio("saidas")}
         />
 
         <HeroCard
@@ -848,6 +850,7 @@ function FinanceiroPage() {
             <Wallet className="h-5 w-5" />
           }
           tone={saldo >= 0 ? "up" : "down"}
+          onClick={() => setRelatorio("saldo")}
         />
       </div>
 
