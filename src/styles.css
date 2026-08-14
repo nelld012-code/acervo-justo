@@ -4,20 +4,6 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/*
- * Design system definition.
- *
- * The @theme inline block maps CSS custom properties to Tailwind utility
- * classes (e.g. --color-primary -> bg-primary, text-primary).
- *
- * The :root and .dark blocks define the actual color values using oklch.
- * All colors MUST use oklch format.
- *
- * To add a new semantic color:
- * 1. Add the variable to :root (light value) and .dark (dark value)
- * 2. Register it in @theme inline as --color-<name>: var(--<name>)
- */
-
 @theme inline {
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
@@ -63,33 +49,32 @@
 
 :root {
   --radius: 0.625rem;
-  /* Slate + Indigo premium palette (dark by default) */
-  --background: oklch(0.17 0.03 260);        /* slate-900 */
-  --foreground: oklch(0.96 0.005 260);       /* slate-50 */
-  --card: oklch(0.22 0.03 260);              /* slate-800 */
+  --background: oklch(0.17 0.03 260);
+  --foreground: oklch(0.96 0.005 260);
+  --card: oklch(0.22 0.03 260);
   --card-foreground: oklch(0.96 0.005 260);
   --popover: oklch(0.22 0.03 260);
   --popover-foreground: oklch(0.96 0.005 260);
-  --primary: oklch(0.58 0.19 275);           /* indigo-500 */
+  --primary: oklch(0.58 0.19 275);
   --primary-foreground: oklch(0.98 0.005 260);
-  --secondary: oklch(0.30 0.04 260);         /* slate-700 */
+  --secondary: oklch(0.30 0.04 260);
   --secondary-foreground: oklch(0.96 0.005 260);
   --muted: oklch(0.26 0.03 260);
   --muted-foreground: oklch(0.75 0.02 260);
-  --accent: oklch(0.68 0.16 275);            /* indigo-400 */
+  --accent: oklch(0.68 0.16 275);
   --accent-foreground: oklch(0.15 0.03 260);
   --destructive: oklch(0.60 0.22 27);
   --destructive-foreground: oklch(0.98 0.005 260);
-  --border: oklch(0.30 0.03 260);            /* slate-700 */
+  --border: oklch(0.30 0.03 260);
   --input: oklch(0.30 0.03 260);
-  --ring: oklch(0.68 0.16 275);              /* indigo-400 */
+  --ring: oklch(0.68 0.16 275);
   --chart-1: oklch(0.58 0.19 275);
   --chart-2: oklch(0.72 0.15 250);
   --chart-3: oklch(0.53 0.22 260);
   --chart-4: oklch(0.77 0.13 275);
   --chart-5: oklch(0.68 0.16 275);
-  --sidebar: oklch(0.12 0.03 260);           /* slate-950 */
-  --sidebar-foreground: oklch(0.87 0.01 260); /* slate-200 */
+  --sidebar: oklch(0.12 0.03 260);
+  --sidebar-foreground: oklch(0.87 0.01 260);
   --sidebar-primary: oklch(0.68 0.16 275);
   --sidebar-primary-foreground: oklch(0.15 0.03 260);
   --sidebar-accent: oklch(0.22 0.03 260);
@@ -134,75 +119,41 @@
 }
 
 @layer base {
-  * {
-    border-color: var(--color-border);
-  }
-
-  body {
-    background-color: var(--color-background);
-    color: var(--color-foreground);
-  }
+  * { border-color: var(--color-border); }
+  body { background-color: var(--color-background); color: var(--color-foreground); }
 }
 
 @media print {
   body * { visibility: hidden !important; }
   .print-area, .print-area * { visibility: visible !important; }
-  .print-area {
-    position: absolute !important;
-    left: 0; top: 0; width: 100%;
-    background: white !important;
-    color: black !important;
-    padding: 2rem !important;
-  }
+  .print-area { position: absolute !important; left: 0; top: 0; width: 100%; background: white !important; color: black !important; padding: 2rem !important; }
   .no-print { display: none !important; }
 }
 
-/* Impressão: evitar quebra de blocos no meio */
 @media print {
   @page { size: A4 portrait; margin: 8mm; }
-  .receipt-copy,
-  .print-area section,
-  .print-area table { page-break-inside: avoid; break-inside: avoid; }
+  .receipt-copy, .print-area section, .print-area table { page-break-inside: avoid; break-inside: avoid; }
 }
 
-/* Toque em telas pequenas: alvos maiores e sem atraso de 300ms */
 @media (pointer: coarse) {
-  button,
-  [role="button"],
-  a,
-  label,
-  input,
-  select,
-  textarea {
-    touch-action: manipulation;
-  }
-  button:not(:disabled),
-  [role="button"]:not([aria-disabled="true"]) {
-    cursor: pointer;
-    min-height: 40px;
-  }
-  button[data-sidebar="trigger"],
-  .sr-only {
-    min-height: 0;
-  }
+  button, [role="button"], a, label, input, select, textarea { touch-action: manipulation; }
+  button:not(:disabled), [role="button"]:not([aria-disabled="true"]) { cursor: pointer; min-height: 40px; }
+  button[data-sidebar="trigger"], .sr-only { min-height: 0; }
 }
 
-/* Evita que overlays fechados do Radix deixem a página sem cliques */
-body:not(:has([data-state="open"][role="dialog"])):not(:has([data-state="open"][data-radix-popper-content-wrapper])) {
-  pointer-events: auto !important;
-}
+body:not(:has([data-state="open"][role="dialog"])):not(:has([data-state="open"][data-radix-popper-content-wrapper])) { pointer-events: auto !important; }
 
-/* Notificações não podem cobrir botões da interface */
-[data-sonner-toaster] {
-  pointer-events: none;
-}
-[data-sonner-toast] {
-  pointer-events: auto;
-}
+[data-sonner-toaster] { pointer-events: none; }
+[data-sonner-toast] { pointer-events: auto; }
 @media (max-width: 640px) {
-  [data-sonner-toaster] {
-    width: calc(100vw - 1.5rem) !important;
-    left: 0.75rem !important;
-    right: 0.75rem !important;
+  [data-sonner-toaster] { width: calc(100vw - 1.5rem) !important; left: 0.75rem !important; right: 0.75rem !important; }
+}
+
+/* Prazos: 780px no PC e sem barra vertical no diálogo de detalhes. */
+@media (min-width: 768px) {
+  [class~="max-w-[730px]"] {
+    max-width: 780px !important;
+    max-height: none !important;
+    overflow-y: visible !important;
   }
 }
