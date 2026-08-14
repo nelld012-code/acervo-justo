@@ -1981,14 +1981,33 @@ function HeroCard({
   value,
   icon,
   tone,
+  onClick,
 }: {
   title: string;
   value: string;
   icon: React.ReactNode;
   tone: "up" | "down";
+  onClick?: () => void;
 }) {
   return (
-    <Card className="relative overflow-hidden border-primary/30 bg-gradient-to-br from-indigo-600/20 via-card to-blue-600/10">
+    <Card
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onClick={onClick}
+      onKeyDown={(e) => {
+        if (!onClick) return;
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onClick();
+        }
+      }}
+      className={`relative overflow-hidden border-primary/30 bg-gradient-to-br from-indigo-600/20 via-card to-blue-600/10 ${
+        onClick
+          ? "cursor-pointer transition-colors hover:border-primary focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+          : ""
+      }`}
+      title={onClick ? "Clique para ver o relatório" : undefined}
+    >
       <CardContent className="pt-6">
         <div className="flex items-center justify-between text-muted-foreground">
           <p className="text-sm font-medium">
@@ -2015,6 +2034,12 @@ function HeroCard({
         >
           {value}
         </p>
+
+        {onClick && (
+          <p className="mt-1 text-[11px] text-muted-foreground">
+            Clique para ver o relatório
+          </p>
+        )}
       </CardContent>
     </Card>
   );
