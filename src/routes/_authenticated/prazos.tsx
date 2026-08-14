@@ -18,10 +18,11 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { CalendarClock, CheckCircle2, Pencil, Plus, Printer, Trash2 } from "lucide-react";
+import { CalendarClock, CheckCircle2, FileSpreadsheet, Pencil, Plus, Printer, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useProfile } from "@/hooks/use-profile";
 import { logAudit } from "@/lib/documents";
+import { exportToExcel } from "@/lib/export-excel";
 import {
   ANTECEDENCIA_DIAS_OPTIONS, PARTES, SITUACAO_CLASS, SITUACAO_LABEL,
   diasRestantes, processoOuTraco, situacaoDoPrazo, type Prazo, type Situacao,
@@ -321,6 +322,56 @@ function PrazosPage() {
     return rows;
   }, [data, busca, filtro, ordem]);
 
+  function exportarExcel() {
+    if (!lista.length) {
+      toast.error("Não há prazos para exportar.");
+      return;
+    }
+
+    const headers = [
+      "Nome",
+      "Número do Processo",
+      "Parte",
+      "Advogado",
+      "Data Limite",
+      "Dias Restantes",
+      "Status",
+      "Situação",
+      "Lembrete",
+      "Antecedência",
+      "Repetição diária",
+      "Observação",
+      "Data de Conclusão",
+    ];
+
+    const rows = lista.map((p) => [
+      p.nome,
+      processoOuTraco(p.numero_processo),
+      p.parte,
+      p.advogado || "—",
+      brDate(p.data_limite),
+      p.status === "Concluído" ? "—" : diasRestantes(p.data_limite),
+      p.status,
+      SITUACAO_LABEL[situacaoDoPrazo(p)],
+      p.lembrete_ativo ? "Ativo" : "Desativado",
+      p.lembrete_ativo ? `${p.antecedencia_dias} dia(s) antes` : "—",
+      p.repetir_alerta_diariamente ? "Sim" : "Não",
+      p.observacao || "—",
+      brDate(p.data_conclusao),
+    ]);
+
+    try {
+      exportToExcel("prazos_gestao_judicial.xlsx", headers, rows);
+      toast.success("Prazos exportados para Excel com sucesso.", {
+        description: `${lista.length} registro(s) exportado(s), respeitando os filtros e a ordenação atuais.`,
+      });
+    } catch (err) {
+      toast.error("Não foi possível exportar os prazos para Excel.", {
+        description: err instanceof Error ? err.message : undefined,
+      });
+    }
+  }
+
   useEffect(() => {
     setPagina(1);
   }, [busca, filtro, ordem]);
@@ -339,6 +390,9 @@ function PrazosPage() {
         <div className="flex flex-col gap-2 sm:flex-row">
           <Button onClick={imprimirLista} variant="outline" className="min-h-11 w-full sm:w-auto" disabled={!lista.length}>
             <Printer className="mr-2 h-4 w-4" />Imprimir lista
+          </Button>
+          <Button onClick={exportarExcel} variant="outline" className="min-h-11 w-full sm:w-auto" disabled={!lista.length}>
+            <FileSpreadsheet className="mr-2 h-4 w-4" />Exportar Excel
           </Button>
           {podeGerenciar && (
             <Button onClick={abrirNovo} className="min-h-11 w-full sm:w-auto">
