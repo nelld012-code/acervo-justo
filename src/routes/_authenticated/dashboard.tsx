@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { FileText, FolderOpen, Archive, CheckCircle2, Clock, TrendingUp, CalendarClock, Wallet } from "lucide-react";
+import { FileText, FolderOpen, Archive, CheckCircle2, Clock, TrendingUp, CalendarClock } from "lucide-react";
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid } from "recharts";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -63,12 +63,6 @@ function Dashboard() {
   });
 
   const prazosProximos = (prazos ?? []).filter((p) => diasRestantes(p.data_limite) <= 6).length;
-
-  const totalReceber = (data ?? []).reduce((acc, d) => {
-    const tot = Number(d.valor_total_processo ?? 0);
-    const rec = Number(d.valor_recebido_total ?? 0);
-    return acc + Math.max(0, tot - rec);
-  }, 0);
 
   const total = data?.length ?? 0;
   const counts = {
@@ -133,17 +127,6 @@ function Dashboard() {
           </Card>
         ))}
       </div>
-
-      <Card className="border-0 bg-gradient-to-r from-primary to-[oklch(0.53_0.22_260)] text-primary-foreground">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium opacity-90">Total a Receber</CardTitle>
-          <Wallet className="h-5 w-5 opacity-90" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold sm:text-4xl">{isLoading ? "—" : formatBRL(totalReceber)}</div>
-          <p className="mt-1 text-xs opacity-80">Saldo devedor consolidado em todos os processos</p>
-        </CardContent>
-      </Card>
 
       <WeeklyAgenda />
 
