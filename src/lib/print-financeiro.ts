@@ -150,19 +150,40 @@ export async function buildFinancialRecordPdf(rec: RegistroFinanceiro): Promise<
   return new Blob([out as unknown as BlobPart], { type: "application/pdf" });
 }
 
-/** Abre o recibo em nova guia (compatível com desktop, tablet e celular). */
+/** Abre o recibo em nova guia. O alvo é criado ANTES do await para evitar bloqueio de popup em celulares. */
 export async function printFinancialRecord(rec: RegistroFinanceiro) {
-  const blob = await buildFinancialRecordPdf(rec);
-  const url = URL.createObjectURL(blob);
-  const win = window.open(url, "_blank");
-  if (!win) {
+  const win = window.open("about:blank", "_blank");
+
+  if (win) {
+    win.document.write(`<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>Preparando impressão…</title><style>html,body{margin:0;width:100%;height:100%;background:#fff;color:#222;font-family:Arial,sans-serif}main{height:100%;display:grid;place-items:center;font-size:15px}</style></head><body><main>Preparando impressão…</main></body></html>`);
+    win.document.close();
+  }
+
+  try {
+    const blob = await buildFinancialRecordPdf(rec);
+    const url = URL.createObjectURL(blob);
+
+    if (win && !win.closed) {
+      win.location.href = url;
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+      return true;
+    }
+
     const a = document.createElement("a");
     a.href = url;
+    a.target = "_blank";
+    a.rel = "noopener";
     a.download = `recibo-financeiro-${rec.id}.pdf`;
     document.body.appendChild(a);
     a.click();
     a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    return true;
+  } catch (error) {
+    if (win && !win.closed) {
+      win.document.body.innerHTML = `<main style="height:100%;display:grid;place-items:center;padding:24px;text-align:center;font-family:Arial,sans-serif"><div><strong>Não foi possível preparar a impressão.</strong><br><small>Feche esta janela e tente novamente.</small></div></main>`;
+    }
+    console.error("Erro ao gerar recibo financeiro", error);
+    return false;
   }
-  setTimeout(() => URL.revokeObjectURL(url), 60_000);
-  return true;
 }
