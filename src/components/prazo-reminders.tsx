@@ -147,32 +147,44 @@ export function PrazoReminders() {
 
   return (
     <Dialog open onOpenChange={(o) => { if (!o) adiar(atual); }}>
-      <DialogContent className="w-[calc(100vw-2rem)] max-w-md">
+      <DialogContent className="w-[calc(100vw-2rem)] max-w-4xl">
         <DialogHeader>
           <DialogTitle>⚠️ Lembrete de Prazo</DialogTitle>
           <DialogDescription>{textoDiasRestantes(dias)}</DialogDescription>
         </DialogHeader>
-        <div className="space-y-1 text-sm text-foreground">
+        <div className="space-y-1.5 text-sm text-foreground">
           <p><span className="text-muted-foreground">Nome:</span> {atual.nome}</p>
           <p><span className="text-muted-foreground">Número do Processo:</span> {processoOuTraco(atual.numero_processo)}</p>
           <p><span className="text-muted-foreground">Parte:</span> {atual.parte}</p>
           <p><span className="text-muted-foreground">Advogado:</span> {atual.advogado || "—"}</p>
           <p><span className="text-muted-foreground">Data Limite:</span> {atual.data_limite.split("-").reverse().join("/")}</p>
         </div>
-        <DialogFooter className="flex-col gap-2 sm:flex-row">
+        <DialogFooter className="grid grid-cols-1 gap-2 sm:grid-cols-4 sm:space-x-0">
           <Button
-            className="min-h-11 w-full sm:w-auto"
+            className="min-h-11 w-full min-w-0 px-3 text-sm"
             onClick={() => { adiar(atual); void navigate({ to: "/prazos" }); }}
           >
             Ver Prazo
           </Button>
-          <Button variant="outline" className="min-h-11 w-full sm:w-auto" onClick={() => adiar(atual)}>
+          <Button
+            variant="outline"
+            className="min-h-11 w-full min-w-0 px-3 text-sm"
+            onClick={() => adiar(atual)}
+          >
             {atual.repetir_alerta_diariamente ? "Lembrar novamente em 30 minutos" : "Fechar"}
           </Button>
-          <Button variant="outline" className="min-h-11 w-full sm:w-auto" onClick={() => void concluir(atual.id)}>
+          <Button
+            variant="outline"
+            className="min-h-11 w-full min-w-0 px-3 text-sm"
+            onClick={() => void concluir(atual.id)}
+          >
             Concluir
           </Button>
-          <Button variant="ghost" className="min-h-11 w-full sm:w-auto" onClick={() => void desativar(atual.id)}>
+          <Button
+            variant="ghost"
+            className="min-h-11 w-full min-w-0 px-3 text-sm"
+            onClick={() => void desativar(atual.id)}
+          >
             Desativar lembrete
           </Button>
         </DialogFooter>
