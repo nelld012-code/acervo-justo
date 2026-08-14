@@ -87,12 +87,13 @@ function escapeHtml(value: string) {
 }
 
 function printHtml(title: string, body: string) {
-  const win = window.open("", "_blank", "noopener,noreferrer,width=1000,height=800");
-  if (!win) {
+  // Sem "noopener/noreferrer": precisamos de acesso ao documento da nova janela.
+  const win = window.open("", "_blank", "width=1000,height=800");
+  if (!win || !win.document) {
     toast.error("Não foi possível abrir a janela de impressão. Verifique o bloqueador de pop-ups.");
     return;
   }
-  win.document.write(`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>${escapeHtml(title)}</title><style>
+  const html = `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>${escapeHtml(title)}</title><style>
     @page { size: A4 portrait; margin: 14mm; }
     body { font-family: Arial, sans-serif; color: #111; font-size: 12px; margin: 0; }
     h1 { font-size: 20px; margin: 0 0 4px; }
@@ -105,10 +106,32 @@ function printHtml(title: string, body: string) {
     .item { border: 1px solid #bbb; padding: 12px; margin-bottom: 10px; break-inside: avoid; }
     .item p { margin: 5px 0; }
     .print-date { margin-top: 18px; font-size: 10px; color: #666; }
-  </style></head><body>${body}</body></html>`);
-  win.document.close();
-  win.focus();
-  window.setTimeout(() => win.print(), 250);
+  </style></head><body>${body}</body></html>`;
+
+  let impresso = false;
+  const imprimir = () => {
+    if (impresso || win.closed) return;
+    impresso = true;
+    try {
+      win.focus();
+      win.print();
+      // Fecha após o diálogo de impressão, quando o navegador permitir.
+      win.setTimeout(() => { if (!win.closed) win.close(); }, 500);
+    } catch {
+      /* usuário pode imprimir manualmente */
+    }
+  };
+
+  try {
+    win.document.open();
+    win.document.write(html);
+    win.document.close();
+    win.addEventListener("load", imprimir, { once: true });
+    // Fallback: alguns navegadores não disparam "load" em document.write.
+    win.setTimeout(imprimir, 500);
+  } catch {
+    toast.error("Não foi possível preparar a impressão.");
+  }
 }
 
 function PrazosPage() {
