@@ -171,12 +171,25 @@ function workbookRelsXml() {
 }
 
 export function exportToExcel(filename: string, headers: string[], rows: ExcelValue[][]) {
+  // Esses campos são usados internamente pelo sistema de lembretes,
+  // mas não precisam ser levados para a planilha da advogada.
+  const colunasExcluidas = new Set([
+    "Lembrete",
+    "Antecedência",
+    "Repetição diária",
+  ]);
+  const indicesExcluidos = new Set(
+    headers.flatMap((header, index) => colunasExcluidas.has(header) ? [index] : []),
+  );
+  const headersExportados = headers.filter((header) => !colunasExcluidas.has(header));
+  const rowsExportadas = rows.map((row) => row.filter((_, index) => !indicesExcluidos.has(index)));
+
   const files: ZipFile[] = [
     { name: "[Content_Types].xml", data: toUtf8(contentTypesXml()) },
     { name: "_rels/.rels", data: toUtf8(rootRelsXml()) },
     { name: "xl/workbook.xml", data: toUtf8(workbookXml()) },
     { name: "xl/_rels/workbook.xml.rels", data: toUtf8(workbookRelsXml()) },
-    { name: "xl/worksheets/sheet1.xml", data: toUtf8(worksheetXml(headers, rows)) },
+    { name: "xl/worksheets/sheet1.xml", data: toUtf8(worksheetXml(headersExportados, rowsExportadas)) },
   ];
 
   const bytes = zipStore(files);
