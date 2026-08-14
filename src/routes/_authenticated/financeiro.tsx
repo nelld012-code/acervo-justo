@@ -362,6 +362,28 @@ function FinanceiroPage() {
     .filter((r) => r.kind === "entrada")
     .reduce((s, r) => s + r.valor, 0);
 
+  const PAGE_SIZE = 8;
+
+  const totalPaginas = Math.max(
+    1,
+    Math.ceil(registrosFiltrados.length / PAGE_SIZE),
+  );
+
+  useEffect(() => {
+    setPagina(1);
+  }, [busca, filtroTipo, filtroStatus, dataDe, dataAte, valorMin]);
+
+  const paginaAtual = Math.min(pagina, totalPaginas);
+
+  const registrosPagina = useMemo(
+    () =>
+      registrosFiltrados.slice(
+        (paginaAtual - 1) * PAGE_SIZE,
+        paginaAtual * PAGE_SIZE,
+      ),
+    [registrosFiltrados, paginaAtual],
+  );
+
   const totalPagoFiltrado = registrosFiltrados
     .filter((r) => r.kind === "saida")
     .reduce((s, r) => s + r.valor, 0);
