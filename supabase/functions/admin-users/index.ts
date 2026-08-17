@@ -23,9 +23,28 @@ Deno.serve(async (req) => {
   const action = body?.action;
 
   if (action === "list") {
-    const { data, error } = await admin.from("profiles").select("id, nome, email, cargo, telefone, created_at, updated_at").order("nome");
-    if (error) return json({ error: error.message }, 400);
-    return json({ users: data ?? [] });
+    // Use Auth as the source of truth so every registered login appears,
+    // even if an older account is missing its profile row.
+    const { data: authData, error: authError } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
+    if (authError) return json({ error: authError.message }, 400);
+    const { data: profiles, error: profileError } = await admin.from("profiles").select("id, nome, email, cargo, telefone, created_at, updated_at");
+    if (profileError) return json({ error: profileError.message }, 400);
+    const profileById = new Map((profiles ?? []).map((p) => [p.id, p]));
+    const users = (authData.users ?? []).map((authUser) => {
+      const profile = profileById.get(authUser.id);
+      const metadata = authUser.user_metadata as { nome?: string; cargo?: string; telefone?: string } | null;
+      return {
+        id: authUser.id,
+        nome: profile?.nome ?? metadata?.nome ?? "",
+        email: profile?.email ?? authUser.email ?? null,
+        cargo: profile?.cargo ?? metadata?.cargo ?? "assistente",
+        telefone: profile?.telefone ?? metadata?.telefone ?? null,
+        created_at: profile?.created_at ?? authUser.created_at,
+        updated_at: profile?.updated_at ?? authUser.updated_at ?? authUser.created_at,
+      };
+    });
+    users.sort((a, b) => (a.nome || a.email || "").localeCompare(b.nome || b.email || "", "pt-BR"));
+    return json({ users });
   }
 
   if (action === "create") {
@@ -36,7 +55,7 @@ Deno.serve(async (req) => {
     const password = String(body?.password ?? "");
     if (!nome || !email || password.length < 6) return json({ error: "Nome, e-mail e senha (mínimo 6 caracteres) são obrigatórios" }, 400);
     if (!["administrador", "advogado", "secretaria", "assistente"].includes(cargo)) return json({ error: "Cargo inválido" }, 400);
-    const { data: created, error } = await admin.auth.admin.createUser({ email, password, email_confirm: true, user_metadata: { nome, cargo } });
+    const { data: created, error } = await admin.auth.admin.createUser({ email, password, email_confirm: true, user_metadata: { nome, cargo, telefone } });
     if (error) return json({ error: error.message }, 400);
     if (created.user) {
       const { error: profileError } = await admin.from("profiles").update({ nome, email, cargo, telefone: telefone || null }).eq("id", created.user.id);
