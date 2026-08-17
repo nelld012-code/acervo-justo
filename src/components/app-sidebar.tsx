@@ -11,7 +11,10 @@ import { useEffect, useState } from "react";
 const principal = { title: "Recepção", url: "/recepcao", icon: ConciergeBell };
 
 const groups = [
-  { title: "Principal", items: [{ title: "Dashboard", url: "/dashboard", icon: LayoutDashboard, need: "all" }] },
+  { title: "Principal", items: [
+    { title: "Recepção", url: "/recepcao", icon: ConciergeBell, need: "all" },
+    { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard, need: "all" },
+  ] },
   { title: "Gestão", items: [
     { title: "Clientes", url: "/clientes", icon: Users, need: "all" },
     { title: "Prazos", url: "/prazos", icon: CalendarClock, need: "all" },
@@ -70,7 +73,6 @@ export function AppSidebar() {
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup><SidebarGroupLabel>Menu</SidebarGroupLabel><SidebarGroupContent><SidebarMenu>
-          <SidebarMenuItem><SidebarMenuButton asChild isActive={pathname === principal.url} tooltip={principal.title}><Link to={principal.url}><principal.icon className="h-4 w-4" /><span>{principal.title}</span></Link></SidebarMenuButton></SidebarMenuItem>
           {groups.map((group) => {
             const visible = group.items.filter((item) => menuItemVisible(item, perms));
             if (!visible.length) return null;
