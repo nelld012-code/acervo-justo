@@ -23,6 +23,7 @@ import { toast } from "sonner";
 import { useProfile } from "@/hooks/use-profile";
 import { logAudit } from "@/lib/documents";
 import { exportToExcel } from "@/lib/export-excel";
+import { parsePrazosExcel, type ImportPrazoRow } from "@/lib/import-excel";
 import {
   ANTECEDENCIA_DIAS_OPTIONS, PARTES, SITUACAO_CLASS, SITUACAO_LABEL,
   diasRestantes, processoOuTraco, situacaoDoPrazo, type Prazo, type Situacao,
@@ -148,6 +149,11 @@ function PrazosPage() {
   const [excluindo, setExcluindo] = useState<Prazo | null>(null);
   const [form, setForm] = useState({ ...emptyForm });
   const [salvando, setSalvando] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
+  const [importRows, setImportRows] = useState<ImportPrazoRow[]>([]);
+  const [importErrors, setImportErrors] = useState<string[]>([]);
+  const [importFileName, setImportFileName] = useState("");
+  const [importando, setImportando] = useState(false);
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ["prazos"],
@@ -238,31 +244,30 @@ function PrazosPage() {
   async function concluir(p: Prazo) {
     const { error } = await supabase
       .from("prazos")
-      .update({ status: "Concluído", data_conclusao: new Date().toISOString().slice(0, 10), lembrete_ativo: false })
+      .update({ status: "Concluído", data_conclusao: new Date().toISOString().slice(0, 10) })
       .eq("id", p.id);
-    if (error) return toast.error("Não foi possível salvar o prazo.");
-    await logAudit(null, "edited", { entidade: "prazo", acao: "conclusao", prazo_id: p.id });
-    toast.success("Prazo concluído com sucesso.");
+    if (error) return toast.error("Não foi possível concluir o prazo.");
+    await logAudit(null, "edited", { entidade: "prazo", prazo_id: p.id, acao: "conclusao" });
+    toast.success("Prazo concluído.");
     refresh();
   }
 
   async function excluir() {
     if (!excluindo) return;
-    const { error } = await supabase.from("prazos").delete().eq("id", excluindo.id);
-    if (error) return toast.error("Não foi possível salvar o prazo.");
-    await logAudit(null, "deleted", { entidade: "prazo", prazo_id: excluindo.id, nome: excluindo.nome });
-    toast.success("Prazo excluído com sucesso.");
+    const id = excluindo.id;
+    const { error } = await supabase.from("prazos").delete().eq("id", id);
+    if (error) return toast.error("Não foi possível excluir o prazo.");
+    await logAudit(null, "deleted", { entidade: "prazo", prazo_id: id });
     setExcluindo(null);
+    toast.success("Prazo excluído.");
     refresh();
   }
 
   function imprimirPrazo(p: Prazo) {
     const status = situacaoDoPrazo(p);
     const body = `
-      <h1>Prazo</h1>
-      <div class="meta muted">Impressão individual do prazo</div>
+      <h1>${escapeHtml(p.nome)}</h1>
       <div class="item">
-        <h2>${escapeHtml(p.nome)}</h2>
         <p><strong>Número do Processo:</strong> ${escapeHtml(processoOuTraco(p.numero_processo))}</p>
         <p><strong>Parte:</strong> ${escapeHtml(p.parte)}</p>
         <p><strong>Advogado:</strong> ${escapeHtml(p.advogado || "—")}</p>
@@ -326,6 +331,103 @@ function PrazosPage() {
     return rows;
   }, [data, busca, filtro, ordem]);
 
+  function abrirImportacao() {
+    setImportRows([]);
+    setImportErrors([]);
+    setImportFileName("");
+    setImportOpen(true);
+  }
+
+  async function selecionarExcel(file: File | undefined) {
+    if (!file) return;
+    setImportFileName(file.name);
+    setImportRows([]);
+    setImportErrors([]);
+    try {
+      const rows = await parsePrazosExcel(file);
+      const erros: string[] = [];
+      const existentes = new Set((data ?? []).map((p) =>
+        `${p.nome.trim().toLowerCase()}|${(p.numero_processo ?? "").trim().toLowerCase()}|${p.data_limite}`,
+      ));
+      const vistos = new Set<string>();
+
+      const validos = rows.filter((row, index) => {
+        const linha = index + 2;
+        if (!row.nome) {
+          erros.push(`Linha ${linha}: Nome não informado.`);
+          return false;
+        }
+        if (!row.data_limite) {
+          erros.push(`Linha ${linha}: Data Limite inválida ou não informada.`);
+          return false;
+        }
+        const chave = `${row.nome.trim().toLowerCase()}|${(row.numero_processo ?? "").trim().toLowerCase()}|${row.data_limite}`;
+        if (vistos.has(chave) || existentes.has(chave)) {
+          erros.push(`Linha ${linha}: possível registro duplicado (${row.nome} · ${brDate(row.data_limite)}).`);
+          return false;
+        }
+        vistos.add(chave);
+        return true;
+      });
+
+      setImportRows(validos);
+      setImportErrors(erros);
+      if (!validos.length && !erros.length) toast.error("O Excel não contém registros para importar.");
+    } catch (err) {
+      toast.error("Não foi possível ler o Excel.", {
+        description: err instanceof Error ? err.message : undefined,
+      });
+    }
+  }
+
+  async function importarPrazos() {
+    if (!importRows.length) return;
+    setImportando(true);
+    try {
+      const { data: auth } = await supabase.auth.getUser();
+      if (!auth.user) throw new Error("Sessão expirada");
+
+      const payload = importRows.map((row) => ({
+        nome: row.nome,
+        numero_processo: row.numero_processo,
+        parte: row.parte,
+        advogado: row.advogado,
+        data_limite: row.data_limite,
+        status: row.status === "Concluído" ? "Concluído" : "Em andamento",
+        observacao: row.observacao,
+        data_conclusao: row.data_conclusao,
+        lembrete_ativo: true,
+        antecedencia_dias: 3,
+        repetir_alerta_diariamente: true,
+        created_by: auth.user.id,
+      }));
+
+      const { error } = await supabase.from("prazos").insert(payload);
+      if (error) throw error;
+
+      await logAudit(null, "uploaded", {
+        entidade: "prazo",
+        acao: "importacao_excel",
+        arquivo: importFileName,
+        quantidade: payload.length,
+      });
+
+      toast.success("Prazos importados com sucesso.", {
+        description: `${payload.length} registro(s) adicionado(s).`,
+      });
+      setImportOpen(false);
+      setImportRows([]);
+      setImportErrors([]);
+      refresh();
+    } catch (err) {
+      toast.error("Não foi possível importar os prazos.", {
+        description: err instanceof Error ? err.message : undefined,
+      });
+    } finally {
+      setImportando(false);
+    }
+  }
+
   function exportarExcel() {
     if (!lista.length) {
       toast.error("Não há prazos para exportar.");
@@ -388,6 +490,11 @@ function PrazosPage() {
             <FileSpreadsheet className="mr-2 h-4 w-4" />Exportar Excel
           </Button>
           {podeGerenciar && (
+            <Button onClick={abrirImportacao} variant="outline" className="min-h-11 w-full sm:w-auto">
+              <FileSpreadsheet className="mr-2 h-4 w-4" />Importar Excel
+            </Button>
+          )}
+          {podeGerenciar && (
             <Button onClick={abrirNovo} className="min-h-11 w-full sm:w-auto">
               <Plus className="mr-2 h-4 w-4" />Novo Prazo
             </Button>
@@ -430,74 +537,54 @@ function PrazosPage() {
               listaPaginada.map((p) => {
                 const s = situacaoDoPrazo(p);
                 const dias = diasRestantes(p.data_limite);
-                return (
-                  <div key={p.id} className="space-y-2 p-4">
-                    <div className="flex items-start justify-between gap-2">
-                      <span className="min-w-0 break-words text-sm font-semibold text-foreground">{p.nome}</span>
-                      <Badge variant="outline" className={`shrink-0 ${SITUACAO_CLASS[s]}`}>{SITUACAO_LABEL[s]}</Badge>
-                    </div>
-                    <p className="break-words text-sm text-muted-foreground">{processoOuTraco(p.numero_processo)}</p>
-                    <p className="text-xs text-muted-foreground">{p.parte} · {p.advogado || "—"} · Limite: {brDate(p.data_limite)}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {p.status === "Concluído" ? `Concluído em ${brDate(p.data_conclusao)}` : `${dias} dia(s) restante(s)`} · Lembrete: {p.lembrete_ativo ? "ativo" : "desativado"}
-                    </p>
-                    {podeGerenciar && (
-                      <div className="flex flex-wrap gap-2">
-                        <Button size="sm" variant="outline" className="min-h-10" onClick={() => abrirDetalhes(p)}><Eye className="mr-1 h-4 w-4" />Ver</Button>
-                        <Button size="sm" variant="outline" className="min-h-10" onClick={() => abrirEdicao(p)}><Pencil className="mr-1 h-4 w-4" />Editar</Button>
-                        {p.status !== "Concluído" && <Button size="sm" variant="outline" className="min-h-10" onClick={() => void concluir(p)}><CheckCircle2 className="mr-1 h-4 w-4" />Concluir</Button>}
-                        <Button size="sm" variant="outline" className="min-h-10" onClick={() => setExcluindo(p)}><Trash2 className="mr-1 h-4 w-4" />Excluir</Button>
-                        <Button size="sm" variant="outline" className="min-h-10" onClick={() => imprimirPrazo(p)}><Printer className="mr-1 h-4 w-4" />Imprimir</Button>
-                      </div>
-                    )}
+                return <div key={p.id} className="space-y-2 p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0"><p className="break-words font-medium">{p.nome}</p><p className="text-xs text-muted-foreground">{p.parte} · {p.advogado || "—"} · Limite: {brDate(p.data_limite)}</p></div>
+                    <Badge variant="outline" className={`shrink-0 ${SITUACAO_CLASS[s]}`}>{SITUACAO_LABEL[s]}</Badge>
                   </div>
-                );
+                  <p className="text-sm">Processo: {processoOuTraco(p.numero_processo)}</p>
+                  <p className="text-xs text-muted-foreground">{p.status === "Concluído" ? `Concluído em ${brDate(p.data_conclusao)}` : `${dias} dia(s) restante(s)`} · Lembrete: {p.lembrete_ativo ? "ativo" : "desativado"}</p>
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    <Button size="sm" variant="outline" onClick={() => abrirDetalhes(p)}><Eye className="mr-1 h-4 w-4" />Ver</Button>
+                    <Button size="sm" variant="outline" onClick={() => imprimirPrazo(p)}><Printer className="mr-1 h-4 w-4" />Imprimir</Button>
+                    {podeGerenciar && p.status !== "Concluído" && <Button size="sm" variant="outline" onClick={() => void concluir(p)}><CheckCircle2 className="mr-1 h-4 w-4" />Concluir</Button>}
+                    {podeGerenciar && <Button size="sm" variant="outline" onClick={() => abrirEdicao(p)}><Pencil className="mr-1 h-4 w-4" />Editar</Button>}
+                    {podeGerenciar && <Button size="sm" variant="destructive" onClick={() => setExcluindo(p)}><Trash2 className="mr-1 h-4 w-4" />Excluir</Button>}
+                  </div>
+                </div>;
               })
-            ) : <p className="py-8 text-center text-sm text-muted-foreground">Nenhum prazo encontrado.</p>}
+            ) : (
+              <p className="py-8 text-center text-sm text-muted-foreground">Nenhum prazo encontrado.</p>
+            )}
           </div>
 
           <div className="hidden overflow-x-auto md:block">
             <Table>
-              <TableHeader><TableRow>
-                <TableHead>Nome</TableHead><TableHead>Número do Processo</TableHead><TableHead>Parte</TableHead><TableHead>Advogado</TableHead>
-                <TableHead>Data Limite</TableHead><TableHead>Dias Restantes</TableHead><TableHead>Status</TableHead><TableHead>Lembrete</TableHead><TableHead className="text-right">Ações</TableHead>
-              </TableRow></TableHeader>
+              <TableHeader><TableRow><TableHead>Nome</TableHead><TableHead>Processo</TableHead><TableHead>Parte</TableHead><TableHead>Advogado</TableHead><TableHead>Data Limite</TableHead><TableHead>Dias</TableHead><TableHead>Situação</TableHead><TableHead>Ações</TableHead></TableRow></TableHeader>
               <TableBody>
-                {isLoading ? <TableRow><TableCell colSpan={9} className="py-8 text-center text-muted-foreground">Carregando...</TableCell></TableRow>
-                : isError ? <TableRow><TableCell colSpan={9} className="py-8 text-center text-destructive">Não foi possível carregar os prazos.</TableCell></TableRow>
-                : lista.length ? listaPaginada.map((p) => {
-                  const s = situacaoDoPrazo(p);
-                  return <TableRow key={p.id}>
-                    <TableCell className="font-medium">{p.nome}</TableCell>
-                    <TableCell className="text-xs">{processoOuTraco(p.numero_processo)}</TableCell>
-                    <TableCell>{p.parte}</TableCell><TableCell>{p.advogado || "—"}</TableCell><TableCell>{brDate(p.data_limite)}</TableCell>
-                    <TableCell>{p.status === "Concluído" ? "—" : diasRestantes(p.data_limite)}</TableCell>
-                    <TableCell><Badge variant="outline" className={SITUACAO_CLASS[s]}>{SITUACAO_LABEL[s]}</Badge></TableCell>
-                    <TableCell className="text-xs">{p.lembrete_ativo ? `${p.antecedencia_dias} dia(s) antes` : "Desativado"}</TableCell>
-                    <TableCell className="text-right">
-                      {podeGerenciar ? <div className="flex items-center justify-end gap-1">
-                        <Button size="icon" variant="ghost" title="Ver detalhes" onClick={() => abrirDetalhes(p)}><Eye className="h-4 w-4" /></Button>
-                        <Button size="icon" variant="ghost" title="Editar" onClick={() => abrirEdicao(p)}><Pencil className="h-4 w-4" /></Button>
-                        {p.status !== "Concluído" && <Button size="icon" variant="ghost" title="Concluir" onClick={() => void concluir(p)}><CheckCircle2 className="h-4 w-4" /></Button>}
-                        <Button size="icon" variant="ghost" title="Excluir" onClick={() => setExcluindo(p)}><Trash2 className="h-4 w-4" /></Button>
-                        <Button size="icon" variant="ghost" title="Imprimir" onClick={() => imprimirPrazo(p)}><Printer className="h-4 w-4" /></Button>
-                      </div> : <span className="text-xs text-muted-foreground">—</span>}
-                    </TableCell>
-                  </TableRow>;
-                }) : <TableRow><TableCell colSpan={9} className="py-8 text-center text-muted-foreground">Nenhum prazo encontrado.</TableCell></TableRow>}
+                {isLoading ? <TableRow><TableCell colSpan={8} className="py-8 text-center">Carregando...</TableCell></TableRow>
+                  : isError ? <TableRow><TableCell colSpan={8} className="py-8 text-center text-destructive">Não foi possível carregar os prazos.</TableCell></TableRow>
+                  : lista.length ? listaPaginada.map((p) => {
+                    const s = situacaoDoPrazo(p);
+                    return <TableRow key={p.id}>
+                      <TableCell className="max-w-56"><div className="truncate font-medium" title={p.nome}>{p.nome}</div></TableCell>
+                      <TableCell className="max-w-48 truncate">{processoOuTraco(p.numero_processo)}</TableCell>
+                      <TableCell>{p.parte}</TableCell><TableCell>{p.advogado || "—"}</TableCell><TableCell>{brDate(p.data_limite)}</TableCell>
+                      <TableCell>{p.status === "Concluído" ? "—" : diasRestantes(p.data_limite)}</TableCell>
+                      <TableCell><Badge variant="outline" className={SITUACAO_CLASS[s]}>{SITUACAO_LABEL[s]}</Badge></TableCell>
+                      <TableCell><div className="flex flex-wrap gap-1.5"><Button size="sm" variant="outline" onClick={() => abrirDetalhes(p)}><Eye className="h-4 w-4" /></Button><Button size="sm" variant="outline" onClick={() => imprimirPrazo(p)}><Printer className="h-4 w-4" /></Button>{podeGerenciar && p.status !== "Concluído" && <Button size="sm" variant="outline" onClick={() => void concluir(p)}><CheckCircle2 className="h-4 w-4" /></Button>}{podeGerenciar && <Button size="sm" variant="outline" onClick={() => abrirEdicao(p)}><Pencil className="h-4 w-4" /></Button>}{podeGerenciar && <Button size="sm" variant="destructive" onClick={() => setExcluindo(p)}><Trash2 className="h-4 w-4" /></Button>}</div></TableCell>
+                    </TableRow>;
+                  }) : <TableRow><TableCell colSpan={8} className="py-8 text-center text-muted-foreground">Nenhum prazo encontrado.</TableCell></TableRow>}
               </TableBody>
             </Table>
           </div>
         </CardContent>
       </Card>
 
-      {lista.length > ITENS_POR_PAGINA && (
-        <div className="flex items-center justify-end gap-1" aria-label="Paginação dos prazos">
-          <Button size="sm" variant="outline" onClick={() => setPagina((p) => Math.max(1, p - 1))} disabled={paginaAtual === 1}>Anterior</Button>
-          {Array.from({ length: totalPaginas }, (_, i) => i + 1).map((n) => (
-            <Button key={n} size="sm" variant={paginaAtual === n ? "default" : "outline"} onClick={() => setPagina(n)}>{n}</Button>
-          ))}
-          <Button size="sm" variant="outline" onClick={() => setPagina((p) => Math.min(totalPaginas, p + 1))} disabled={paginaAtual === totalPaginas}>Próxima</Button>
+      {lista.length > 0 && (
+        <div className="flex flex-col items-center justify-between gap-2 sm:flex-row">
+          <p className="text-xs text-muted-foreground">Página {paginaAtual} de {totalPaginas} · {lista.length} registro(s)</p>
+          <div className="flex gap-2"><Button size="sm" variant="outline" onClick={() => setPagina((p) => Math.max(1, p - 1))} disabled={paginaAtual === 1}>Anterior</Button><Button size="sm" variant="outline" onClick={() => setPagina((p) => Math.min(totalPaginas, p + 1))} disabled={paginaAtual === totalPaginas}>Próxima</Button></div>
         </div>
       )}
 
@@ -545,25 +632,48 @@ function PrazosPage() {
         </DialogContent>
       </Dialog>
 
+      <Dialog open={importOpen} onOpenChange={setImportOpen}>
+        <DialogContent className="max-h-[85vh] w-[calc(100vw-2rem)] max-w-3xl overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Importar Prazos do Excel</DialogTitle>
+            <DialogDescription>Selecione sua planilha .xlsx. As colunas Dias Restantes e Situação são recalculadas automaticamente pelo sistema.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="rounded-lg border border-dashed border-border bg-muted/20 p-5 text-center">
+              <Input type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" onChange={(e) => void selecionarExcel(e.target.files?.[0])} className="mx-auto max-w-md cursor-pointer" />
+              {importFileName && <p className="mt-2 text-xs text-muted-foreground">{importFileName}</p>}
+              <p className="mt-2 text-xs text-muted-foreground">Colunas: Nome, Número do Processo, Parte, Advogado, Data Limite, Status, Observação e Data de Conclusão.</p>
+            </div>
+            {importRows.length > 0 && (
+              <div className="space-y-2">
+                <div className="flex flex-wrap items-center justify-between gap-2"><p className="text-sm font-medium">{importRows.length} registro(s) pronto(s) para importar.</p>{importErrors.length > 0 && <Badge variant="outline">{importErrors.length} ignorado(s)</Badge>}</div>
+                <div className="max-h-64 overflow-auto rounded-lg border">
+                  <Table><TableHeader><TableRow><TableHead>Nome</TableHead><TableHead>Processo</TableHead><TableHead>Parte</TableHead><TableHead>Data Limite</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
+                    <TableBody>{importRows.slice(0, 50).map((row, index) => <TableRow key={`${row.nome}-${row.data_limite}-${index}`}><TableCell>{row.nome}</TableCell><TableCell>{row.numero_processo || "—"}</TableCell><TableCell>{row.parte}</TableCell><TableCell>{brDate(row.data_limite)}</TableCell><TableCell>{row.status}</TableCell></TableRow>)}</TableBody>
+                  </Table>
+                </div>
+                {importRows.length > 50 && <p className="text-xs text-muted-foreground">Mostrando os primeiros 50 registros da pré-visualização.</p>}
+              </div>
+            )}
+            {importErrors.length > 0 && <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3"><p className="mb-2 text-sm font-medium text-destructive">Registros que não serão importados</p><ul className="max-h-32 space-y-1 overflow-auto text-xs text-muted-foreground">{importErrors.map((error, index) => <li key={`${error}-${index}`}>{error}</li>)}</ul></div>}
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setImportOpen(false)}>Cancelar</Button>
+            <Button type="button" onClick={() => void importarPrazos()} disabled={!importRows.length || importando}>{importando ? "Importando..." : `Importar ${importRows.length || ""} prazo(s)`}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-h-[85vh] w-[calc(100vw-2rem)] max-w-lg overflow-y-auto">
           <DialogHeader><DialogTitle>{editando ? "Editar Prazo" : "Novo Prazo"}</DialogTitle><DialogDescription>Informe os dados do prazo e configure o lembrete.</DialogDescription></DialogHeader>
           <form onSubmit={salvar} className="space-y-4">
             <div className="space-y-1.5"><Label>Nome *</Label><Input value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} required /></div>
             <div className="space-y-1.5"><Label>Número do Processo</Label><Input value={form.numero_processo} onChange={(e) => setForm({ ...form, numero_processo: e.target.value })} placeholder="Opcional" /></div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-1.5"><Label>Parte</Label><Select value={form.parte} onValueChange={(v) => setForm({ ...form, parte: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{PARTES.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}</SelectContent></Select></div>
-              <div className="space-y-1.5"><Label>Advogado</Label><Input value={form.advogado} onChange={(e) => setForm({ ...form, advogado: e.target.value })} placeholder="Nome do advogado" /></div>
-            </div>
+            <div className="grid gap-4 sm:grid-cols-2"><div className="space-y-1.5"><Label>Parte</Label><Select value={form.parte} onValueChange={(v) => setForm({ ...form, parte: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{PARTES.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}</SelectContent></Select></div><div className="space-y-1.5"><Label>Advogado</Label><Input value={form.advogado} onChange={(e) => setForm({ ...form, advogado: e.target.value })} placeholder="Nome do advogado" /></div></div>
             <div className="space-y-1.5"><Label>Data Limite *</Label><Input type="date" value={form.data_limite} onChange={(e) => setForm({ ...form, data_limite: e.target.value })} required /></div>
             <div className="space-y-1.5"><Label>Observação</Label><Textarea value={form.observacao} onChange={(e) => setForm({ ...form, observacao: e.target.value })} /></div>
-            <div className="space-y-3 rounded-lg border border-border p-3">
-              <div className="flex items-center gap-2"><Checkbox id="lembrete" checked={form.lembrete_ativo} onCheckedChange={(v) => setForm({ ...form, lembrete_ativo: v === true })} /><Label htmlFor="lembrete" className="cursor-pointer">Ativar lembrete</Label></div>
-              {form.lembrete_ativo && <>
-                <div className="space-y-1.5"><Label>Antecedência do lembrete</Label><Select value={String(form.antecedencia_dias)} onValueChange={(v) => setForm({ ...form, antecedencia_dias: Number(v) })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{ANTECEDENCIA_DIAS_OPTIONS.map((o) => <SelectItem key={o.value} value={String(o.value)}>{o.label}</SelectItem>)}</SelectContent></Select></div>
-                <div className="flex items-center gap-2"><Checkbox id="repetir" checked={form.repetir_alerta_diariamente} onCheckedChange={(v) => setForm({ ...form, repetir_alerta_diariamente: v === true })} /><Label htmlFor="repetir" className="cursor-pointer">Repetir alerta diariamente</Label></div>
-              </>}
-            </div>
+            <div className="space-y-3 rounded-lg border border-border p-3"><div className="flex items-center gap-2"><Checkbox id="lembrete" checked={form.lembrete_ativo} onCheckedChange={(v) => setForm({ ...form, lembrete_ativo: v === true })} /><Label htmlFor="lembrete" className="cursor-pointer">Ativar lembrete</Label></div>{form.lembrete_ativo && <><div className="space-y-1.5"><Label>Antecedência do lembrete</Label><Select value={String(form.antecedencia_dias)} onValueChange={(v) => setForm({ ...form, antecedencia_dias: Number(v) })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{ANTECEDENCIA_DIAS_OPTIONS.map((o) => <SelectItem key={o.value} value={String(o.value)}>{o.label}</SelectItem>)}</SelectContent></Select></div><div className="flex items-center gap-2"><Checkbox id="repetir" checked={form.repetir_alerta_diariamente} onCheckedChange={(v) => setForm({ ...form, repetir_alerta_diariamente: v === true })} /><Label htmlFor="repetir" className="cursor-pointer">Repetir alerta diariamente</Label></div></>}</div>
             <DialogFooter><Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button><Button type="submit" disabled={salvando}>{salvando ? "Salvando..." : "Salvar"}</Button></DialogFooter>
           </form>
         </DialogContent>
