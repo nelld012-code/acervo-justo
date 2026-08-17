@@ -1,0 +1,1 @@
+Backup de referência antes de reorganizar o menu em 17/08/2026. Estado base: main commit 41cbff817e95af84cc41a2653e26eba3f490aa0a. Alteração planejada: manter Recepção e Dashboard em Principal e mover Clientes para Gestão.
