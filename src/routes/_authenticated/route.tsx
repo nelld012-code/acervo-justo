@@ -39,10 +39,15 @@ function AuthenticatedLayout() {
         <div className="flex min-w-0 flex-1 flex-col min-h-screen">
           <header className="flex min-h-14 items-center gap-2 border-b bg-card px-3 sm:px-4">
             <MobileMenuTrigger />
-            <h1 className="min-w-0 truncate text-sm font-semibold text-foreground md:text-xl lg:text-2xl md:whitespace-nowrap">
-              <span className="md:hidden">Gestão de Documentos Judiciais</span>
-              <span className="hidden md:inline">J DIMAS GONÇALVES ESCRITORIO DE ADVOCACIA</span>
-            </h1>
+            <div className="min-w-0 flex flex-col justify-center">
+              <h1 className="truncate text-base font-semibold leading-tight text-foreground md:text-lg lg:text-xl md:whitespace-nowrap">
+                <span className="md:hidden">Gestão de Documentos Judiciais</span>
+                <span className="hidden md:inline">J DIMAS GONÇALVES ESCRITORIO DE ADVOCACIA</span>
+              </h1>
+              <div className="hidden text-xs leading-tight text-muted-foreground md:block lg:text-sm">
+                sistema de Gestão de Documentos Judiciais
+              </div>
+            </div>
           </header>
           <main className="min-w-0 flex-1 overflow-x-hidden p-4 sm:p-6">
             <Outlet />
