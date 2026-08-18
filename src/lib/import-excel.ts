@@ -9,6 +9,10 @@ export type ImportPrazoRow = {
   status: string;
   observacao: string | null;
   data_conclusao: string | null;
+  data_publicacao: string | null;
+  data_inicio_manifestacao: string | null;
+  data_fim_manifestacao: string | null;
+  cumprido: boolean | null;
 };
 
 type ZipEntry = { name: string; method: number; compressedSize: number; localOffset: number };
@@ -31,10 +35,19 @@ function normalizeDate(value: ExcelCell) {
   if (typeof value === "number") return excelSerialToIso(value);
   const text = String(value).trim();
   if (!text) return null;
-  const br = text.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{4})$/);
+  const br = text.match(/^(\d{1,2})[\\/.\-](\d{1,2})[\\/.\-](\d{4})$/);
   if (br) return `${br[3]}-${br[2].padStart(2, "0")}-${br[1].padStart(2, "0")}`;
   const iso = text.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
   if (iso) return `${iso[1]}-${iso[2].padStart(2, "0")}-${iso[3].padStart(2, "0")}`;
+  return null;
+}
+
+function normalizeBoolean(value: ExcelCell): boolean | null {
+  if (value === null || value === "") return null;
+  if (typeof value === "number") return value !== 0;
+  const text = String(value).trim().normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
+  if (["sim", "s", "yes", "y", "true", "1", "cumprido"].includes(text)) return true;
+  if (["nao", "n", "no", "false", "0", "pendente", "nao cumprido"].includes(text)) return false;
   return null;
 }
 
@@ -141,27 +154,46 @@ export async function parsePrazosExcel(file: File): Promise<ImportPrazoRow[]> {
   const headers = rows[0].map(normalizeHeader);
   const aliases: Record<string, string[]> = {
     nome: ["nome"],
-    numero_processo: ["numero do processo", "numero processo", "n do processo", "nº do processo"],
+    numero_processo: ["numero do processo", "numero processo", "n do processo", "nº do processo", "nº processo", "no processo", "processo"],
     parte: ["parte"],
     advogado: ["advogado"],
     data_limite: ["data limite"],
+    data_publicacao: ["data publicacao", "data de publicacao"],
+    data_inicio_manifestacao: ["d i manifest", "d.i. manifest", "d.i manifest", "di manifest", "d i manifestacao", "d.i. manifestacao", "d.i. manifest."],
+    data_fim_manifestacao: ["d f manifest", "d.f. manifest", "d.f manifest", "df manifest", "d f manifestacao", "d.f. manifestacao", "d.f. manifest."],
+    cumprido: ["cumprido"],
     status: ["status"],
     observacao: ["observacao", "observação"],
     data_conclusao: ["data de conclusao", "data de conclusão"],
   };
 
   const indexes = Object.fromEntries(Object.entries(aliases).map(([field, names]) => [field, headers.findIndex((header) => names.includes(header))]));
-  const missing = ["nome", "parte", "data_limite"].filter((field) => indexes[field] < 0);
-  if (missing.length) throw new Error(`Colunas obrigatórias ausentes: ${missing.join(", ")}.`);
 
-  return rows.slice(1).map((row) => ({
-    nome: String(row[indexes.nome] ?? "").trim(),
-    numero_processo: String(row[indexes.numero_processo] ?? "").trim() || null,
-    parte: String(row[indexes.parte] ?? "").trim() || "Parte Autora",
-    advogado: String(row[indexes.advogado] ?? "").trim() || null,
-    data_limite: normalizeDate(row[indexes.data_limite]) ?? "",
-    status: String(row[indexes.status] ?? "").trim() || "Em andamento",
-    observacao: String(row[indexes.observacao] ?? "").trim() || null,
-    data_conclusao: normalizeDate(row[indexes.data_conclusao]) ?? null,
-  })).filter((row) => row.nome || row.numero_processo || row.data_limite);
+  // Suporta tanto o formato antigo quanto o novo formato solicitado para Prazos.
+  // No novo formato, D.F. MANIFEST. é usado como Data Limite para manter a lógica atual de vencimento.
+  const novoFormato = indexes.data_fim_manifestacao >= 0;
+  if (novoFormato && indexes.data_limite < 0) indexes.data_limite = indexes.data_fim_manifestacao;
+
+  const missing = ["nome", "numero_processo", "data_limite"].filter((field) => indexes[field] < 0);
+  if (missing.length) {
+    throw new Error(`Colunas obrigatórias ausentes: ${missing.join(", ")}. Formato aceito: Nome, Nº PROCESSO e Data Limite; ou Nome, Nº PROCESSO e D.F. MANIFEST.`);
+  }
+
+  return rows.slice(1).map((row) => {
+    const cumprido = indexes.cumprido >= 0 ? normalizeBoolean(row[indexes.cumprido]) : null;
+    return {
+      nome: String(row[indexes.nome] ?? "").trim(),
+      numero_processo: String(row[indexes.numero_processo] ?? "").trim() || null,
+      parte: indexes.parte >= 0 ? (String(row[indexes.parte] ?? "").trim() || "Parte Autora") : "Parte Autora",
+      advogado: indexes.advogado >= 0 ? (String(row[indexes.advogado] ?? "").trim() || null) : null,
+      data_limite: normalizeDate(row[indexes.data_limite]) ?? "",
+      status: cumprido === true ? "Concluído" : (indexes.status >= 0 ? String(row[indexes.status] ?? "").trim() || "Em andamento" : "Em andamento"),
+      observacao: indexes.observacao >= 0 ? (String(row[indexes.observacao] ?? "").trim() || null) : null,
+      data_conclusao: indexes.data_conclusao >= 0 ? (normalizeDate(row[indexes.data_conclusao]) ?? null) : null,
+      data_publicacao: indexes.data_publicacao >= 0 ? normalizeDate(row[indexes.data_publicacao]) : null,
+      data_inicio_manifestacao: indexes.data_inicio_manifestacao >= 0 ? normalizeDate(row[indexes.data_inicio_manifestacao]) : null,
+      data_fim_manifestacao: indexes.data_fim_manifestacao >= 0 ? normalizeDate(row[indexes.data_fim_manifestacao]) : null,
+      cumprido,
+    };
+  }).filter((row) => row.nome || row.numero_processo || row.data_limite);
 }
