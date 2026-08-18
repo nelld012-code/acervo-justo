@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
@@ -24,9 +24,12 @@ export const Route = createFileRoute("/_authenticated/my-documents")({
   component: MyDocs,
 });
 
+const PAGE_SIZE = 8;
+
 function MyDocs() {
   const [selected, setSelected] = useState<Documento | null>(null);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [currentPage, setCurrentPage] = useState(1);
   const actions = useDocumentRowActions([["my-docs"], ["docs"], ["dashboard-docs"]]);
   const { data, isLoading } = useQuery({
     queryKey: ["my-docs"],
@@ -63,6 +66,16 @@ function MyDocs() {
     }
     return [...map.values()];
   }, [data]);
+
+  const totalPages = Math.ceil(grupos.length / PAGE_SIZE);
+  const paginatedGroups = useMemo(() => {
+    const start = (currentPage - 1) * PAGE_SIZE;
+    return grupos.slice(start, start + PAGE_SIZE);
+  }, [grupos, currentPage]);
+
+  useEffect(() => {
+    if (totalPages > 0 && currentPage > totalPages) setCurrentPage(totalPages);
+  }, [currentPage, totalPages]);
 
   function toggle(key: string) {
     setExpanded((e) => ({ ...e, [key]: !e[key] }));
@@ -142,8 +155,8 @@ function MyDocs() {
           <div className="divide-y md:hidden">
             {isLoading ? (
               <p className="py-8 text-center text-sm text-muted-foreground">Carregando...</p>
-            ) : grupos.length > 0 ? (
-              grupos.map((g) => (
+            ) : paginatedGroups.length > 0 ? (
+              paginatedGroups.map((g) => (
                 <div key={g.key} className="p-4">
                   <button onClick={() => toggle(g.key)} className="block w-full space-y-1 text-left">
                     <div className="flex items-start justify-between gap-2">
@@ -217,9 +230,9 @@ function MyDocs() {
             </TableHeader>
             <TableBody>
               {isLoading ? (
-                <TableRow><TableCell colSpan={6} className="py-8 text-center text-muted-foreground">Carregando...</TableCell></TableRow>
-              ) : grupos.length > 0 ? (
-                grupos.map((g) => (
+                <TableRow><TableCell colSpan={7} className="py-8 text-center text-muted-foreground">Carregando...</TableCell></TableRow>
+              ) : paginatedGroups.length > 0 ? (
+                paginatedGroups.map((g) => (
                   <Fragment key={g.key}>
                     <TableRow className="cursor-pointer" onClick={() => toggle(g.key)}>
                       <TableCell>
@@ -278,11 +291,35 @@ function MyDocs() {
                   </Fragment>
                 ))
               ) : (
-                <TableRow><TableCell colSpan={6} className="py-8 text-center text-muted-foreground">Você ainda não enviou documentos.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={7} className="py-8 text-center text-muted-foreground">Você ainda não enviou documentos.</TableCell></TableRow>
               )}
             </TableBody>
           </Table>
           </div>
+
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center gap-3 border-t p-4">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+              >
+                Anterior
+              </Button>
+              <span className="text-sm font-medium text-muted-foreground">
+                {currentPage} / {totalPages}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={currentPage === totalPages}
+                onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+              >
+                Próxima
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
 
