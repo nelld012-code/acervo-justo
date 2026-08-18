@@ -45,7 +45,7 @@ function AuthenticatedLayout() {
                 <span className="hidden md:inline">J DIMAS GONÇALVES ESCRITORIO DE ADVOCACIA</span>
               </h1>
               <div className="hidden text-xs leading-tight text-muted-foreground md:block lg:text-sm">
-                sistema de Gestão de Documentos Judiciais
+                Sistema de Gestão de Documentos Judiciais
               </div>
             </div>
           </header>
