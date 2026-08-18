@@ -154,11 +154,13 @@ export async function parsePrazosExcel(file: File): Promise<ImportPrazoRow[]> {
   const headers = rows[0].map(normalizeHeader);
   const aliases: Record<string, string[]> = {
     nome: ["nome"],
-    numero_processo: ["numero do processo", "numero processo", "n do processo", "nº do processo", "nº processo", "no processo", "processo"],
+    // O modelo solicitado usa "Expediente"; internamente o campo continua sendo numero_processo.
+    numero_processo: ["numero do processo", "numero processo", "n do processo", "nº do processo", "nº processo", "no processo", "processo", "expediente"],
     parte: ["parte"],
     advogado: ["advogado"],
     data_limite: ["data limite"],
-    data_publicacao: ["data publicacao", "data de publicacao"],
+    // No modelo solicitado, "Data Inicial" alimenta o campo interno de data de publicação.
+    data_publicacao: ["data publicacao", "data de publicacao", "data inicial"],
     data_inicio_manifestacao: ["d i manifest", "d.i. manifest", "d.i manifest", "di manifest", "d i manifestacao", "d.i. manifestacao", "d.i. manifest."],
     data_fim_manifestacao: ["d f manifest", "d.f. manifest", "d.f manifest", "df manifest", "d f manifestacao", "d.f. manifestacao", "d.f. manifest."],
     cumprido: ["cumprido"],
@@ -169,14 +171,16 @@ export async function parsePrazosExcel(file: File): Promise<ImportPrazoRow[]> {
 
   const indexes = Object.fromEntries(Object.entries(aliases).map(([field, names]) => [field, headers.findIndex((header) => names.includes(header))]));
 
-  // Suporta tanto o formato antigo quanto o novo formato solicitado para Prazos.
-  // No novo formato, D.F. MANIFEST. é usado como Data Limite para manter a lógica atual de vencimento.
-  const novoFormato = indexes.data_fim_manifestacao >= 0;
-  if (novoFormato && indexes.data_limite < 0) indexes.data_limite = indexes.data_fim_manifestacao;
+  // Suporta o formato antigo e também o modelo atual de importação:
+  // Nome | Expediente | Parte | Data Inicial | Data Limite | Dias Restantes (dd/mm) | Status | Observação
+  // A coluna Dias Restantes é informativa e NÃO é usada para calcular o prazo, pois o sistema deve recalculá-lo.
+  // Também suporta o formato com D.F. MANIFEST. como Data Limite.
+  const novoFormatoManifestacao = indexes.data_fim_manifestacao >= 0;
+  if (novoFormatoManifestacao && indexes.data_limite < 0) indexes.data_limite = indexes.data_fim_manifestacao;
 
   const missing = ["nome", "numero_processo", "data_limite"].filter((field) => indexes[field] < 0);
   if (missing.length) {
-    throw new Error(`Colunas obrigatórias ausentes: ${missing.join(", ")}. Formato aceito: Nome, Nº PROCESSO e Data Limite; ou Nome, Nº PROCESSO e D.F. MANIFEST.`);
+    throw new Error(`Colunas obrigatórias ausentes: ${missing.join(", ")}. Formato aceito: Nome, Expediente e Data Limite.`);
   }
 
   return rows.slice(1).map((row) => {
