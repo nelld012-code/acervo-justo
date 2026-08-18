@@ -43,7 +43,7 @@ function cellValue(cell: Element, sharedStrings: string[]): ExcelCell {
   const value = cell.querySelector("v")?.textContent ?? "";
   if (type === "inlineStr") return cell.querySelector("is")?.textContent ?? "";
   if (type === "s") return sharedStrings[Number(value)] ?? "";
-  if (type === "b") return value === "1";
+  if (type === "b") return value === "1" ? 1 : 0;
   if (value === "") return "";
   const number = Number(value);
   return Number.isFinite(number) ? number : value;
@@ -51,7 +51,7 @@ function cellValue(cell: Element, sharedStrings: string[]): ExcelCell {
 
 async function inflateRaw(data: Uint8Array) {
   if (typeof DecompressionStream === "undefined") throw new Error("Este navegador não suporta a leitura direta de arquivos Excel.");
-  const stream = new Blob([data]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
+  const stream = new Blob([data.slice().buffer as ArrayBuffer]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
   return new Uint8Array(await new Response(stream).arrayBuffer());
 }
 
