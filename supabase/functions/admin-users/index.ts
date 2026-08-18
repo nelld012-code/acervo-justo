@@ -70,9 +70,18 @@ Deno.serve(async (req) => {
     const cargo = String(body?.cargo ?? "assistente");
     const telefone = String(body?.telefone ?? "").trim();
     const password = String(body?.password ?? "");
-    if (!id || !nome || !email) return json({ error: "Dados obrigatórios ausentes" }, 400);
+    if (!id) return json({ error: "Usuário não informado" }, 400);
     if (!VALID_CARGOS.includes(cargo)) return json({ error: "Cargo inválido" }, 400);
     if (id === user.id && cargo !== "administrador") return json({ error: "Você não pode remover seu próprio acesso de administrador" }, 400);
+
+    // Compatibilidade com versões anteriores do painel que enviavam apenas id + cargo.
+    if (!nome && !email) {
+      const { error } = await admin.from("profiles").update({ cargo }).eq("id", id);
+      if (error) return json({ error: error.message }, 400);
+      return json({ ok: true });
+    }
+
+    if (!nome || !email) return json({ error: "Dados obrigatórios ausentes" }, 400);
     const authUpdate: { email: string; password?: string } = { email };
     if (password) { if (password.length < 6) return json({ error: "A nova senha deve ter ao menos 6 caracteres" }, 400); authUpdate.password = password; }
     const { error: authError } = await admin.auth.admin.updateUserById(id, authUpdate);
