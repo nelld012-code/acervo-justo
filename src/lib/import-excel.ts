@@ -51,6 +51,13 @@ function normalizeBoolean(value: ExcelCell): boolean | null {
   return null;
 }
 
+function normalizeStatus(value: ExcelCell, cumprido: boolean | null) {
+  if (cumprido === true) return "Concluído";
+  const text = String(value ?? "").trim().normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
+  if (["concluido", "concluida", "cumprido", "cumprida", "finalizado", "finalizada", "feito", "feita"].includes(text)) return "Concluído";
+  return "Em andamento";
+}
+
 function cellValue(cell: Element, sharedStrings: string[]): ExcelCell {
   const type = cell.getAttribute("t");
   const value = cell.querySelector("v")?.textContent ?? "";
@@ -76,12 +83,10 @@ async function unzip(buffer: ArrayBuffer): Promise<Map<string, Uint8Array>> {
     if (u32(view, i) === 0x06054b50) { eocd = i; break; }
   }
   if (eocd < 0) throw new Error("Arquivo Excel inválido ou corrompido.");
-
   const count = u16(view, eocd + 10);
   const centralOffset = u32(view, eocd + 16);
   let cursor = centralOffset;
   const entries: ZipEntry[] = [];
-
   for (let i = 0; i < count; i++) {
     if (u32(view, cursor) !== 0x02014b50) throw new Error("Estrutura ZIP do Excel inválida.");
     const method = u16(view, cursor + 10);
@@ -94,7 +99,6 @@ async function unzip(buffer: ArrayBuffer): Promise<Map<string, Uint8Array>> {
     entries.push({ name, method, compressedSize, localOffset });
     cursor += 46 + nameLength + extraLength + commentLength;
   }
-
   const result = new Map<string, Uint8Array>();
   for (const entry of entries) {
     const local = entry.localOffset;
@@ -120,22 +124,18 @@ function findEntry(entries: Map<string, Uint8Array>, name: string) {
 
 export async function parsePrazosExcel(file: File): Promise<ImportPrazoRow[]> {
   if (!file.name.toLowerCase().endsWith(".xlsx")) throw new Error("Selecione um arquivo Excel no formato .xlsx.");
-
   const entries = await unzip(await file.arrayBuffer());
   const workbook = parseXml(findEntry(entries, "xl/workbook.xml"));
   const rels = parseXml(findEntry(entries, "xl/_rels/workbook.xml.rels"));
   const relation = workbook.querySelector("sheet")?.getAttribute("r:id");
   if (!relation) throw new Error("Não foi possível localizar a planilha do Excel.");
-
   const relationNode = Array.from(rels.getElementsByTagName("Relationship")).find((node) => node.getAttribute("Id") === relation);
   const target = relationNode?.getAttribute("Target");
   if (!target) throw new Error("Não foi possível localizar a primeira aba do Excel.");
   const sheetPath = target.startsWith("/") ? target.slice(1) : `xl/${target.replace(/^\/?xl\//, "")}`;
-
   const sharedStrings = entries.has("xl/sharedStrings.xml")
     ? Array.from(parseXml(entries.get("xl/sharedStrings.xml")!).getElementsByTagName("si")).map((si) => si.textContent ?? "")
     : [];
-
   const sheet = parseXml(findEntry(entries, sheetPath));
   const rows = Array.from(sheet.getElementsByTagName("row")).map((row) => {
     const cells = new Map<number, ExcelCell>();
@@ -149,40 +149,22 @@ export async function parsePrazosExcel(file: File): Promise<ImportPrazoRow[]> {
     const max = cells.size ? Math.max(...cells.keys()) : -1;
     return Array.from({ length: max + 1 }, (_, i) => cells.get(i) ?? "");
   });
-
   if (!rows.length) return [];
   const headers = rows[0].map(normalizeHeader);
   const aliases: Record<string, string[]> = {
     nome: ["nome"],
-    // O modelo solicitado usa "Expediente"; internamente o campo continua sendo numero_processo.
     numero_processo: ["numero do processo", "numero processo", "n do processo", "nº do processo", "nº processo", "no processo", "processo", "expediente"],
-    parte: ["parte"],
-    advogado: ["advogado"],
-    data_limite: ["data limite"],
-    // No modelo solicitado, "Data Inicial" alimenta o campo interno de data de publicação.
+    parte: ["parte"], advogado: ["advogado"], data_limite: ["data limite"],
     data_publicacao: ["data publicacao", "data de publicacao", "data inicial"],
     data_inicio_manifestacao: ["d i manifest", "d.i. manifest", "d.i manifest", "di manifest", "d i manifestacao", "d.i. manifestacao", "d.i. manifest."],
     data_fim_manifestacao: ["d f manifest", "d.f. manifest", "d.f manifest", "df manifest", "d f manifestacao", "d.f. manifestacao", "d.f. manifest."],
-    cumprido: ["cumprido"],
-    status: ["status"],
-    observacao: ["observacao", "observação"],
-    data_conclusao: ["data de conclusao", "data de conclusão"],
+    cumprido: ["cumprido"], status: ["status"], observacao: ["observacao", "observação"], data_conclusao: ["data de conclusao", "data de conclusão"],
   };
-
   const indexes = Object.fromEntries(Object.entries(aliases).map(([field, names]) => [field, headers.findIndex((header) => names.includes(header))]));
-
-  // Suporta o formato antigo e também o modelo atual de importação:
-  // Nome | Expediente | Parte | Data Inicial | Data Limite | Dias Restantes (dd/mm) | Status | Observação
-  // A coluna Dias Restantes é informativa e NÃO é usada para calcular o prazo, pois o sistema deve recalculá-lo.
-  // Também suporta o formato com D.F. MANIFEST. como Data Limite.
   const novoFormatoManifestacao = indexes.data_fim_manifestacao >= 0;
   if (novoFormatoManifestacao && indexes.data_limite < 0) indexes.data_limite = indexes.data_fim_manifestacao;
-
   const missing = ["nome", "numero_processo", "data_limite"].filter((field) => indexes[field] < 0);
-  if (missing.length) {
-    throw new Error(`Colunas obrigatórias ausentes: ${missing.join(", ")}. Formato aceito: Nome, Expediente e Data Limite.`);
-  }
-
+  if (missing.length) throw new Error(`Colunas obrigatórias ausentes: ${missing.join(", ")}. Formato aceito: Nome, Expediente e Data Limite.`);
   return rows.slice(1).map((row) => {
     const cumprido = indexes.cumprido >= 0 ? normalizeBoolean(row[indexes.cumprido]) : null;
     return {
@@ -191,7 +173,7 @@ export async function parsePrazosExcel(file: File): Promise<ImportPrazoRow[]> {
       parte: indexes.parte >= 0 ? (String(row[indexes.parte] ?? "").trim() || "Parte Autora") : "Parte Autora",
       advogado: indexes.advogado >= 0 ? (String(row[indexes.advogado] ?? "").trim() || null) : null,
       data_limite: normalizeDate(row[indexes.data_limite]) ?? "",
-      status: cumprido === true ? "Concluído" : (indexes.status >= 0 ? String(row[indexes.status] ?? "").trim() || "Em andamento" : "Em andamento"),
+      status: normalizeStatus(indexes.status >= 0 ? row[indexes.status] : "", cumprido),
       observacao: indexes.observacao >= 0 ? (String(row[indexes.observacao] ?? "").trim() || null) : null,
       data_conclusao: indexes.data_conclusao >= 0 ? (normalizeDate(row[indexes.data_conclusao]) ?? null) : null,
       data_publicacao: indexes.data_publicacao >= 0 ? normalizeDate(row[indexes.data_publicacao]) : null,
