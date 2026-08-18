@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -35,6 +35,7 @@ const emptyForm: FormState = {
   reu_endereco: "", reu_bairro: "", reu_cidade: "",
   resumo_atendimento: "", tipo_acao: "", numero_processo: "",
 };
+const PAGE_SIZE = 8;
 
 function ClientesPage() {
   const qc = useQueryClient();
@@ -45,6 +46,7 @@ function ClientesPage() {
   const [saving, setSaving] = useState(false);
   const [profileClient, setProfileClient] = useState<Cliente | null>(null);
   const [receipt, setReceipt] = useState<ReceiptData | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
 
   const { data, isLoading } = useQuery({
     queryKey: ["clients"],
@@ -65,6 +67,22 @@ function ClientesPage() {
       (c.telefone ?? "").toLowerCase().includes(q)
     );
   }, [data, search]);
+
+  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+  const paginatedClients = useMemo(() => {
+    const start = (currentPage - 1) * PAGE_SIZE;
+    return filtered.slice(start, start + PAGE_SIZE);
+  }, [filtered, currentPage]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search]);
+
+  useEffect(() => {
+    if (totalPages > 0 && currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
 
   function openNew() {
     setEditing(null);
@@ -445,7 +463,7 @@ function ClientesPage() {
               <p className="py-8 text-center text-sm text-muted-foreground">Carregando...</p>
             ) : filtered.length === 0 ? (
               <p className="py-8 text-center text-sm text-muted-foreground">Nenhum cliente encontrado.</p>
-            ) : filtered.map((c) => (
+            ) : paginatedClients.map((c) => (
               <div key={c.id} className="space-y-2 p-4">
                 <p className="break-words font-medium text-foreground">{c.nome}</p>
                 <p className="break-words text-xs text-muted-foreground">{c.cpf_cnpj ?? "—"} · {c.email ?? "—"}</p>
@@ -483,7 +501,7 @@ function ClientesPage() {
                   <TableRow><TableCell colSpan={5} className="text-center text-sm text-muted-foreground">Carregando...</TableCell></TableRow>
                 ) : filtered.length === 0 ? (
                   <TableRow><TableCell colSpan={5} className="text-center text-sm text-muted-foreground">Nenhum cliente encontrado.</TableCell></TableRow>
-                ) : filtered.map((c) => (
+                ) : paginatedClients.map((c) => (
                   <TableRow key={c.id}>
                     <TableCell className="font-medium">{c.nome}</TableCell>
                     <TableCell>{c.cpf_cnpj ?? "—"}</TableCell>
@@ -513,6 +531,30 @@ function ClientesPage() {
               </TableBody>
             </Table>
           </div>
+
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center gap-3 pt-2">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+              >
+                Anterior
+              </Button>
+              <span className="text-sm font-medium text-muted-foreground">
+                {currentPage} / {totalPages}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={currentPage === totalPages}
+                onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+              >
+                Próxima
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
 
