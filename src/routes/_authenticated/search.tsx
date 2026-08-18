@@ -27,7 +27,7 @@ export const Route = createFileRoute("/_authenticated/search")({
   component: SearchPage,
 });
 
-const PAGE_SIZE = 15;
+const PAGE_SIZE = 8;
 
 function SearchPage() {
   const [q, setQ] = useState("");
