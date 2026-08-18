@@ -64,9 +64,16 @@ function PerfilPage() {
 
   async function loadUsers() {
     setUsersLoading(true);
-    try { const data = await callAdminUsers({ action: "list" }); setUsers(data.users ?? []); }
-    catch (e) { toast.error("Não foi possível carregar os usuários", { description: e instanceof Error ? e.message : "" }); }
-    finally { setUsersLoading(false); }
+    try {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("id, nome, email, cargo, telefone, created_at, updated_at")
+        .order("created_at", { ascending: true });
+      if (error) throw error;
+      setUsers((data ?? []) as AdminUser[]);
+    } catch (e) {
+      toast.error("Não foi possível carregar os usuários", { description: e instanceof Error ? e.message : "" });
+    } finally { setUsersLoading(false); }
   }
 
   async function saveInfo() {
