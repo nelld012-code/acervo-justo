@@ -1,13 +1,14 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
-export type Cargo = "administrador" | "advogado" | "secretaria" | "assistente";
+export type Cargo = "administrador" | "advogado" | "secretaria" | "assistente" | "financeiro";
 
 export const CARGO_LABELS: Record<Cargo, string> = {
   administrador: "Administrador(a)",
   advogado: "Advogado(a)",
   secretaria: "Secretário(a)",
   assistente: "Assistente",
+  financeiro: "Financeiro",
 };
 
 export const CARGO_OPTIONS = Object.entries(CARGO_LABELS).map(([value, label]) => ({
@@ -29,13 +30,14 @@ export type Permissions = {
 export function permissionsFor(cargo: Cargo): Permissions {
   const isAdmin = cargo === "administrador";
   const isLeadership = isAdmin || cargo === "advogado";
+  const isFinanceiro = cargo === "financeiro";
   return {
     cargo,
     isAdmin,
     isLeadership,
-    canManageClients: isLeadership || cargo === "secretaria",
-    canManageDocuments: isLeadership || cargo === "secretaria",
-    canAccessFinance: isLeadership,
+    canManageClients: isLeadership || cargo === "secretaria" || isFinanceiro,
+    canManageDocuments: isLeadership || cargo === "secretaria" || isFinanceiro,
+    canAccessFinance: isLeadership || isFinanceiro,
     canAssignTasks: isLeadership,
     canViewAudit: isLeadership,
   };
