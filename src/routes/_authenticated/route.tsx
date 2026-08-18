@@ -36,14 +36,20 @@ function AuthenticatedLayout() {
     <SidebarProvider>
       <div className="flex min-h-screen w-full overflow-x-hidden bg-background">
         <AppSidebar />
-        <div className="flex min-w-0 flex-1 flex-col">
-          <header className="flex h-14 items-center gap-2 border-b bg-card px-3 sm:px-4">
+        <div className="flex min-w-0 flex-1 flex-col min-h-screen">
+          <header className="flex min-h-14 items-center gap-2 border-b bg-card px-3 sm:px-4">
             <MobileMenuTrigger />
-            <h1 className="truncate text-sm font-semibold text-foreground">Gestão de Documentos Judiciais</h1>
+            <h1 className="min-w-0 truncate text-sm font-semibold text-foreground md:text-xl lg:text-2xl md:whitespace-nowrap">
+              <span className="md:hidden">Gestão de Documentos Judiciais</span>
+              <span className="hidden md:inline">J DIMAS GONÇALVES ESCRITORIO DE ADVOCACIA</span>
+            </h1>
           </header>
           <main className="min-w-0 flex-1 overflow-x-hidden p-4 sm:p-6">
             <Outlet />
           </main>
+          <footer className="border-t bg-card px-4 py-3 text-center text-xs text-muted-foreground sm:text-sm">
+            © 2026 Desenvolvido por: Michel Antonio Alvarado
+          </footer>
         </div>
       </div>
       <PrazoReminders />
