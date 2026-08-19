@@ -19,17 +19,40 @@ function excelDate(v: unknown): string {
   if (v instanceof Date && !Number.isNaN(v.getTime())) {
     return `${v.getFullYear()}-${String(v.getMonth()+1).padStart(2,"0")}-${String(v.getDate()).padStart(2,"0")}`;
   }
-  const s = String(v ?? "").trim();
+  let s = String(v ?? "").trim();
   if (!s) throw new Error("Data obrigatória");
-  const br = s.match(/(?:^|\D)(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})(?:\D|$)/);
-  if (br) return `${br[3]}-${br[2].padStart(2,"0")}-${br[1].padStart(2,"0")}`;
-  const iso = s.match(/(?:^|\D)(\d{4})-(\d{1,2})-(\d{1,2})(?:\D|$)/);
+
+  // A planilha real contém misturas como 09\\02\\2026, 11/02\\2026 e
+  // 17/03 \\2026. Normalizamos barra invertida e espaços antes de validar.
+  s = s.replace(/\\/g, "/").replace(/\s+/g, "");
+
+  // Datas brasileiras normais e datas com ano de 3 dígitos (ex.: 28/05/206),
+  // que no arquivo real é claramente 2026.
+  const br = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{3,4})$/);
+  if (br) {
+    const day = Number(br[1]);
+    const month = Number(br[2]);
+    let year = Number(br[3]);
+    if (br[3].length === 3 && year >= 200 && year <= 299) year += 1800;
+    if (day >= 1 && day <= 31 && month >= 1 && month <= 12 && year >= 1900 && year <= 2100) {
+      return `${String(year).padStart(4,"0")}-${String(month).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
+    }
+  }
+
+  const iso = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
   if (iso) return `${iso[1]}-${iso[2].padStart(2,"0")}-${iso[3].padStart(2,"0")}`;
+
+  // Caso o Excel entregue a data como número armazenado em texto.
+  if (/^\d+(?:\.\d+)?$/.test(s)) {
+    const serial = Number(s);
+    if (serial > 20000 && serial < 100000) return excelDate(serial);
+  }
+
   throw new Error("Data inválida (use dd/mm/aaaa)");
 }
 
 export async function parseReceptionExcel(file: File) {
-  const wb = XLSX.read(await file.arrayBuffer(), { type:"array", cellDates:false });
+  const wb = XLSX.read(await file.arrayBuffer(), { type:"array", cellDates:true });
   const sheet = wb.Sheets[wb.SheetNames[0]];
   if (!sheet) throw new Error("A planilha não possui uma aba válida.");
   const matrix = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header:1, defval:"", raw:true });
@@ -75,8 +98,6 @@ export async function parseReceptionExcel(file: File) {
       const rawData = get("data");
       const rawAdvogado = String(get("advogado") ?? "").trim();
 
-      // Planilhas de agenda frequentemente usam células mescladas: a data e o advogado
-      // aparecem apenas na primeira linha do grupo. Reutilizamos o último valor preenchido.
       let data = "";
       if (String(rawData ?? "").trim()) {
         data = excelDate(rawData);
@@ -95,8 +116,6 @@ export async function parseReceptionExcel(file: File) {
       if (!nome_cliente) throw new Error("nome_cliente obrigatório");
 
       const cpf = idx.cpf >= 0 ? String(get("cpf") ?? "").trim() || null : null;
-      // Telefone vazio não deve impedir a importação; a interface já aceita registros
-      // sem número e o valor textual deixa isso explícito na lista/impresso.
       const telefone = String(get("telefone") ?? "").trim() || "SEM NÚMERO";
       const atendente = String(get("atendente") ?? "").trim() || "Não informado";
 
