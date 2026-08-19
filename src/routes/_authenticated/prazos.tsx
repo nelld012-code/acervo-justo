@@ -18,7 +18,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { CalendarClock, CheckCircle2, Eye, Upload, Pencil, Plus, Printer, Trash2 } from "lucide-react";
+import { CalendarClock, CheckCircle2, Eye, FileSpreadsheet, Upload, Pencil, Plus, Printer, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useProfile } from "@/hooks/use-profile";
 import { logAudit } from "@/lib/documents";
