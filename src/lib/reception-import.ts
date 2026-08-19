@@ -11,21 +11,30 @@ const normalize = (v: unknown) => String(v ?? "")
 const compact = (v: unknown) => normalize(v).replace(/[^a-z0-9]/g, "");
 
 function excelDate(v: unknown): string {
-  if (typeof v === "number") { const d = XLSX.SSF.parse_date_code(v); if (!d) throw new Error("Data inválida"); return `${String(d.y).padStart(4,"0")}-${String(d.m).padStart(2,"0")}-${String(d.d).padStart(2,"0")}`; }
-  const s = String(v ?? "").trim(); if (!s) throw new Error("Data obrigatória");
-  const br = s.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/); if (br) return `${br[3]}-${br[2].padStart(2,"0")}-${br[1].padStart(2,"0")}`;
-  const iso = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/); if (iso) return `${iso[1]}-${iso[2].padStart(2,"0")}-${iso[3].padStart(2,"0")}`;
+  if (typeof v === "number") {
+    const d = XLSX.SSF.parse_date_code(v);
+    if (!d) throw new Error("Data inválida");
+    return `${String(d.y).padStart(4,"0")}-${String(d.m).padStart(2,"0")}-${String(d.d).padStart(2,"0")}`;
+  }
+  if (v instanceof Date && !Number.isNaN(v.getTime())) {
+    return `${v.getFullYear()}-${String(v.getMonth()+1).padStart(2,"0")}-${String(v.getDate()).padStart(2,"0")}`;
+  }
+  const s = String(v ?? "").trim();
+  if (!s) throw new Error("Data obrigatória");
+  const br = s.match(/(?:^|\D)(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})(?:\D|$)/);
+  if (br) return `${br[3]}-${br[2].padStart(2,"0")}-${br[1].padStart(2,"0")}`;
+  const iso = s.match(/(?:^|\D)(\d{4})-(\d{1,2})-(\d{1,2})(?:\D|$)/);
+  if (iso) return `${iso[1]}-${iso[2].padStart(2,"0")}-${iso[3].padStart(2,"0")}`;
   throw new Error("Data inválida (use dd/mm/aaaa)");
 }
 
 export async function parseReceptionExcel(file: File) {
   const wb = XLSX.read(await file.arrayBuffer(), { type:"array", cellDates:false });
-  const sheet = wb.Sheets[wb.SheetNames[0]]; if (!sheet) throw new Error("A planilha não possui uma aba válida.");
-  const matrix = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header:1, defval:"", raw:true }); if (!matrix.length) throw new Error("A planilha está vazia.");
+  const sheet = wb.Sheets[wb.SheetNames[0]];
+  if (!sheet) throw new Error("A planilha não possui uma aba válida.");
+  const matrix = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header:1, defval:"", raw:true });
+  if (!matrix.length) throw new Error("A planilha está vazia.");
 
-  // Compatível com o arquivo real CLIENTES AGENDADOS 2026: há uma linha de título
-  // antes do cabeçalho e os nomes são DATA, ADVOGADO, NOME COMPLETO DO CLIENTE,
-  // HORÁRIO, CPF, TELEFONE e OBSERVAÇÃO. Nesse arquivo OBSERVAÇÃO contém a atendente.
   const aliases: Record<string,string[]> = {
     data:["data"],
     advogado:["advogado"],
@@ -37,34 +46,65 @@ export async function parseReceptionExcel(file: File) {
 
   let headerRow = -1; let idx: Record<string,number> = {};
   for (let r = 0; r < Math.min(matrix.length, 20); r++) {
-    const headers = (matrix[r] ?? []).map(normalize); const candidate: Record<string,number> = {};
-    for (const [k,names] of Object.entries(aliases)) candidate[k] = headers.findIndex(h => names.includes(h) || names.some(n => compact(h) === compact(n)));
+    const headers = (matrix[r] ?? []).map(normalize);
+    const candidate: Record<string,number> = {};
+    for (const [k,names] of Object.entries(aliases)) {
+      candidate[k] = headers.findIndex(h => names.includes(h) || names.some(n => compact(h) === compact(n)));
+    }
     const hasCore = candidate.data >= 0 && candidate.advogado >= 0 && candidate.nome_cliente >= 0 && candidate.telefone >= 0;
     if (hasCore) { headerRow = r; idx = candidate; break; }
   }
   if (headerRow < 0) throw new Error("Cabeçalhos não reconhecidos. O arquivo deve conter Data, Advogado, Nome do cliente (ou Nome completo do cliente) e Telefone.");
 
-  // No arquivo original, OBSERVAÇÃO funciona como a coluna Atendente.
   if (idx.atendente < 0) {
     const headers = (matrix[headerRow] ?? []).map(normalize);
     idx.atendente = headers.findIndex(h => h === "observacao");
   }
   if (idx.atendente < 0) throw new Error("Cabeçalho de atendente ausente. Use Atendente ou Observação.");
 
-  const required = ["data","advogado","nome_cliente","telefone"];
-  const rows: ReceptionImportRow[] = []; const errors: ReceptionImportError[] = [];
+  const rows: ReceptionImportRow[] = [];
+  const errors: ReceptionImportError[] = [];
+  let lastData = "";
+  let lastAdvogado = "";
+
   matrix.slice(headerRow + 1).forEach((cells, i) => {
-    const line = headerRow + i + 2; if (!cells.some(v => String(v ?? "").trim())) return;
+    const line = headerRow + i + 2;
+    if (!cells.some(v => String(v ?? "").trim())) return;
     try {
-      const get=(k:string)=>cells[idx[k]];
-      const row:ReceptionImportRow={
-        data:excelDate(get("data")), advogado:String(get("advogado")??"").trim(), nome_cliente:String(get("nome_cliente")??"").trim(),
-        cpf:idx.cpf>=0?String(get("cpf")??"").trim()||null:null, telefone:String(get("telefone")??"").trim(), atendente:String(get("atendente")??"").trim()
-      };
-      for (const k of required) if (!row[k as keyof ReceptionImportRow]) throw new Error(`${k} obrigatório`);
-      if (!row.atendente) row.atendente = "Não informado";
-      rows.push(row);
-    } catch(e) { errors.push({line,message:e instanceof Error?e.message:"Linha inválida"}); }
+      const get = (k:string) => cells[idx[k]];
+      const rawData = get("data");
+      const rawAdvogado = String(get("advogado") ?? "").trim();
+
+      // Planilhas de agenda frequentemente usam células mescladas: a data e o advogado
+      // aparecem apenas na primeira linha do grupo. Reutilizamos o último valor preenchido.
+      let data = "";
+      if (String(rawData ?? "").trim()) {
+        data = excelDate(rawData);
+        lastData = data;
+      } else if (lastData) {
+        data = lastData;
+      } else {
+        throw new Error("Data obrigatória");
+      }
+
+      const advogado = rawAdvogado || lastAdvogado;
+      if (rawAdvogado) lastAdvogado = rawAdvogado;
+      if (!advogado) throw new Error("advogado obrigatório");
+
+      const nome_cliente = String(get("nome_cliente") ?? "").trim();
+      if (!nome_cliente) throw new Error("nome_cliente obrigatório");
+
+      const cpf = idx.cpf >= 0 ? String(get("cpf") ?? "").trim() || null : null;
+      // Telefone vazio não deve impedir a importação; a interface já aceita registros
+      // sem número e o valor textual deixa isso explícito na lista/impresso.
+      const telefone = String(get("telefone") ?? "").trim() || "SEM NÚMERO";
+      const atendente = String(get("atendente") ?? "").trim() || "Não informado";
+
+      rows.push({ data, advogado, nome_cliente, cpf, telefone, atendente });
+    } catch (e) {
+      errors.push({ line, message: e instanceof Error ? e.message : "Linha inválida" });
+    }
   });
-  return {rows,errors};
+
+  return { rows, errors };
 }
