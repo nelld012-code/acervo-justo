@@ -1,0 +1,1 @@
+ALTER TABLE public.prazos DROP CONSTRAINT IF EXISTS prazos_parte_check;
