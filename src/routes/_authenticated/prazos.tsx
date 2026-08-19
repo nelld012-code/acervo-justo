@@ -18,7 +18,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { CalendarClock, CheckCircle2, Eye, FileSpreadsheet, Pencil, Plus, Printer, Trash2 } from "lucide-react";
+import { CalendarClock, CheckCircle2, Eye, Upload, Pencil, Plus, Printer, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useProfile } from "@/hooks/use-profile";
 import { logAudit } from "@/lib/documents";
@@ -497,11 +497,11 @@ function PrazosPage() {
             <Printer className="mr-2 h-4 w-4" />Imprimir lista
           </Button>
           <Button onClick={exportarExcel} variant="outline" className="min-h-11 w-full sm:w-auto" disabled={!lista.length}>
-            <FileSpreadsheet className="mr-2 h-4 w-4" />Exportar Excel
+            <Upload className="mr-2 h-4 w-4" />Exportar Excel
           </Button>
           {podeGerenciar && (
             <Button onClick={abrirImportacao} variant="outline" className="min-h-11 w-full sm:w-auto">
-              <FileSpreadsheet className="mr-2 h-4 w-4" />Importar Excel
+              <Upload className="mr-2 h-4 w-4" />Importar Excel
             </Button>
           )}
           {podeGerenciar && (
