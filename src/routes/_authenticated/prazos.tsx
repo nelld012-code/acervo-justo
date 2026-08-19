@@ -497,7 +497,7 @@ function PrazosPage() {
             <Printer className="mr-2 h-4 w-4" />Imprimir lista
           </Button>
           <Button onClick={exportarExcel} variant="outline" className="min-h-11 w-full sm:w-auto" disabled={!lista.length}>
-            <Upload className="mr-2 h-4 w-4" />Exportar Excel
+            <FileSpreadsheet className="mr-2 h-4 w-4" />Exportar Excel
           </Button>
           {podeGerenciar && (
             <Button onClick={abrirImportacao} variant="outline" className="min-h-11 w-full sm:w-auto">
