@@ -157,3 +157,99 @@ export async function parsePrazosExcel(file: File): Promise<ImportPrazoRow[]> {
   const matrix = XLSX.utils.sheet_to_json<ExcelCell[]>(sheet, { header: 1, raw: true, defval: "", blankrows: false });
   return parsePrazosRows(matrix);
 }
+
+export type ImportRecepcaoRow = {
+  data: string;
+  advogado: string;
+  nome_cliente: string;
+  cpf: string | null;
+  telefone: string;
+  atendente: string;
+};
+
+export type ImportRecepcaoResult = {
+  validos: ImportRecepcaoRow[];
+  invalidos: { linha: number; motivo: string }[];
+};
+
+const RECEPCAO_ALIASES: Record<string, string[]> = {
+  data: ["data", "data atendimento", "data do atendimento"],
+  advogado: ["advogado", "advogada"],
+  nome_cliente: ["nome do cliente", "nome cliente", "cliente", "nome"],
+  cpf: ["cpf", "cpf cnpj", "cpf/cnpj"],
+  telefone: ["telefone", "celular", "fone", "whatsapp"],
+  atendente: ["atendente", "recepcionista"],
+};
+
+/** Mantém CPF/telefone como texto (preserva zeros à esquerda). */
+function textDigitsSafe(value: ExcelCell) {
+  if (value === null || value === undefined) return "";
+  if (typeof value === "number") return String(value);
+  return String(value).trim();
+}
+
+export function parseRecepcaoRows(matrix: ExcelCell[][]): ImportRecepcaoResult {
+  if (!matrix.length) return { validos: [], invalidos: [] };
+  const headerIndex = matrix.findIndex((row) =>
+    row.some((cell) => RECEPCAO_ALIASES.nome_cliente.includes(normalizeHeader(cell))),
+  );
+  const start = headerIndex >= 0 ? headerIndex : 0;
+  const headers = (matrix[start] ?? []).map(normalizeHeader);
+
+  const indexes: Record<string, number> = {};
+  for (const [field, names] of Object.entries(RECEPCAO_ALIASES)) {
+    indexes[field] = headers.findIndex((header) => header !== "" && names.includes(header));
+  }
+  const missing = (["data", "advogado", "nome_cliente", "telefone", "atendente"] as const).filter(
+    (f) => indexes[f] < 0,
+  );
+  if (missing.length) {
+    throw new Error(
+      "Colunas obrigatórias ausentes: Data, Advogado, Nome do cliente, Telefone, Atendente. Verifique o cabeçalho da planilha.",
+    );
+  }
+
+  const pick = (row: ExcelCell[], field: string): ExcelCell => {
+    const i = indexes[field];
+    return i >= 0 ? (row[i] ?? "") : "";
+  };
+
+  const validos: ImportRecepcaoRow[] = [];
+  const invalidos: { linha: number; motivo: string }[] = [];
+
+  matrix.slice(start + 1).forEach((row, i) => {
+    const linha = start + 2 + i;
+    const nome_cliente = text(pick(row, "nome_cliente"));
+    const advogado = text(pick(row, "advogado"));
+    const atendente = text(pick(row, "atendente"));
+    const telefone = textDigitsSafe(pick(row, "telefone"));
+    const cpf = textDigitsSafe(pick(row, "cpf"));
+    const data = normalizeDate(pick(row, "data"));
+    const vazia = !nome_cliente && !advogado && !atendente && !telefone && !cpf && !data;
+    if (vazia) return;
+
+    const faltando: string[] = [];
+    if (!data) faltando.push("Data");
+    if (!advogado) faltando.push("Advogado");
+    if (!nome_cliente) faltando.push("Nome do cliente");
+    if (!telefone) faltando.push("Telefone");
+    if (!atendente) faltando.push("Atendente");
+    if (faltando.length) {
+      invalidos.push({ linha, motivo: `Campos ausentes/inválidos: ${faltando.join(", ")}` });
+      return;
+    }
+    validos.push({ data: data!, advogado, nome_cliente, cpf: cpf || null, telefone, atendente });
+  });
+
+  return { validos, invalidos };
+}
+
+export async function parseRecepcaoExcel(file: File): Promise<ImportRecepcaoResult> {
+  if (!/\.xlsx$/i.test(file.name)) throw new Error("Selecione um arquivo Excel no formato .xlsx.");
+  const workbook = XLSX.read(await file.arrayBuffer(), { type: "array", cellDates: true });
+  const sheetName = workbook.SheetNames[0];
+  const sheet = sheetName ? workbook.Sheets[sheetName] : undefined;
+  if (!sheet) throw new Error("Não foi possível localizar a planilha do Excel.");
+  const matrix = XLSX.utils.sheet_to_json<ExcelCell[]>(sheet, { header: 1, raw: true, defval: "", blankrows: false });
+  return parseRecepcaoRows(matrix);
+}
