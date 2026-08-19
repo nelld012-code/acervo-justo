@@ -420,9 +420,19 @@ function PrazosPage() {
       setImportErrors([]);
       refresh();
     } catch (err) {
-      toast.error("Não foi possível importar os prazos.", {
-        description: err instanceof Error ? err.message : undefined,
-      });
+      const detalhe =
+        err && typeof err === "object"
+          ? [
+              (err as { message?: string }).message,
+              (err as { details?: string }).details,
+              (err as { hint?: string }).hint,
+              (err as { code?: string }).code ? `Código: ${(err as { code?: string }).code}` : "",
+            ]
+              .filter(Boolean)
+              .join(" · ")
+          : String(err);
+      toast.error("Não foi possível importar os prazos.", { description: detalhe || undefined });
+      console.error("Erro ao importar prazos:", err);
     } finally {
       setImportando(false);
     }
