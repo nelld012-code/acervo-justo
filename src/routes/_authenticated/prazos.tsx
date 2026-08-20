@@ -43,6 +43,7 @@ export const Route = createFileRoute("/_authenticated/prazos")({
 
 const FILTROS = [
   "Todos", "Em andamento", "Concluídos", "Normal", "Atenção", "Crítico", "Vence Hoje", "Prazo Vencido",
+  "Próximos 3 dias", "Próximos 7 dias",
 ] as const;
 type Filtro = (typeof FILTROS)[number];
 
@@ -165,6 +166,9 @@ function PrazosPage() {
 
   const [busca, setBusca] = useState("");
   const [filtro, setFiltro] = useState<Filtro>("Todos");
+  const [advogadoFiltro, setAdvogadoFiltro] = useState("Todos");
+  const [dataDesde, setDataDesde] = useState("");
+  const [dataAte, setDataAte] = useState("");
   const [ordem, setOrdem] = useState<string>("data_limite");
   const [pagina, setPagina] = useState(1);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -340,10 +344,24 @@ function PrazosPage() {
         const hay = `${p.nome} ${p.numero_processo ?? ""} ${p.advogado ?? ""}`.toLowerCase();
         if (!hay.includes(termo)) return false;
       }
+
+      if (advogadoFiltro !== "Todos" && (p.advogado ?? "") !== advogadoFiltro) return false;
+      if (dataDesde && p.data_limite < dataDesde) return false;
+      if (dataAte && p.data_limite > dataAte) return false;
+
+      const situacao = situacaoDoPrazo(p);
       if (filtro === "Todos") return true;
       if (filtro === "Em andamento") return p.status === "Em andamento";
       if (filtro === "Concluídos") return p.status === "Concluído";
-      return situacaoDoPrazo(p) === FILTRO_SITUACAO[filtro];
+      if (filtro === "Próximos 3 dias") {
+        return p.status !== "Concluído" && ["normal", "atencao", "critico"].includes(situacao)
+          && diasRestantes(p.data_limite) >= 1 && diasRestantes(p.data_limite) <= 3;
+      }
+      if (filtro === "Próximos 7 dias") {
+        return p.status !== "Concluído" && ["normal", "atencao", "critico"].includes(situacao)
+          && diasRestantes(p.data_limite) >= 1 && diasRestantes(p.data_limite) <= 7;
+      }
+      return situacao === FILTRO_SITUACAO[filtro];
     });
     const ordemStatus: Record<Situacao, number> = {
       vencido: 0, hoje: 1, critico: 2, atencao: 3, normal: 4, concluido: 5,
@@ -355,7 +373,7 @@ function PrazosPage() {
       return a.data_limite.localeCompare(b.data_limite);
     });
     return rows;
-  }, [data, busca, filtro, ordem]);
+  }, [data, busca, filtro, advogadoFiltro, dataDesde, dataAte, ordem]);
 
   function abrirImportacao() {
     setImportRows([]);
@@ -568,7 +586,7 @@ function PrazosPage() {
 
   useEffect(() => {
     setPagina(1);
-  }, [busca, filtro, ordem]);
+  }, [busca, filtro, advogadoFiltro, dataDesde, dataAte, ordem]);
 
   const totalPaginas = Math.max(1, Math.ceil(lista.length / ITENS_POR_PAGINA));
   const paginaAtual = Math.min(pagina, totalPaginas);
@@ -601,6 +619,23 @@ function PrazosPage() {
         </div>
       </div>
 
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        {[
+          { label: "Vencidos", value: (data ?? []).filter((p) => situacaoDoPrazo(p) === "vencido").length, className: "border-destructive/40" },
+          { label: "Vence hoje", value: (data ?? []).filter((p) => situacaoDoPrazo(p) === "hoje").length, className: "border-destructive/30" },
+          { label: "Próximos 3 dias", value: (data ?? []).filter((p) => p.status !== "Concluído" && ["normal", "atencao", "critico"].includes(situacaoDoPrazo(p)) && diasRestantes(p.data_limite) >= 1 && diasRestantes(p.data_limite) <= 3).length, className: "border-orange-300/50" },
+          { label: "Próximos 7 dias", value: (data ?? []).filter((p) => p.status !== "Concluído" && ["normal", "atencao", "critico"].includes(situacaoDoPrazo(p)) && diasRestantes(p.data_limite) >= 1 && diasRestantes(p.data_limite) <= 7).length, className: "border-yellow-300/50" },
+          { label: "Em andamento", value: (data ?? []).filter((p) => p.status === "Em andamento").length, className: "border-green-300/50" },
+        ].map((item) => (
+          <Card key={item.label} className={item.className}>
+            <CardContent className="p-4">
+              <p className="text-xs text-muted-foreground">{item.label}</p>
+              <p className="text-2xl font-bold">{item.value}</p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
       <Card>
         <CardContent className="space-y-3 p-4">
           <div className="flex flex-col gap-2 sm:flex-row">
@@ -622,6 +657,45 @@ function PrazosPage() {
               <Button key={f} size="sm" variant={filtro === f ? "default" : "outline"} onClick={() => setFiltro(f)}>{f}</Button>
             ))}
           </div>
+
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="filtro-advogado">Advogado</Label>
+              <Select value={advogadoFiltro} onValueChange={setAdvogadoFiltro}>
+                <SelectTrigger id="filtro-advogado"><SelectValue placeholder="Todos os advogados" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Todos">Todos</SelectItem>
+                  {ADVOGADOS.map((advogado) => (
+                    <SelectItem key={advogado} value={advogado}>{advogado}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="data-desde">Data limite desde</Label>
+              <Input id="data-desde" type="date" value={dataDesde} onChange={(e) => setDataDesde(e.target.value)} />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="data-ate">Data limite até</Label>
+              <Input id="data-ate" type="date" value={dataAte} onChange={(e) => setDataAte(e.target.value)} />
+            </div>
+          </div>
+
+          {(advogadoFiltro !== "Todos" || dataDesde || dataAte) && (
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => {
+                setAdvogadoFiltro("Todos");
+                setDataDesde("");
+                setDataAte("");
+              }}
+            >
+              Limpar filtros adicionais
+            </Button>
+          )}
         </CardContent>
       </Card>
 
