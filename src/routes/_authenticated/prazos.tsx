@@ -86,6 +86,8 @@ function chaveProcesso(valor: string | null | undefined) {
   return (valor ?? "").replace(/\D/g, "") || (valor ?? "").trim().toLowerCase();
 }
 
+const ADVOGADOS = ["Dr. Dimas", "Dra Cassia", "Dr. Wesley"] as const;
+
 const emptyForm = {
   nome: "",
   numero_processo: "",
@@ -790,7 +792,7 @@ function PrazosPage() {
           <form onSubmit={salvar} className="space-y-4">
             <div className="space-y-1.5"><Label>Nome *</Label><Input value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} required /></div>
             <div className="space-y-1.5"><Label>Número do Processo</Label><Input value={form.numero_processo} onChange={(e) => setForm({ ...form, numero_processo: e.target.value })} placeholder="Opcional" /></div>
-            <div className="grid gap-4 sm:grid-cols-2"><div className="space-y-1.5"><Label>Parte</Label><Select value={form.parte} onValueChange={(v) => setForm({ ...form, parte: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{PARTES.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}</SelectContent></Select></div><div className="space-y-1.5"><Label>Advogado</Label><Input value={form.advogado} onChange={(e) => setForm({ ...form, advogado: e.target.value })} placeholder="Nome do advogado" /></div></div>
+            <div className="grid gap-4 sm:grid-cols-2"><div className="space-y-1.5"><Label>Parte</Label><Select value={form.parte} onValueChange={(v) => setForm({ ...form, parte: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{PARTES.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}</SelectContent></Select></div><div className="space-y-1.5"><Label>Advogado</Label><Select value={form.advogado} onValueChange={(v) => setForm({ ...form, advogado: v })}><SelectTrigger><SelectValue placeholder="Selecione o advogado" /></SelectTrigger><SelectContent>{Array.from(new Set([...ADVOGADOS, ...(form.advogado ? [form.advogado] : [])])).map((a) => <SelectItem key={a} value={a}>{a}</SelectItem>)}</SelectContent></Select></div></div>
             <div className="space-y-1.5"><Label>Data Limite *</Label><Input type="date" value={form.data_limite} onChange={(e) => setForm({ ...form, data_limite: e.target.value })} required /></div>
             <div className="space-y-1.5"><Label>Observação</Label><Textarea value={form.observacao} onChange={(e) => setForm({ ...form, observacao: e.target.value })} /></div>
             <div className="space-y-3 rounded-lg border border-border p-3"><div className="flex items-center gap-2"><Checkbox id="lembrete" checked={form.lembrete_ativo} onCheckedChange={(v) => setForm({ ...form, lembrete_ativo: v === true })} /><Label htmlFor="lembrete" className="cursor-pointer">Ativar lembrete</Label></div>{form.lembrete_ativo && <><div className="space-y-1.5"><Label>Antecedência do lembrete</Label><Select value={String(form.antecedencia_dias)} onValueChange={(v) => setForm({ ...form, antecedencia_dias: Number(v) })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{ANTECEDENCIA_DIAS_OPTIONS.map((o) => <SelectItem key={o.value} value={String(o.value)}>{o.label}</SelectItem>)}</SelectContent></Select></div><div className="flex items-center gap-2"><Checkbox id="repetir" checked={form.repetir_alerta_diariamente} onCheckedChange={(v) => setForm({ ...form, repetir_alerta_diariamente: v === true })} /><Label htmlFor="repetir" className="cursor-pointer">Repetir alerta diariamente</Label></div></>}</div>
