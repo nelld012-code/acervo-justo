@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { FileText, FolderOpen, Archive, CheckCircle2, Clock, TrendingUp, CalendarClock } from "lucide-react";
+import { FileText, FolderOpen, Archive, CheckCircle2, Clock, TrendingUp, CalendarClock, AlertTriangle } from "lucide-react";
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid } from "recharts";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -51,18 +51,28 @@ function Dashboard() {
   });
 
   const { data: prazos } = useQuery({
-    queryKey: ["prazos-proximos"],
+    queryKey: ["prazos-dashboard"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("prazos")
-        .select("id, data_limite, status")
-        .eq("status", "Em andamento");
+        .select("id, nome, numero_processo, advogado, data_limite, status");
       if (error) throw error;
-      return (data ?? []) as Pick<Prazo, "id" | "data_limite" | "status">[];
+      return (data ?? []) as Pick<Prazo, "id" | "nome" | "numero_processo" | "advogado" | "data_limite" | "status">[];
     },
   });
 
-  const prazosProximos = (prazos ?? []).filter((p) => diasRestantes(p.data_limite) <= 6).length;
+  const prazosAndamento = (prazos ?? []).filter((p) => p.status === "Em andamento");
+  const prazosVencidos = prazosAndamento.filter((p) => diasRestantes(p.data_limite) < 0);
+  const prazosHoje = prazosAndamento.filter((p) => diasRestantes(p.data_limite) === 0);
+  const prazos3Dias = prazosAndamento.filter((p) => {
+    const dias = diasRestantes(p.data_limite);
+    return dias > 0 && dias <= 3;
+  });
+  const prazos7Dias = prazosAndamento.filter((p) => {
+    const dias = diasRestantes(p.data_limite);
+    return dias > 3 && dias <= 7;
+  });
+  const prazosProximos = prazosAndamento.filter((p) => diasRestantes(p.data_limite) <= 6).length;
 
   const total = data?.length ?? 0;
   const counts = {
@@ -127,6 +137,62 @@ function Dashboard() {
           </Card>
         ))}
       </div>
+
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <CardTitle>Agenda de Prazos</CardTitle>
+              <p className="mt-1 text-sm text-muted-foreground">Situação dos prazos em andamento — {format(now, "dd/MM/yyyy")}</p>
+            </div>
+            <CalendarClock className="h-5 w-5 text-primary" />
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-3 grid-cols-2 md:grid-cols-5">
+            <div className="rounded-lg border border-red-500/30 bg-red-500/5 p-4">
+              <div className="flex items-center gap-2 text-sm font-medium text-red-500"><AlertTriangle className="h-4 w-4" /> Vencidos</div>
+              <div className="mt-1 text-2xl font-bold">{prazosVencidos.length}</div>
+            </div>
+            <div className="rounded-lg border border-red-500/30 bg-red-500/5 p-4">
+              <div className="text-sm font-medium text-red-500">Vencem hoje</div>
+              <div className="mt-1 text-2xl font-bold">{prazosHoje.length}</div>
+            </div>
+            <div className="rounded-lg border border-orange-500/30 bg-orange-500/5 p-4">
+              <div className="text-sm font-medium text-orange-500">Próximos 3 dias</div>
+              <div className="mt-1 text-2xl font-bold">{prazos3Dias.length}</div>
+            </div>
+            <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-4">
+              <div className="text-sm font-medium text-amber-500">4–7 dias</div>
+              <div className="mt-1 text-2xl font-bold">{prazos7Dias.length}</div>
+            </div>
+            <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-4">
+              <div className="text-sm font-medium text-emerald-600">Em andamento</div>
+              <div className="mt-1 text-2xl font-bold">{prazosAndamento.length}</div>
+            </div>
+          </div>
+
+          {prazosVencidos.length > 0 && (
+            <div className="mt-5 rounded-lg border border-red-500/20 p-4">
+              <div className="mb-3 flex items-center justify-between">
+                <h3 className="font-semibold text-red-500">Prazos vencidos que exigem atenção</h3>
+                <Badge variant="destructive">{prazosVencidos.length}</Badge>
+              </div>
+              <div className="space-y-2">
+                {prazosVencidos.slice(0, 5).map((p) => (
+                  <div key={p.id} className="flex flex-wrap items-center justify-between gap-2 border-b pb-2 last:border-0 last:pb-0">
+                    <div className="min-w-0">
+                      <div className="truncate font-medium">{p.nome}</div>
+                      <div className="text-xs text-muted-foreground">{p.advogado ?? "Sem advogado"}{p.numero_processo ? ` • ${p.numero_processo}` : ""}</div>
+                    </div>
+                    <span className="text-xs font-medium text-red-500">{format(new Date(`${p.data_limite}T00:00:00`), "dd/MM/yyyy")}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <WeeklyAgenda />
 
