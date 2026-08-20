@@ -63,6 +63,29 @@ const ORDENACOES = [
 
 const ITENS_POR_PAGINA = 8;
 
+/** Campos que a importação pode atualizar em um prazo já existente. */
+type CampoAtualizavel = "nome" | "parte" | "advogado" | "data_limite" | "status" | "observacao" | "data_conclusao";
+
+type ImportUpdate = {
+  prazo: Prazo;
+  patch: Partial<Record<CampoAtualizavel, string | null>>;
+  mudancas: { rotulo: string; de: string; para: string }[];
+};
+
+const CAMPOS_LABEL: Record<CampoAtualizavel, string> = {
+  nome: "Nome",
+  parte: "Parte",
+  advogado: "Advogado",
+  data_limite: "Data limite",
+  status: "Status",
+  observacao: "Observação",
+  data_conclusao: "Data de conclusão",
+};
+
+function chaveProcesso(valor: string | null | undefined) {
+  return (valor ?? "").replace(/\D/g, "") || (valor ?? "").trim().toLowerCase();
+}
+
 const emptyForm = {
   nome: "",
   numero_processo: "",
