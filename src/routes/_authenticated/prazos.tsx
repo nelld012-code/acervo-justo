@@ -63,6 +63,29 @@ const ORDENACOES = [
 
 const ITENS_POR_PAGINA = 8;
 
+/** Campos que a importação pode atualizar em um prazo já existente. */
+type CampoAtualizavel = "nome" | "parte" | "advogado" | "data_limite" | "status" | "observacao" | "data_conclusao";
+
+type ImportUpdate = {
+  prazo: Prazo;
+  patch: Partial<Record<CampoAtualizavel, string>>;
+  mudancas: { rotulo: string; de: string; para: string }[];
+};
+
+const CAMPOS_LABEL: Record<CampoAtualizavel, string> = {
+  nome: "Nome",
+  parte: "Parte",
+  advogado: "Advogado",
+  data_limite: "Data limite",
+  status: "Status",
+  observacao: "Observação",
+  data_conclusao: "Data de conclusão",
+};
+
+function chaveProcesso(valor: string | null | undefined) {
+  return (valor ?? "").replace(/\D/g, "") || (valor ?? "").trim().toLowerCase();
+}
+
 const emptyForm = {
   nome: "",
   numero_processo: "",
@@ -151,6 +174,7 @@ function PrazosPage() {
   const [salvando, setSalvando] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [importRows, setImportRows] = useState<ImportPrazoRow[]>([]);
+  const [importAtualizacoes, setImportAtualizacoes] = useState<ImportUpdate[]>([]);
   const [importErrors, setImportErrors] = useState<string[]>([]);
   const [importFileName, setImportFileName] = useState("");
   const [importando, setImportando] = useState(false);
@@ -333,6 +357,7 @@ function PrazosPage() {
 
   function abrirImportacao() {
     setImportRows([]);
+    setImportAtualizacoes([]);
     setImportErrors([]);
     setImportFileName("");
     setImportOpen(true);
@@ -342,37 +367,88 @@ function PrazosPage() {
     if (!file) return;
     setImportFileName(file.name);
     setImportRows([]);
+    setImportAtualizacoes([]);
     setImportErrors([]);
     try {
       const rows = await parsePrazosExcel(file);
       const erros: string[] = [];
-      const existentes = new Set((data ?? []).map((p) =>
-        `${p.nome.trim().toLowerCase()}|${(p.numero_processo ?? "").trim().toLowerCase()}|${p.data_limite}`,
-      ));
-      const vistos = new Set<string>();
+      const porProcesso = new Map<string, Prazo>();
+      for (const p of data ?? []) {
+        const chave = chaveProcesso(p.numero_processo);
+        if (chave && !porProcesso.has(chave)) porProcesso.set(chave, p);
+      }
 
-      const validos = rows.filter((row, index) => {
+      const novos: ImportPrazoRow[] = [];
+      const atualizacoes: ImportUpdate[] = [];
+      const vistosNovos = new Set<string>();
+      const vistosProcesso = new Set<string>();
+
+      rows.forEach((row, index) => {
         const linha = index + 2;
+        const chaveProc = chaveProcesso(row.numero_processo);
+        const existente = chaveProc ? porProcesso.get(chaveProc) : undefined;
+
+        if (existente) {
+          if (vistosProcesso.has(chaveProc)) {
+            erros.push(`Linha ${linha}: expediente ${row.numero_processo} repetido na planilha.`);
+            return;
+          }
+          vistosProcesso.add(chaveProc);
+
+          const valores: Partial<Record<CampoAtualizavel, string | null>> = {
+            nome: row.nome || null,
+            parte: row.parte || null,
+            advogado: row.advogado,
+            data_limite: row.data_limite || null,
+            status: row.status || null,
+            observacao: row.observacao,
+            data_conclusao: row.data_conclusao,
+          };
+
+          const patch: Partial<Record<CampoAtualizavel, string>> = {};
+          const mudancas: ImportUpdate["mudancas"] = [];
+          (Object.keys(valores) as CampoAtualizavel[]).forEach((campo) => {
+            const novo = valores[campo];
+            // Célula vazia no Excel nunca apaga o valor já gravado.
+            if (novo === null || novo === undefined || novo === "") return;
+            const atual = existente[campo] ?? null;
+            if ((atual ?? "") === novo) return;
+            patch[campo] = novo;
+            const isData = campo === "data_limite" || campo === "data_conclusao";
+            mudancas.push({
+              rotulo: CAMPOS_LABEL[campo],
+              de: isData ? brDate(atual) : (atual || "—"),
+              para: isData ? brDate(novo) : novo,
+            });
+          });
+
+          if (mudancas.length) atualizacoes.push({ prazo: existente, patch, mudancas });
+          return;
+        }
+
         if (!row.nome) {
           erros.push(`Linha ${linha}: Nome não informado.`);
-          return false;
+          return;
         }
         if (!row.data_limite) {
           erros.push(`Linha ${linha}: Data Limite inválida ou não informada.`);
-          return false;
+          return;
         }
-        const chave = `${row.nome.trim().toLowerCase()}|${(row.numero_processo ?? "").trim().toLowerCase()}|${row.data_limite}`;
-        if (vistos.has(chave) || existentes.has(chave)) {
+        const chave = `${row.nome.trim().toLowerCase()}|${chaveProc}|${row.data_limite}`;
+        if (vistosNovos.has(chave)) {
           erros.push(`Linha ${linha}: possível registro duplicado (${row.nome} · ${brDate(row.data_limite)}).`);
-          return false;
+          return;
         }
-        vistos.add(chave);
-        return true;
+        vistosNovos.add(chave);
+        novos.push(row);
       });
 
-      setImportRows(validos);
+      setImportRows(novos);
+      setImportAtualizacoes(atualizacoes);
       setImportErrors(erros);
-      if (!validos.length && !erros.length) toast.error("O Excel não contém registros para importar.");
+      if (!novos.length && !atualizacoes.length && !erros.length) {
+        toast.error("O Excel não contém registros novos ou alterações a aplicar.");
+      }
     } catch (err) {
       toast.error("Não foi possível ler o Excel.", {
         description: err instanceof Error ? err.message : undefined,
@@ -381,7 +457,7 @@ function PrazosPage() {
   }
 
   async function importarPrazos() {
-    if (!importRows.length) return;
+    if (!importRows.length && !importAtualizacoes.length) return;
     setImportando(true);
     try {
       const { data: auth } = await supabase.auth.getUser();
@@ -402,21 +478,32 @@ function PrazosPage() {
         created_by: auth.user.id,
       }));
 
-      const { error } = await supabase.from("prazos").insert(payload);
-      if (error) throw error;
+      if (payload.length) {
+        const { error } = await supabase.from("prazos").insert(payload);
+        if (error) throw error;
+      }
+
+      for (const item of importAtualizacoes) {
+        const patch = { ...item.patch };
+        if (patch.status && patch.status !== "Concluído") patch.status = "Em andamento";
+        const { error } = await supabase.from("prazos").update(patch).eq("id", item.prazo.id);
+        if (error) throw error;
+      }
 
       await logAudit(null, "uploaded", {
         entidade: "prazo",
         acao: "importacao_excel",
         arquivo: importFileName,
         quantidade: payload.length,
+        atualizados: importAtualizacoes.length,
       });
 
-      toast.success("Prazos importados com sucesso.", {
-        description: `${payload.length} registro(s) adicionado(s).`,
+      toast.success("Importação concluída.", {
+        description: `${payload.length} novo(s) prazo(s) criado(s), ${importAtualizacoes.length} prazo(s) atualizado(s), ${importErrors.length} erro(s).`,
       });
       setImportOpen(false);
       setImportRows([]);
+      setImportAtualizacoes([]);
       setImportErrors([]);
       refresh();
     } catch (err) {
@@ -654,9 +741,16 @@ function PrazosPage() {
               {importFileName && <p className="mt-2 text-xs text-muted-foreground">{importFileName}</p>}
               <p className="mt-2 text-xs text-muted-foreground">Colunas: Nome, Número do Processo, Parte, Advogado, Data Limite, Status, Observação e Data de Conclusão.</p>
             </div>
+            {(importRows.length > 0 || importAtualizacoes.length > 0 || importErrors.length > 0) && (
+              <div className="flex flex-wrap gap-2">
+                <Badge variant="outline">{importRows.length} novo(s)</Badge>
+                <Badge variant="outline">{importAtualizacoes.length} atualização(ões)</Badge>
+                <Badge variant="outline">{importErrors.length} erro(s)</Badge>
+              </div>
+            )}
             {importRows.length > 0 && (
               <div className="space-y-2">
-                <div className="flex flex-wrap items-center justify-between gap-2"><p className="text-sm font-medium">{importRows.length} registro(s) pronto(s) para importar.</p>{importErrors.length > 0 && <Badge variant="outline">{importErrors.length} ignorado(s)</Badge>}</div>
+                <p className="text-sm font-medium">Novos prazos ({importRows.length})</p>
                 <div className="max-h-64 overflow-auto rounded-lg border">
                   <Table><TableHeader><TableRow><TableHead>Nome</TableHead><TableHead>Processo</TableHead><TableHead>Parte</TableHead><TableHead>Data Limite</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
                     <TableBody>{importRows.slice(0, 50).map((row, index) => <TableRow key={`${row.nome}-${row.data_limite}-${index}`}><TableCell>{row.nome}</TableCell><TableCell>{row.numero_processo || "—"}</TableCell><TableCell>{row.parte}</TableCell><TableCell>{brDate(row.data_limite)}</TableCell><TableCell>{row.status}</TableCell></TableRow>)}</TableBody>
@@ -665,11 +759,27 @@ function PrazosPage() {
                 {importRows.length > 50 && <p className="text-xs text-muted-foreground">Mostrando os primeiros 50 registros da pré-visualização.</p>}
               </div>
             )}
+            {importAtualizacoes.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-sm font-medium">Prazos que serão atualizados ({importAtualizacoes.length})</p>
+                <div className="max-h-64 space-y-2 overflow-auto rounded-lg border p-3">
+                  {importAtualizacoes.slice(0, 50).map((item) => (
+                    <div key={item.prazo.id} className="rounded-md border border-border/60 p-2">
+                      <p className="text-sm font-medium">{item.prazo.nome} · {processoOuTraco(item.prazo.numero_processo)}</p>
+                      <ul className="mt-1 space-y-0.5 text-xs text-muted-foreground">
+                        {item.mudancas.map((m) => <li key={m.rotulo}>{m.rotulo}: {m.de} → {m.para}</li>)}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+                {importAtualizacoes.length > 50 && <p className="text-xs text-muted-foreground">Mostrando as primeiras 50 atualizações.</p>}
+              </div>
+            )}
             {importErrors.length > 0 && <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3"><p className="mb-2 text-sm font-medium text-destructive">Registros que não serão importados</p><ul className="max-h-32 space-y-1 overflow-auto text-xs text-muted-foreground">{importErrors.map((error, index) => <li key={`${error}-${index}`}>{error}</li>)}</ul></div>}
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setImportOpen(false)}>Cancelar</Button>
-            <Button type="button" onClick={() => void importarPrazos()} disabled={!importRows.length || importando}>{importando ? "Importando..." : `Importar ${importRows.length || ""} prazo(s)`}</Button>
+            <Button type="button" onClick={() => void importarPrazos()} disabled={(!importRows.length && !importAtualizacoes.length) || importando}>{importando ? "Importando..." : `Confirmar importação (${importRows.length} novo(s) · ${importAtualizacoes.length} atualização(ões))`}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
