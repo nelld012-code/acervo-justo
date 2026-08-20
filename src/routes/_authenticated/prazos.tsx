@@ -357,6 +357,7 @@ function PrazosPage() {
 
   function abrirImportacao() {
     setImportRows([]);
+    setImportAtualizacoes([]);
     setImportErrors([]);
     setImportFileName("");
     setImportOpen(true);
@@ -366,37 +367,88 @@ function PrazosPage() {
     if (!file) return;
     setImportFileName(file.name);
     setImportRows([]);
+    setImportAtualizacoes([]);
     setImportErrors([]);
     try {
       const rows = await parsePrazosExcel(file);
       const erros: string[] = [];
-      const existentes = new Set((data ?? []).map((p) =>
-        `${p.nome.trim().toLowerCase()}|${(p.numero_processo ?? "").trim().toLowerCase()}|${p.data_limite}`,
-      ));
-      const vistos = new Set<string>();
+      const porProcesso = new Map<string, Prazo>();
+      for (const p of data ?? []) {
+        const chave = chaveProcesso(p.numero_processo);
+        if (chave && !porProcesso.has(chave)) porProcesso.set(chave, p);
+      }
 
-      const validos = rows.filter((row, index) => {
+      const novos: ImportPrazoRow[] = [];
+      const atualizacoes: ImportUpdate[] = [];
+      const vistosNovos = new Set<string>();
+      const vistosProcesso = new Set<string>();
+
+      rows.forEach((row, index) => {
         const linha = index + 2;
+        const chaveProc = chaveProcesso(row.numero_processo);
+        const existente = chaveProc ? porProcesso.get(chaveProc) : undefined;
+
+        if (existente) {
+          if (vistosProcesso.has(chaveProc)) {
+            erros.push(`Linha ${linha}: expediente ${row.numero_processo} repetido na planilha.`);
+            return;
+          }
+          vistosProcesso.add(chaveProc);
+
+          const valores: Partial<Record<CampoAtualizavel, string | null>> = {
+            nome: row.nome || null,
+            parte: row.parte || null,
+            advogado: row.advogado,
+            data_limite: row.data_limite || null,
+            status: row.status || null,
+            observacao: row.observacao,
+            data_conclusao: row.data_conclusao,
+          };
+
+          const patch: Partial<Record<CampoAtualizavel, string | null>> = {};
+          const mudancas: ImportUpdate["mudancas"] = [];
+          (Object.keys(valores) as CampoAtualizavel[]).forEach((campo) => {
+            const novo = valores[campo];
+            // Célula vazia no Excel nunca apaga o valor já gravado.
+            if (novo === null || novo === undefined || novo === "") return;
+            const atual = existente[campo] ?? null;
+            if ((atual ?? "") === novo) return;
+            patch[campo] = novo;
+            const isData = campo === "data_limite" || campo === "data_conclusao";
+            mudancas.push({
+              rotulo: CAMPOS_LABEL[campo],
+              de: isData ? brDate(atual) : (atual || "—"),
+              para: isData ? brDate(novo) : novo,
+            });
+          });
+
+          if (mudancas.length) atualizacoes.push({ prazo: existente, patch, mudancas });
+          return;
+        }
+
         if (!row.nome) {
           erros.push(`Linha ${linha}: Nome não informado.`);
-          return false;
+          return;
         }
         if (!row.data_limite) {
           erros.push(`Linha ${linha}: Data Limite inválida ou não informada.`);
-          return false;
+          return;
         }
-        const chave = `${row.nome.trim().toLowerCase()}|${(row.numero_processo ?? "").trim().toLowerCase()}|${row.data_limite}`;
-        if (vistos.has(chave) || existentes.has(chave)) {
+        const chave = `${row.nome.trim().toLowerCase()}|${chaveProc}|${row.data_limite}`;
+        if (vistosNovos.has(chave)) {
           erros.push(`Linha ${linha}: possível registro duplicado (${row.nome} · ${brDate(row.data_limite)}).`);
-          return false;
+          return;
         }
-        vistos.add(chave);
-        return true;
+        vistosNovos.add(chave);
+        novos.push(row);
       });
 
-      setImportRows(validos);
+      setImportRows(novos);
+      setImportAtualizacoes(atualizacoes);
       setImportErrors(erros);
-      if (!validos.length && !erros.length) toast.error("O Excel não contém registros para importar.");
+      if (!novos.length && !atualizacoes.length && !erros.length) {
+        toast.error("O Excel não contém registros novos ou alterações a aplicar.");
+      }
     } catch (err) {
       toast.error("Não foi possível ler o Excel.", {
         description: err instanceof Error ? err.message : undefined,
@@ -405,7 +457,7 @@ function PrazosPage() {
   }
 
   async function importarPrazos() {
-    if (!importRows.length) return;
+    if (!importRows.length && !importAtualizacoes.length) return;
     setImportando(true);
     try {
       const { data: auth } = await supabase.auth.getUser();
@@ -426,21 +478,32 @@ function PrazosPage() {
         created_by: auth.user.id,
       }));
 
-      const { error } = await supabase.from("prazos").insert(payload);
-      if (error) throw error;
+      if (payload.length) {
+        const { error } = await supabase.from("prazos").insert(payload);
+        if (error) throw error;
+      }
+
+      for (const item of importAtualizacoes) {
+        const patch = { ...item.patch };
+        if (patch.status && patch.status !== "Concluído") patch.status = "Em andamento";
+        const { error } = await supabase.from("prazos").update(patch).eq("id", item.prazo.id);
+        if (error) throw error;
+      }
 
       await logAudit(null, "uploaded", {
         entidade: "prazo",
         acao: "importacao_excel",
         arquivo: importFileName,
         quantidade: payload.length,
+        atualizados: importAtualizacoes.length,
       });
 
-      toast.success("Prazos importados com sucesso.", {
-        description: `${payload.length} registro(s) adicionado(s).`,
+      toast.success("Importação concluída.", {
+        description: `${payload.length} novo(s) prazo(s) criado(s), ${importAtualizacoes.length} prazo(s) atualizado(s), ${importErrors.length} erro(s).`,
       });
       setImportOpen(false);
       setImportRows([]);
+      setImportAtualizacoes([]);
       setImportErrors([]);
       refresh();
     } catch (err) {
