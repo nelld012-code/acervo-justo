@@ -68,7 +68,7 @@ type CampoAtualizavel = "nome" | "parte" | "advogado" | "data_limite" | "status"
 
 type ImportUpdate = {
   prazo: Prazo;
-  patch: Partial<Record<CampoAtualizavel, string | null>>;
+  patch: Partial<Record<CampoAtualizavel, string>>;
   mudancas: { rotulo: string; de: string; para: string }[];
 };
 
@@ -405,7 +405,7 @@ function PrazosPage() {
             data_conclusao: row.data_conclusao,
           };
 
-          const patch: Partial<Record<CampoAtualizavel, string | null>> = {};
+          const patch: Partial<Record<CampoAtualizavel, string>> = {};
           const mudancas: ImportUpdate["mudancas"] = [];
           (Object.keys(valores) as CampoAtualizavel[]).forEach((campo) => {
             const novo = valores[campo];
