@@ -151,6 +151,7 @@ function PrazosPage() {
   const [salvando, setSalvando] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [importRows, setImportRows] = useState<ImportPrazoRow[]>([]);
+  const [importAtualizacoes, setImportAtualizacoes] = useState<ImportUpdate[]>([]);
   const [importErrors, setImportErrors] = useState<string[]>([]);
   const [importFileName, setImportFileName] = useState("");
   const [importando, setImportando] = useState(false);
