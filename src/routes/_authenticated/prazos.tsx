@@ -741,9 +741,16 @@ function PrazosPage() {
               {importFileName && <p className="mt-2 text-xs text-muted-foreground">{importFileName}</p>}
               <p className="mt-2 text-xs text-muted-foreground">Colunas: Nome, Número do Processo, Parte, Advogado, Data Limite, Status, Observação e Data de Conclusão.</p>
             </div>
+            {(importRows.length > 0 || importAtualizacoes.length > 0 || importErrors.length > 0) && (
+              <div className="flex flex-wrap gap-2">
+                <Badge variant="outline">{importRows.length} novo(s)</Badge>
+                <Badge variant="outline">{importAtualizacoes.length} atualização(ões)</Badge>
+                <Badge variant="outline">{importErrors.length} erro(s)</Badge>
+              </div>
+            )}
             {importRows.length > 0 && (
               <div className="space-y-2">
-                <div className="flex flex-wrap items-center justify-between gap-2"><p className="text-sm font-medium">{importRows.length} registro(s) pronto(s) para importar.</p>{importErrors.length > 0 && <Badge variant="outline">{importErrors.length} ignorado(s)</Badge>}</div>
+                <p className="text-sm font-medium">Novos prazos ({importRows.length})</p>
                 <div className="max-h-64 overflow-auto rounded-lg border">
                   <Table><TableHeader><TableRow><TableHead>Nome</TableHead><TableHead>Processo</TableHead><TableHead>Parte</TableHead><TableHead>Data Limite</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
                     <TableBody>{importRows.slice(0, 50).map((row, index) => <TableRow key={`${row.nome}-${row.data_limite}-${index}`}><TableCell>{row.nome}</TableCell><TableCell>{row.numero_processo || "—"}</TableCell><TableCell>{row.parte}</TableCell><TableCell>{brDate(row.data_limite)}</TableCell><TableCell>{row.status}</TableCell></TableRow>)}</TableBody>
@@ -752,11 +759,27 @@ function PrazosPage() {
                 {importRows.length > 50 && <p className="text-xs text-muted-foreground">Mostrando os primeiros 50 registros da pré-visualização.</p>}
               </div>
             )}
+            {importAtualizacoes.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-sm font-medium">Prazos que serão atualizados ({importAtualizacoes.length})</p>
+                <div className="max-h-64 space-y-2 overflow-auto rounded-lg border p-3">
+                  {importAtualizacoes.slice(0, 50).map((item) => (
+                    <div key={item.prazo.id} className="rounded-md border border-border/60 p-2">
+                      <p className="text-sm font-medium">{item.prazo.nome} · {processoOuTraco(item.prazo.numero_processo)}</p>
+                      <ul className="mt-1 space-y-0.5 text-xs text-muted-foreground">
+                        {item.mudancas.map((m) => <li key={m.rotulo}>{m.rotulo}: {m.de} → {m.para}</li>)}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+                {importAtualizacoes.length > 50 && <p className="text-xs text-muted-foreground">Mostrando as primeiras 50 atualizações.</p>}
+              </div>
+            )}
             {importErrors.length > 0 && <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3"><p className="mb-2 text-sm font-medium text-destructive">Registros que não serão importados</p><ul className="max-h-32 space-y-1 overflow-auto text-xs text-muted-foreground">{importErrors.map((error, index) => <li key={`${error}-${index}`}>{error}</li>)}</ul></div>}
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setImportOpen(false)}>Cancelar</Button>
-            <Button type="button" onClick={() => void importarPrazos()} disabled={!importRows.length || importando}>{importando ? "Importando..." : `Importar ${importRows.length || ""} prazo(s)`}</Button>
+            <Button type="button" onClick={() => void importarPrazos()} disabled={(!importRows.length && !importAtualizacoes.length) || importando}>{importando ? "Importando..." : `Confirmar importação (${importRows.length} novo(s) · ${importAtualizacoes.length} atualização(ões))`}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
