@@ -1,0 +1,38 @@
+name: Apply Financeiro Phase 2
+on:
+  push:
+    branches: [feat/fase-2-financeiro-sem-cliente]
+permissions:
+  contents: write
+jobs:
+  apply:
+    if: "!contains(github.event.head_commit.message, '[skip ci]')"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch Financeiro
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('src/routes/_authenticated/financeiro.tsx')
+          s=p.read_text()
+          old='''      if (filtroStatus !== "Todos" && r.status !== filtroStatus) {\n        return false;\n      }'''
+          new='''      if (filtroStatus === "Sem cliente vinculado") {\n        if (r.kind !== "entrada" || r.document_id) return false;\n      } else if (filtroStatus !== "Todos" && r.status !== filtroStatus) {\n        return false;\n      }'''
+          if old not in s: raise SystemExit('filter target not found')
+          s=s.replace(old,new,1)
+          old='''                <SelectItem value="Pago">\n                  Pago\n                </SelectItem>'''
+          new='''                <SelectItem value="Pago">\n                  Pago\n                </SelectItem>\n                <SelectItem value="Sem cliente vinculado">\n                  🟠 Sem cliente vinculado\n                </SelectItem>'''
+          if old not in s: raise SystemExit('status option target not found')
+          s=s.replace(old,new,1)
+          p.write_text(s)
+          PY
+          git diff --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/routes/_authenticated/financeiro.tsx
+          git commit -m 'feat: filtro pagamentos sem cliente [skip ci]'
+          git push
+          rm .github/workflows/phase2-finance-filter.yml
+          git add -u .github/workflows/phase2-finance-filter.yml
+          git commit -m 'chore: remove temporary workflow [skip ci]'
+          git push
