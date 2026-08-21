@@ -333,7 +333,9 @@ function FinanceiroPage() {
         return false;
       }
 
-      if (filtroStatus !== "Todos" && r.status !== filtroStatus) {
+      if (filtroStatus === "Sem cliente vinculado") {
+        if (r.kind !== "entrada" || r.document_id) return false;
+      } else if (filtroStatus !== "Todos" && r.status !== filtroStatus) {
         return false;
       }
 
@@ -1033,6 +1035,9 @@ function FinanceiroPage() {
                 </SelectItem>
                 <SelectItem value="Pago">
                   Pago
+                </SelectItem>
+                <SelectItem value="Sem cliente vinculado">
+                  🟠 Sem cliente vinculado
                 </SelectItem>
               </SelectContent>
             </Select>
