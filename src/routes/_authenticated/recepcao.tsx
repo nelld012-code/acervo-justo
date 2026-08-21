@@ -37,7 +37,12 @@ function RecepcaoPage() {
   const hojeIso = iso(new Date());
   const semana = useMemo(() => weekRange(), []);
   const counts = useMemo(() => ({ hoje: rows.filter(r => r.data === hojeIso).length, semana: rows.filter(r => r.data >= semana.start && r.data <= semana.end).length, total: rows.length }), [rows, hojeIso, semana]);
-  const advogadosOpcoes = useMemo(() => Array.from(new Set([...ADVOGADOS_PADRAO, ...rows.map(r => r.advogado).filter(Boolean)])), [rows]);
+  const advogadosOpcoes = useMemo(() => {
+    const doBanco = rows.map(r => r.advogado?.trim()).filter((v): v is string => Boolean(v));
+    const vistos = new Set(ADVOGADOS_PADRAO);
+    const extras = doBanco.filter(a => !vistos.has(a));
+    return Array.from(new Set([...ADVOGADOS_PADRAO, ...extras])).sort((a, b) => a.localeCompare(b));
+  }, [rows]);
   const atendentesOpcoes = useMemo(() => Array.from(new Set(rows.map(r => r.atendente).filter(Boolean))).sort((a, b) => a.localeCompare(b)), [rows]);
   const filtered = useMemo(() => {
     const q = busca.trim().toLowerCase();
