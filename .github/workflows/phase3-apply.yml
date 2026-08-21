@@ -1,0 +1,54 @@
+name: Apply Financeiro Phase 3
+on:
+  push:
+    branches: [feat/fase-3-vinculacao-pagamentos]
+permissions:
+  contents: write
+jobs:
+  apply:
+    if: "!contains(github.event.head_commit.message, '[skip ci]')"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch clients and financeiro
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          # Clients: after creating a client, automatically link pending payments by exact normalized CPF.
+          p = Path('src/routes/_authenticated/clientes.tsx')
+          s = p.read_text()
+          old = '''      } else {\n        const { error } = await supabase.from("clients").insert({ ...payload, created_by: userData.user?.id });\n        if (error) throw error;\n        toast.success("Cliente cadastrado");\n      }'''
+          new = '''      } else {\n        const { data: novoCliente, error } = await supabase\n          .from("clients")\n          .insert({ ...payload, created_by: userData.user?.id })\n          .select("id, nome, cpf_cnpj")\n          .single();\n        if (error) throw error;\n\n        let vinculados = 0;\n        const cpfNovo = (novoCliente?.cpf_cnpj ?? "").replace(/\\D/g, "");\n        if (novoCliente?.id && cpfNovo) {\n          const { data: pagamentosPendentes, error: pagamentosError } = await supabase\n            .from("payments")\n            .select("id, pagador_cpf")\n            .is("client_id", null)\n            .not("pagador_cpf", "is", null);\n          if (pagamentosError) throw pagamentosError;\n\n          const matches = (pagamentosPendentes ?? []).filter(\n            (p) => (p.pagador_cpf ?? "").replace(/\\D/g, "") === cpfNovo,\n          );\n          for (const pagamento of matches) {\n            const { error: updateError } = await supabase\n              .from("payments")\n              .update({ client_id: novoCliente.id })\n              .eq("id", pagamento.id)\n              .is("client_id", null);\n            if (!updateError) vinculados += 1;\n          }\n        }\n\n        toast.success("Cliente cadastrado", {\n          description: vinculados > 0\n            ? `${vinculados} pagamento(s) anterior(es) vinculado(s) automaticamente pelo CPF.`\n            : undefined,\n        });\n      }'''
+          if old not in s: raise SystemExit('clients save target not found')
+          s=s.replace(old,new,1)
+          p.write_text(s)
+
+          # Financeiro: expose client_id and make the filter mean truly without a client.
+          p = Path('src/routes/_authenticated/financeiro.tsx')
+          s = p.read_text()
+          s=s.replace('  pagador_cpf?: string | null;\n', '  pagador_cpf?: string | null;\n  client_id?: string | null;\n', 1)
+          old='''id, document_id, valor, data_pagamento, responsavel_recebimento, metodo_pagamento, descricao, created_at, pagador_nome, pagador_cpf, documents(numero_processo, cliente)'''
+          new='''id, document_id, client_id, valor, data_pagamento, responsavel_recebimento, metodo_pagamento, descricao, created_at, pagador_nome, pagador_cpf, documents(numero_processo, cliente)'''
+          if old not in s: raise SystemExit('finance payment select target not found')
+          s=s.replace(old,new,1)
+          old='''      document_id: p.document_id,\n      metodo_pagamento:'''
+          new='''      document_id: p.document_id,\n      client_id: p.client_id ?? null,\n      metodo_pagamento:'''
+          if old not in s: raise SystemExit('finance record target not found')
+          s=s.replace(old,new,1)
+          old='''      if (filtroStatus === "Sem cliente vinculado") {\n        if (r.kind !== "entrada" || r.document_id) return false;\n      } else if (filtroStatus !== "Todos" && r.status !== filtroStatus) {'''
+          new='''      if (filtroStatus === "Sem cliente vinculado") {\n        if (r.kind !== "entrada" || (r as RegistroFinanceiro & { client_id?: string | null }).client_id) return false;\n      } else if (filtroStatus !== "Todos" && r.status !== filtroStatus) {'''
+          if old not in s: raise SystemExit('finance filter target not found')
+          s=s.replace(old,new,1)
+          p.write_text(s)
+          PY
+          git diff --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/routes/_authenticated/clientes.tsx src/routes/_authenticated/financeiro.tsx
+          git commit -m 'feat: vincular pagamentos ao cliente por CPF [skip ci]'
+          git push
+          rm .github/workflows/phase3-apply.yml
+          git add -u .github/workflows/phase3-apply.yml
+          git commit -m 'chore: remove temporary phase3 workflow [skip ci]'
+          git push
