@@ -155,9 +155,41 @@ function ClientesPage() {
         if (error) throw error;
         toast.success("Cliente atualizado");
       } else {
-        const { error } = await supabase.from("clients").insert({ ...payload, created_by: userData.user?.id });
+        const { data: novoCliente, error } = await supabase
+          .from("clients")
+          .insert({ ...payload, created_by: userData.user?.id })
+          .select("id, nome, cpf_cnpj")
+          .single();
         if (error) throw error;
-        toast.success("Cliente cadastrado");
+
+        let vinculados = 0;
+        const cpfNovo = (novoCliente?.cpf_cnpj ?? "").replace(/\D/g, "");
+        if (novoCliente?.id && cpfNovo) {
+          const { data: pagamentosPendentes, error: pagamentosError } = await supabase
+            .from("payments")
+            .select("id, pagador_cpf")
+            .is("client_id", null)
+            .not("pagador_cpf", "is", null);
+          if (pagamentosError) throw pagamentosError;
+
+          const matches = (pagamentosPendentes ?? []).filter(
+            (p) => (p.pagador_cpf ?? "").replace(/\D/g, "") === cpfNovo,
+          );
+          for (const pagamento of matches) {
+            const { error: updateError } = await supabase
+              .from("payments")
+              .update({ client_id: novoCliente.id })
+              .eq("id", pagamento.id)
+              .is("client_id", null);
+            if (!updateError) vinculados += 1;
+          }
+        }
+
+        toast.success("Cliente cadastrado", {
+          description: vinculados > 0
+            ? `${vinculados} pagamento(s) anterior(es) vinculado(s) automaticamente pelo CPF.`
+            : undefined,
+        });
       }
       setOpen(false);
       qc.invalidateQueries({ queryKey: ["clients"] });
