@@ -68,6 +68,8 @@ export const Route = createFileRoute("/_authenticated/financeiro")({
 });
 
 type PaymentWithDoc = PaymentRow & {
+  pagador_nome?: string | null;
+  pagador_cpf?: string | null;
   documents: {
     numero_processo: string;
     cliente: string;
@@ -190,7 +192,7 @@ function FinanceiroPage() {
       const { data, error } = await supabase
         .from("payments")
         .select(
-          "id, document_id, valor, data_pagamento, responsavel_recebimento, metodo_pagamento, descricao, created_at, documents(numero_processo, cliente)",
+          "id, document_id, valor, data_pagamento, responsavel_recebimento, metodo_pagamento, descricao, created_at, pagador_nome, pagador_cpf, documents(numero_processo, cliente)",
         )
         .order("data_pagamento", { ascending: false });
 
@@ -270,7 +272,7 @@ function FinanceiroPage() {
     const entradas: RegistroFinanceiro[] = (payments ?? []).map((p) => ({
       kind: "entrada",
       id: p.id,
-      nome: p.documents?.cliente ?? "—",
+      nome: p.documents?.cliente ?? p.pagador_nome ?? "—",
       numero_processo: p.documents?.numero_processo ?? null,
       tipo: "Entrada",
       valor: Number(p.valor),
@@ -2511,6 +2513,7 @@ function RegisterPaymentDialog({
   const [query, setQuery] = useState("");
   const [selected, setSelected] =
     useState<ProcessOption | null>(null);
+  const [semVinculo, setSemVinculo] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const [form, setForm] = useState({
@@ -2528,7 +2531,7 @@ function RegisterPaymentDialog({
     enabled:
       open &&
       query.trim().length >= 2 &&
-      !selected,
+      !selected && !semVinculo,
 
     queryFn: async () => {
       const q = `%${query.trim()}%`;
@@ -2552,6 +2555,7 @@ function RegisterPaymentDialog({
   function reset() {
     setQuery("");
     setSelected(null);
+    setSemVinculo(false);
 
     setForm({
       valor: "",
@@ -2561,14 +2565,14 @@ function RegisterPaymentDialog({
       responsavel_recebimento: "",
       metodo_pagamento: "PIX",
       descricao: "",
+      pagador_nome: "",
+      pagador_cpf: "",
     });
   }
 
   async function handleSave() {
-    if (!selected) {
-      return toast.error(
-        "Selecione um processo",
-      );
+    if (!selected && !semVinculo) {
+      return toast.error("Selecione um processo ou escolha Sem processo / cliente");
     }
 
     const valor = Number(form.valor);
@@ -2583,15 +2587,29 @@ function RegisterPaymentDialog({
       );
     }
 
+    if (semVinculo) {
+      const nome = form.pagador_nome.trim();
+      const cpf = form.pagador_cpf.replace(/\D/g, "");
+
+      if (!nome) {
+        return toast.error("Informe o nome do pagador");
+      }
+
+      if (cpf.length !== 11) {
+        return toast.error("Informe um CPF válido com 11 dígitos");
+      }
+    }
+
     const total = Number(
-      selected.valor_total_processo ?? 0,
+      selected?.valor_total_processo ?? 0,
     );
 
     const recebido = Number(
-      selected.valor_recebido_total ?? 0,
+      selected?.valor_recebido_total ?? 0,
     );
 
     if (
+      selected &&
       total > 0 &&
       recebido + valor > total
     ) {
@@ -2614,7 +2632,9 @@ function RegisterPaymentDialog({
       const { error } = await supabase
         .from("payments")
         .insert({
-          document_id: selected.id,
+          document_id: selected?.id ?? null,
+          pagador_nome: semVinculo ? form.pagador_nome.trim() : null,
+          pagador_cpf: semVinculo ? form.pagador_cpf.replace(/\D/g, "") : null,
           valor,
           data_pagamento:
             form.data_pagamento,
@@ -2665,7 +2685,85 @@ function RegisterPaymentDialog({
           </DialogTitle>
         </DialogHeader>
 
-        {!selected ? (
+        <div className="space-y-1.5">
+          <Label>Vínculo da entrada *</Label>
+          <Select
+            value={semVinculo ? "sem-processo" : "processo"}
+            onValueChange={(v) => {
+              const sem = v === "sem-processo";
+              setSemVinculo(sem);
+              setSelected(null);
+              setQuery("");
+            }}
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="processo">Com processo / cliente</SelectItem>
+              <SelectItem value="sem-processo">Sem processo / cliente ainda não cadastrado</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {semVinculo ? (
+          <div className="space-y-3">
+            <div className="rounded-md border bg-muted/30 p-3 text-sm">
+              <p className="font-medium">Entrada sem processo / cliente</p>
+              <p className="text-xs text-muted-foreground">
+                O pagamento será salvo sem vínculo e poderá ser associado posteriormente pelo CPF.
+              </p>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label>Nome do pagador *</Label>
+                <Input
+                  value={form.pagador_nome}
+                  onChange={(e) => setForm({ ...form, pagador_nome: e.target.value })}
+                  placeholder="Nome completo"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>CPF do pagador *</Label>
+                <Input
+                  value={form.pagador_cpf}
+                  onChange={(e) => setForm({ ...form, pagador_cpf: e.target.value })}
+                  placeholder="000.000.000-00"
+                  inputMode="numeric"
+                />
+              </div>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label>Valor (R$) *</Label>
+                <Input type="number" step="0.01" min="0" value={form.valor} onChange={(e) => setForm({ ...form, valor: e.target.value })} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Data *</Label>
+                <Input type="date" value={form.data_pagamento} onChange={(e) => setForm({ ...form, data_pagamento: e.target.value })} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Responsável *</Label>
+                <Input value={form.responsavel_recebimento} onChange={(e) => setForm({ ...form, responsavel_recebimento: e.target.value })} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Método *</Label>
+                <Select value={form.metodo_pagamento} onValueChange={(v) => setForm({ ...form, metodo_pagamento: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {METODOS_PAGAMENTO.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5 sm:col-span-2">
+                <Label>Descrição</Label>
+                <Input value={form.descricao} onChange={(e) => setForm({ ...form, descricao: e.target.value })} />
+              </div>
+            </div>
+          </div>
+        ) : !selected ? (
           <div className="space-y-3">
             <div className="space-y-1.5">
               <Label>
@@ -2876,7 +2974,7 @@ function RegisterPaymentDialog({
 
           <Button
             onClick={handleSave}
-            disabled={saving || !selected}
+            disabled={saving || (!selected && !semVinculo)}
             className="bg-primary hover:bg-primary/90"
           >
             {saving
