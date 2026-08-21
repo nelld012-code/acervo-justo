@@ -1,0 +1,57 @@
+name: Apply Financeiro Phase 2
+
+on:
+  push:
+    branches:
+      - feat/fase-2-financeiro-sem-cliente
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: "!contains(github.event.head_commit.message, '[skip ci]')"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply targeted Financeiro filter
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('src/routes/_authenticated/financeiro.tsx')
+          s = p.read_text()
+          old = '''      if (filtroStatus !== "Todos" && r.status !== filtroStatus) {
+        return false;
+      }'''
+          new = '''      if (filtroStatus === "Sem cliente vinculado") {
+        if (r.kind !== "entrada" || r.document_id) return false;
+      } else if (filtroStatus !== "Todos" && r.status !== filtroStatus) {
+        return false;
+      }'''
+          if old not in s:
+              raise SystemExit('target filter block not found')
+          s = s.replace(old, new, 1)
+          old = '''                <SelectItem value="Pago">
+                  Pago
+                </SelectItem>'''
+          new = '''                <SelectItem value="Pago">
+                  Pago
+                </SelectItem>
+                <SelectItem value="Sem cliente vinculado">
+                  🟠 Sem cliente vinculado
+                </SelectItem>'''
+          if old not in s:
+              raise SystemExit('target status option not found')
+          s = s.replace(old, new, 1)
+          p.write_text(s)
+          PY
+          git diff --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/routes/_authenticated/financeiro.tsx
+          git commit -m 'feat: filtro pagamentos sem cliente [skip ci]'
+          git push
+          rm .github/workflows/phase2-finance-filter.yml
+          git add -u .github/workflows/phase2-finance-filter.yml
+          git commit -m 'chore: remove temporary phase2 workflow [skip ci]'
+          git push
