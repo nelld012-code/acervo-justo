@@ -70,6 +70,7 @@ export const Route = createFileRoute("/_authenticated/financeiro")({
 type PaymentWithDoc = PaymentRow & {
   pagador_nome?: string | null;
   pagador_cpf?: string | null;
+  client_id?: string | null;
   documents: {
     numero_processo: string;
     cliente: string;
@@ -192,7 +193,7 @@ function FinanceiroPage() {
       const { data, error } = await supabase
         .from("payments")
         .select(
-          "id, document_id, valor, data_pagamento, responsavel_recebimento, metodo_pagamento, descricao, created_at, pagador_nome, pagador_cpf, documents(numero_processo, cliente)",
+          "id, document_id, client_id, valor, data_pagamento, responsavel_recebimento, metodo_pagamento, descricao, created_at, pagador_nome, pagador_cpf, documents(numero_processo, cliente)",
         )
         .order("data_pagamento", { ascending: false });
 
@@ -280,6 +281,7 @@ function FinanceiroPage() {
       status: "Recebido",
       observacao: p.descricao ?? null,
       document_id: p.document_id,
+      client_id: p.client_id ?? null,
       metodo_pagamento: p.metodo_pagamento ?? null,
       responsavel_recebimento:
         p.responsavel_recebimento ?? null,
@@ -334,7 +336,7 @@ function FinanceiroPage() {
       }
 
       if (filtroStatus === "Sem cliente vinculado") {
-        if (r.kind !== "entrada" || r.document_id) return false;
+        if (r.kind !== "entrada" || (r as RegistroFinanceiro & { client_id?: string | null }).client_id) return false;
       } else if (filtroStatus !== "Todos" && r.status !== filtroStatus) {
         return false;
       }
