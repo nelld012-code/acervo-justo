@@ -34,7 +34,25 @@ function RecepcaoPage() {
   const [dataDe, setDataDe] = useState(""); const [dataAte, setDataAte] = useState("");
   const [importOpen, setImportOpen] = useState(false); const [importRows, setImportRows] = useState<ReceptionImportRow[]>([]); const [importErrors, setImportErrors] = useState<ReceptionImportError[]>([]); const [importing, setImporting] = useState(false); const [importPage, setImportPage] = useState(1); const fileRef = useRef<HTMLInputElement>(null);
   const { data: rows = [], isLoading } = useQuery({ queryKey: ["reception-entries"], queryFn: async () => { const { data, error } = await supabase.from("reception_entries").select("*").order("data", { ascending: false }).order("created_at", { ascending: false }); if (error) throw error; return data as Reception[]; } });
-  const filtered = useMemo(() => { const q = busca.trim().toLowerCase(); if (!q) return rows; return rows.filter(r => [r.nome_cliente, r.advogado, r.atendente, r.cpf ?? "", r.telefone].some(v => v.toLowerCase().includes(q))); }, [rows, busca]);
+  const hojeIso = iso(new Date());
+  const semana = useMemo(() => weekRange(), []);
+  const counts = useMemo(() => ({ hoje: rows.filter(r => r.data === hojeIso).length, semana: rows.filter(r => r.data >= semana.start && r.data <= semana.end).length, total: rows.length }), [rows, hojeIso, semana]);
+  const advogadosOpcoes = useMemo(() => Array.from(new Set([...ADVOGADOS_PADRAO, ...rows.map(r => r.advogado).filter(Boolean)])), [rows]);
+  const atendentesOpcoes = useMemo(() => Array.from(new Set(rows.map(r => r.atendente).filter(Boolean))).sort((a, b) => a.localeCompare(b)), [rows]);
+  const filtered = useMemo(() => {
+    const q = busca.trim().toLowerCase();
+    return rows.filter(r => {
+      if (q && ![r.nome_cliente, r.advogado, r.atendente, r.cpf ?? "", r.telefone].some(v => v.toLowerCase().includes(q))) return false;
+      if (periodo === "hoje" && r.data !== hojeIso) return false;
+      if (periodo === "semana" && !(r.data >= semana.start && r.data <= semana.end)) return false;
+      if (advogadoFiltro !== "todos" && r.advogado !== advogadoFiltro) return false;
+      if (atendenteFiltro !== "todos" && r.atendente !== atendenteFiltro) return false;
+      if (dataDe && r.data < dataDe) return false;
+      if (dataAte && r.data > dataAte) return false;
+      return true;
+    });
+  }, [rows, busca, periodo, advogadoFiltro, atendenteFiltro, dataDe, dataAte, hojeIso, semana]);
+  function limparFiltros() { setBusca(""); setPeriodo("todos"); setAdvogadoFiltro("todos"); setAtendenteFiltro("todos"); setDataDe(""); setDataAte(""); setPage(1); }
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
   const pagedRows = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
