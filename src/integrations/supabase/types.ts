@@ -322,39 +322,55 @@ export type Database = {
       }
       payments: {
         Row: {
+          cliente_id: string | null
           created_at: string
           created_by: string | null
           data_pagamento: string
           descricao: string | null
-          document_id: string
+          document_id: string | null
           id: string
           metodo_pagamento: string
+          pagador_cpf: string | null
+          pagador_nome: string | null
           responsavel_recebimento: string
           valor: number
         }
         Insert: {
+          cliente_id?: string | null
           created_at?: string
           created_by?: string | null
           data_pagamento: string
           descricao?: string | null
-          document_id: string
+          document_id?: string | null
           id?: string
           metodo_pagamento: string
+          pagador_cpf?: string | null
+          pagador_nome?: string | null
           responsavel_recebimento: string
           valor: number
         }
         Update: {
+          cliente_id?: string | null
           created_at?: string
           created_by?: string | null
           data_pagamento?: string
           descricao?: string | null
-          document_id?: string
+          document_id?: string | null
           id?: string
           metodo_pagamento?: string
+          pagador_cpf?: string | null
+          pagador_nome?: string | null
           responsavel_recebimento?: string
           valor?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "payments_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "payments_document_id_fkey"
             columns: ["document_id"]
@@ -572,7 +588,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      only_digits: { Args: { v: string }; Returns: string }
     }
     Enums: {
       app_role: "admin" | "manager" | "user"
