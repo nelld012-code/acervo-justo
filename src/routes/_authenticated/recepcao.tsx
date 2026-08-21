@@ -21,6 +21,9 @@ type Reception = { id: string; data: string; advogado: string; nome_cliente: str
 const emptyForm = { data: new Date().toISOString().slice(0, 10), advogado: "", nome_cliente: "", cpf: "", telefone: "", atendente: "" };
 const PAGE_SIZE = 8;
 function br(d: string) { if (!d) return "—"; const [y, m, dd] = d.split("-"); return `${dd}/${m}/${y}`; }
+function iso(d: Date) { return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; }
+function weekRange() { const now = new Date(); const day = (now.getDay() + 6) % 7; const start = new Date(now); start.setDate(now.getDate() - day); const end = new Date(start); end.setDate(start.getDate() + 6); return { start: iso(start), end: iso(end) }; }
+const ADVOGADOS_PADRAO = ["Dr. Dimas", "Dra Cassia", "Dr. Wesley"];
 
 function RecepcaoPage() {
   const qc = useQueryClient(); const [open, setOpen] = useState(false); const [editing, setEditing] = useState<Reception | null>(null); const [form, setForm] = useState({ ...emptyForm }); const [saving, setSaving] = useState(false); const [toDelete, setToDelete] = useState<Reception | null>(null); const [busca, setBusca] = useState("");
