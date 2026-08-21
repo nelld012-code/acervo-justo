@@ -28,6 +28,10 @@ const ADVOGADOS_PADRAO = ["Dr. Dimas", "Dra Cassia", "Dr. Wesley"];
 function RecepcaoPage() {
   const qc = useQueryClient(); const [open, setOpen] = useState(false); const [editing, setEditing] = useState<Reception | null>(null); const [form, setForm] = useState({ ...emptyForm }); const [saving, setSaving] = useState(false); const [toDelete, setToDelete] = useState<Reception | null>(null); const [busca, setBusca] = useState("");
   const [page, setPage] = useState(1);
+  const [periodo, setPeriodo] = useState<"todos" | "hoje" | "semana">("todos");
+  const [advogadoFiltro, setAdvogadoFiltro] = useState("todos");
+  const [atendenteFiltro, setAtendenteFiltro] = useState("todos");
+  const [dataDe, setDataDe] = useState(""); const [dataAte, setDataAte] = useState("");
   const [importOpen, setImportOpen] = useState(false); const [importRows, setImportRows] = useState<ReceptionImportRow[]>([]); const [importErrors, setImportErrors] = useState<ReceptionImportError[]>([]); const [importing, setImporting] = useState(false); const [importPage, setImportPage] = useState(1); const fileRef = useRef<HTMLInputElement>(null);
   const { data: rows = [], isLoading } = useQuery({ queryKey: ["reception-entries"], queryFn: async () => { const { data, error } = await supabase.from("reception_entries").select("*").order("data", { ascending: false }).order("created_at", { ascending: false }); if (error) throw error; return data as Reception[]; } });
   const filtered = useMemo(() => { const q = busca.trim().toLowerCase(); if (!q) return rows; return rows.filter(r => [r.nome_cliente, r.advogado, r.atendente, r.cpf ?? "", r.telefone].some(v => v.toLowerCase().includes(q))); }, [rows, busca]);
