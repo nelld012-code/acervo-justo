@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -16,7 +17,23 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
   component: Dashboard,
 });
 
+type FiltroPrazo = "todos" | "vencidos" | "hoje" | "3dias" | "7dias" | "concluidos";
+
+const FILTROS_PRAZO: { value: FiltroPrazo; label: string }[] = [
+  { value: "todos", label: "Todos" },
+  { value: "vencidos", label: "Vencidos" },
+  { value: "hoje", label: "Hoje" },
+  { value: "3dias", label: "Próximos 3 dias" },
+  { value: "7dias", label: "Próximos 7 dias" },
+  { value: "concluidos", label: "Concluídos" },
+];
+
+const ADVOGADOS_FILTRO = ["Dr. Dimas", "Dra Cassia", "Dr. Wesley"];
+
 function Dashboard() {
+  const [filtroPrazo, setFiltroPrazo] = useState<FiltroPrazo>("todos");
+  const [filtroAdvogado, setFiltroAdvogado] = useState("Todos");
+
   const { data, isLoading } = useQuery({
     queryKey: ["dashboard"],
     queryFn: async () => {
@@ -74,6 +91,23 @@ function Dashboard() {
   });
   const prazosProximos = prazosAndamento.filter((p) => diasRestantes(p.data_limite) <= 6).length;
 
+  const prazosFiltrados = useMemo(() => {
+    return (prazos ?? []).filter((p) => {
+      const dias = diasRestantes(p.data_limite);
+      const passaAdvogado = filtroAdvogado === "Todos" || p.advogado === filtroAdvogado;
+      if (!passaAdvogado) return false;
+
+      switch (filtroPrazo) {
+        case "vencidos": return p.status === "Em andamento" && dias < 0;
+        case "hoje": return p.status === "Em andamento" && dias === 0;
+        case "3dias": return p.status === "Em andamento" && dias > 0 && dias <= 3;
+        case "7dias": return p.status === "Em andamento" && dias > 0 && dias <= 7;
+        case "concluidos": return p.status === "Concluído";
+        default: return true;
+      }
+    }).sort((a, b) => a.data_limite.localeCompare(b.data_limite));
+  }, [prazos, filtroPrazo, filtroAdvogado]);
+
   const total = data?.length ?? 0;
   const counts = {
     Aberto: data?.filter((d) => d.estado_processual === "Aberto").length ?? 0,
@@ -82,7 +116,6 @@ function Dashboard() {
     Encerrado: data?.filter((d) => d.estado_processual === "Encerrado").length ?? 0,
   };
 
-  // Monthly influx (last 6 months)
   const monthly: { mes: string; total: number }[] = [];
   const monthlyCash: { mes: string; total: number }[] = [];
   const now = new Date();
@@ -143,53 +176,70 @@ function Dashboard() {
           <div className="flex items-center justify-between gap-3">
             <div>
               <CardTitle>Agenda de Prazos</CardTitle>
-              <p className="mt-1 text-sm text-muted-foreground">Situação dos prazos em andamento — {format(now, "dd/MM/yyyy")}</p>
+              <p className="mt-1 text-sm text-muted-foreground">Filtre rapidamente os prazos por situação e advogado.</p>
             </div>
             <CalendarClock className="h-5 w-5 text-primary" />
           </div>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-3 grid-cols-2 md:grid-cols-5">
-            <div className="rounded-lg border border-red-500/30 bg-red-500/5 p-4">
-              <div className="flex items-center gap-2 text-sm font-medium text-red-500"><AlertTriangle className="h-4 w-4" /> Vencidos</div>
-              <div className="mt-1 text-2xl font-bold">{prazosVencidos.length}</div>
+          <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex flex-wrap gap-2">
+              {FILTROS_PRAZO.map((filtro) => (
+                <button
+                  key={filtro.value}
+                  type="button"
+                  onClick={() => setFiltroPrazo(filtro.value)}
+                  className={`rounded-md border px-3 py-1.5 text-sm font-medium transition-colors ${filtroPrazo === filtro.value ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground"}`}
+                >
+                  {filtro.label}
+                </button>
+              ))}
             </div>
-            <div className="rounded-lg border border-red-500/30 bg-red-500/5 p-4">
-              <div className="text-sm font-medium text-red-500">Vencem hoje</div>
-              <div className="mt-1 text-2xl font-bold">{prazosHoje.length}</div>
-            </div>
-            <div className="rounded-lg border border-orange-500/30 bg-orange-500/5 p-4">
-              <div className="text-sm font-medium text-orange-500">Próximos 3 dias</div>
-              <div className="mt-1 text-2xl font-bold">{prazos3Dias.length}</div>
-            </div>
-            <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-4">
-              <div className="text-sm font-medium text-amber-500">4–7 dias</div>
-              <div className="mt-1 text-2xl font-bold">{prazos7Dias.length}</div>
-            </div>
-            <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-4">
-              <div className="text-sm font-medium text-emerald-600">Em andamento</div>
-              <div className="mt-1 text-2xl font-bold">{prazosAndamento.length}</div>
-            </div>
+            <label className="flex items-center gap-2 text-sm text-muted-foreground">
+              <span>Advogado:</span>
+              <select
+                value={filtroAdvogado}
+                onChange={(event) => setFiltroAdvogado(event.target.value)}
+                className="rounded-md border border-border bg-background px-3 py-1.5 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary"
+              >
+                <option value="Todos">Todos</option>
+                {ADVOGADOS_FILTRO.map((advogado) => <option key={advogado} value={advogado}>{advogado}</option>)}
+              </select>
+            </label>
           </div>
 
-          {prazosVencidos.length > 0 && (
-            <div className="mt-5 rounded-lg border border-red-500/20 p-4">
-              <div className="mb-3 flex items-center justify-between">
-                <h3 className="font-semibold text-red-500">Prazos vencidos que exigem atenção</h3>
-                <Badge variant="destructive">{prazosVencidos.length}</Badge>
-              </div>
-              <div className="space-y-2">
-                {prazosVencidos.slice(0, 5).map((p) => (
-                  <div key={p.id} className="flex flex-wrap items-center justify-between gap-2 border-b pb-2 last:border-0 last:pb-0">
+          <div className="mb-4 flex items-center justify-between">
+            <div className="text-sm text-muted-foreground">
+              {prazosFiltrados.length} {prazosFiltrados.length === 1 ? "prazo encontrado" : "prazos encontrados"}
+            </div>
+            {filtroPrazo === "vencidos" && prazosFiltrados.length > 0 && (
+              <Badge variant="destructive"><AlertTriangle className="mr-1 h-3 w-3" /> Atenção</Badge>
+            )}
+          </div>
+
+          {prazosFiltrados.length > 0 ? (
+            <div className="space-y-2">
+              {prazosFiltrados.slice(0, 10).map((p) => {
+                const dias = diasRestantes(p.data_limite);
+                return (
+                  <div key={p.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border p-3">
                     <div className="min-w-0">
                       <div className="truncate font-medium">{p.nome}</div>
                       <div className="text-xs text-muted-foreground">{p.advogado ?? "Sem advogado"}{p.numero_processo ? ` • ${p.numero_processo}` : ""}</div>
                     </div>
-                    <span className="text-xs font-medium text-red-500">{format(new Date(`${p.data_limite}T00:00:00`), "dd/MM/yyyy")}</span>
+                    <div className="flex shrink-0 items-center gap-3">
+                      <span className={`text-xs font-medium ${dias < 0 ? "text-red-500" : dias === 0 ? "text-red-500" : dias <= 3 ? "text-orange-500" : "text-muted-foreground"}`}>
+                        {dias < 0 ? `Vencido há ${Math.abs(dias)} ${Math.abs(dias) === 1 ? "dia" : "dias"}` : dias === 0 ? "Vence hoje" : `Faltam ${dias} ${dias === 1 ? "dia" : "dias"}`}
+                      </span>
+                      <span className="text-xs text-muted-foreground">{format(new Date(`${p.data_limite}T00:00:00`), "dd/MM/yyyy")}</span>
+                    </div>
                   </div>
-                ))}
-              </div>
+                );
+              })}
+              {prazosFiltrados.length > 10 && <p className="pt-2 text-center text-xs text-muted-foreground">Mostrando os 10 primeiros resultados.</p>}
             </div>
+          ) : (
+            <p className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">Nenhum prazo corresponde aos filtros selecionados.</p>
           )}
         </CardContent>
       </Card>
@@ -198,36 +248,18 @@ function Dashboard() {
 
       <div className="grid gap-4 lg:grid-cols-2 [&>*]:min-w-0">
         <Card>
-          <CardHeader>
-            <CardTitle>Documentos por Mês</CardTitle>
-          </CardHeader>
+          <CardHeader><CardTitle>Documentos por Mês</CardTitle></CardHeader>
           <CardContent className="px-2 sm:px-6">
             <ResponsiveContainer width="100%" height={260}>
-              <BarChart data={monthly}>
-                <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-                <XAxis dataKey="mes" />
-                <YAxis allowDecimals={false} />
-                <Tooltip />
-                <Bar dataKey="total" fill="var(--primary)" radius={[4, 4, 0, 0]} />
-              </BarChart>
+              <BarChart data={monthly}><CartesianGrid strokeDasharray="3 3" opacity={0.3} /><XAxis dataKey="mes" /><YAxis allowDecimals={false} /><Tooltip /><Bar dataKey="total" fill="var(--primary)" radius={[4, 4, 0, 0]} /></BarChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
-
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between gap-2">
-            <CardTitle className="min-w-0 truncate">Entrada de Caixa Mensal</CardTitle>
-            <TrendingUp className="h-4 w-4 shrink-0 text-[oklch(0.68_0.16_275)]" />
-          </CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between gap-2"><CardTitle className="min-w-0 truncate">Entrada de Caixa Mensal</CardTitle><TrendingUp className="h-4 w-4 shrink-0 text-[oklch(0.68_0.16_275)]" /></CardHeader>
           <CardContent className="px-2 sm:px-6">
             <ResponsiveContainer width="100%" height={260}>
-              <LineChart data={monthlyCash}>
-                <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-                <XAxis dataKey="mes" />
-                <YAxis tickFormatter={(v) => `R$ ${Math.round(Number(v) / 1000)}k`} />
-                <Tooltip formatter={(v: number) => formatBRL(v)} />
-                <Line type="monotone" dataKey="total" stroke="var(--accent)" strokeWidth={2.5} dot={{ r: 3 }} />
-              </LineChart>
+              <LineChart data={monthlyCash}><CartesianGrid strokeDasharray="3 3" opacity={0.3} /><XAxis dataKey="mes" /><YAxis tickFormatter={(v) => `R$ ${Math.round(Number(v) / 1000)}k`} /><Tooltip formatter={(v: number) => formatBRL(v)} /><Line type="monotone" dataKey="total" stroke="var(--accent)" strokeWidth={2.5} dot={{ r: 3 }} /></LineChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
@@ -235,29 +267,18 @@ function Dashboard() {
 
       <div className="grid gap-4">
         <Card>
-          <CardHeader>
-            <CardTitle>Atividade Recente</CardTitle>
-          </CardHeader>
+          <CardHeader><CardTitle>Atividade Recente</CardTitle></CardHeader>
           <CardContent>
             {recent && recent.length > 0 ? (
               <ul className="space-y-3">
                 {recent.map((r) => (
                   <li key={r.id} className="flex flex-wrap items-center justify-between gap-2 border-b pb-2 text-sm last:border-none last:pb-0">
-                    <div className="min-w-0">
-                      <Badge variant="outline" className="mr-2 capitalize">{actionLabel[r.action] ?? r.action}</Badge>
-                      <span className="text-muted-foreground">
-                        {r.document_id ? `Documento ${r.document_id.slice(0, 8)}` : "Sistema"}
-                      </span>
-                    </div>
-                    <span className="text-xs text-muted-foreground">
-                      {format(new Date(r.timestamp), "dd/MM HH:mm", { locale: ptBR })}
-                    </span>
+                    <div className="min-w-0"><Badge variant="outline" className="mr-2 capitalize">{actionLabel[r.action] ?? r.action}</Badge><span className="text-muted-foreground">{r.document_id ? `Documento ${r.document_id.slice(0, 8)}` : "Sistema"}</span></div>
+                    <span className="text-xs text-muted-foreground">{format(new Date(r.timestamp), "dd/MM HH:mm", { locale: ptBR })}</span>
                   </li>
                 ))}
               </ul>
-            ) : (
-              <p className="text-sm text-muted-foreground">Sem atividade registrada.</p>
-            )}
+            ) : <p className="text-sm text-muted-foreground">Sem atividade registrada.</p>}
           </CardContent>
         </Card>
       </div>
