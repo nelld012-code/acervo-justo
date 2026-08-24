@@ -1,10 +1,10 @@
 import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
-import { LayoutDashboard, Upload, Search, FolderOpen, ClipboardList, LogOut, Scale, Users, Wallet, UserCog, ConciergeBell, CalendarClock, ChevronDown, FileBarChart2 } from "lucide-react";
+import { LayoutDashboard, Upload, Search, FolderOpen, ClipboardList, LogOut, Scale, Users, Wallet, UserCog, ConciergeBell, CalendarClock, ChevronDown, FileBarChart2, MessagesSquare } from "lucide-react";
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarHeader, SidebarFooter } from "@/components/ui/sidebar";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useProfile, CARGO_LABELS, type Cargo } from "@/hooks/use-profile";
 import { useEffect, useState } from "react";
 
@@ -14,6 +14,7 @@ const groups = [
   { title: "Principal", items: [
     { title: "Recepção", url: "/recepcao", icon: ConciergeBell, need: "all" },
     { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard, need: "all" },
+    { title: "Mensagens", url: "/mensagens", icon: MessagesSquare, need: "all" },
   ] },
   { title: "Gestão", items: [
     { title: "Clientes", url: "/clientes", icon: Users, need: "all" },
@@ -41,6 +42,27 @@ export function AppSidebar() {
   const queryClient = useQueryClient();
   const { profile, perms } = useProfile();
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({ Principal: true, Gestão: true, Documentos: true, Relatórios: true });
+
+  const naoLidasQuery = useQuery({
+    queryKey: ["messages-unread-count"],
+    queryFn: async () => {
+      const { count, error } = await supabase.from("messages").select("id", { count: "exact", head: true }).is("read_at", null);
+      if (error) throw error;
+      return count ?? 0;
+    },
+    staleTime: 30_000,
+  });
+  const naoLidas = naoLidasQuery.data ?? 0;
+
+  useEffect(() => {
+    const channel = supabase
+      .channel("mensageria-sidebar")
+      .on("postgres_changes", { event: "*", schema: "public", table: "messages" }, () => {
+        queryClient.invalidateQueries({ queryKey: ["messages-unread-count"] });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [queryClient]);
 
   useEffect(() => {
     setOpenGroups((current) => {
@@ -80,7 +102,7 @@ export function AppSidebar() {
             const open = openGroups[group.title] ?? isActiveGroup;
             return <Collapsible key={group.title} open={open} onOpenChange={(value) => setOpenGroups((current) => ({ ...current, [group.title]: value }))} asChild>
               <SidebarMenuItem><CollapsibleTrigger asChild><SidebarMenuButton tooltip={group.title} className="font-medium"><FileBarChart2 className="h-4 w-4" /><span>{group.title}</span><ChevronDown className={`ml-auto h-4 w-4 transition-transform ${open ? "rotate-180" : ""}`} /></SidebarMenuButton></CollapsibleTrigger>
-                <CollapsibleContent><SidebarMenu className="ml-2 border-l border-sidebar-border pl-2">{visible.map((item) => <SidebarMenuItem key={item.url}><SidebarMenuButton asChild isActive={pathname === item.url} tooltip={item.title}><Link to={item.url}><item.icon className="h-4 w-4" /><span>{item.title}</span></Link></SidebarMenuButton></SidebarMenuItem>)}</SidebarMenu></CollapsibleContent>
+                <CollapsibleContent><SidebarMenu className="ml-2 border-l border-sidebar-border pl-2">{visible.map((item) => <SidebarMenuItem key={item.url}><SidebarMenuButton asChild isActive={pathname === item.url} tooltip={item.title}><Link to={item.url}><item.icon className="h-4 w-4" /><span>{item.title}</span>{item.url === "/mensagens" && naoLidas > 0 && <span className="ml-auto rounded-full bg-sidebar-primary px-1.5 text-[11px] font-semibold text-sidebar-primary-foreground">{naoLidas}</span>}</Link></SidebarMenuButton></SidebarMenuItem>)}</SidebarMenu></CollapsibleContent>
               </SidebarMenuItem></Collapsible>;
           })}
         </SidebarMenu></SidebarGroupContent></SidebarGroup>

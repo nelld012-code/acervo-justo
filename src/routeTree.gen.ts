@@ -18,6 +18,7 @@ import { Route as AuthenticatedRecepcaoRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedPrazosRouteImport } from './routes/_authenticated/prazos'
 import { Route as AuthenticatedPerfilRouteImport } from './routes/_authenticated/perfil'
 import { Route as AuthenticatedMyDocumentsRouteImport } from './routes/_authenticated/my-documents'
+import { Route as AuthenticatedMensagensRouteImport } from './routes/_authenticated/mensagens'
 import { Route as AuthenticatedFinanceiroRouteImport } from './routes/_authenticated/financeiro'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedClientesRouteImport } from './routes/_authenticated/clientes'
@@ -68,6 +69,11 @@ const AuthenticatedMyDocumentsRoute =
     path: '/my-documents',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedMensagensRoute = AuthenticatedMensagensRouteImport.update({
+  id: '/mensagens',
+  path: '/mensagens',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedFinanceiroRoute = AuthenticatedFinanceiroRouteImport.update({
   id: '/financeiro',
   path: '/financeiro',
@@ -96,6 +102,7 @@ export interface FileRoutesByFullPath {
   '/clientes': typeof AuthenticatedClientesRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/financeiro': typeof AuthenticatedFinanceiroRoute
+  '/mensagens': typeof AuthenticatedMensagensRoute
   '/my-documents': typeof AuthenticatedMyDocumentsRoute
   '/perfil': typeof AuthenticatedPerfilRoute
   '/prazos': typeof AuthenticatedPrazosRoute
@@ -110,6 +117,7 @@ export interface FileRoutesByTo {
   '/clientes': typeof AuthenticatedClientesRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/financeiro': typeof AuthenticatedFinanceiroRoute
+  '/mensagens': typeof AuthenticatedMensagensRoute
   '/my-documents': typeof AuthenticatedMyDocumentsRoute
   '/perfil': typeof AuthenticatedPerfilRoute
   '/prazos': typeof AuthenticatedPrazosRoute
@@ -126,6 +134,7 @@ export interface FileRoutesById {
   '/_authenticated/clientes': typeof AuthenticatedClientesRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/financeiro': typeof AuthenticatedFinanceiroRoute
+  '/_authenticated/mensagens': typeof AuthenticatedMensagensRoute
   '/_authenticated/my-documents': typeof AuthenticatedMyDocumentsRoute
   '/_authenticated/perfil': typeof AuthenticatedPerfilRoute
   '/_authenticated/prazos': typeof AuthenticatedPrazosRoute
@@ -142,6 +151,7 @@ export interface FileRouteTypes {
     | '/clientes'
     | '/dashboard'
     | '/financeiro'
+    | '/mensagens'
     | '/my-documents'
     | '/perfil'
     | '/prazos'
@@ -156,6 +166,7 @@ export interface FileRouteTypes {
     | '/clientes'
     | '/dashboard'
     | '/financeiro'
+    | '/mensagens'
     | '/my-documents'
     | '/perfil'
     | '/prazos'
@@ -171,6 +182,7 @@ export interface FileRouteTypes {
     | '/_authenticated/clientes'
     | '/_authenticated/dashboard'
     | '/_authenticated/financeiro'
+    | '/_authenticated/mensagens'
     | '/_authenticated/my-documents'
     | '/_authenticated/perfil'
     | '/_authenticated/prazos'
@@ -250,6 +262,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedMyDocumentsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/mensagens': {
+      id: '/_authenticated/mensagens'
+      path: '/mensagens'
+      fullPath: '/mensagens'
+      preLoaderRoute: typeof AuthenticatedMensagensRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/financeiro': {
       id: '/_authenticated/financeiro'
       path: '/financeiro'
@@ -286,6 +305,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedClientesRoute: typeof AuthenticatedClientesRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedFinanceiroRoute: typeof AuthenticatedFinanceiroRoute
+  AuthenticatedMensagensRoute: typeof AuthenticatedMensagensRoute
   AuthenticatedMyDocumentsRoute: typeof AuthenticatedMyDocumentsRoute
   AuthenticatedPerfilRoute: typeof AuthenticatedPerfilRoute
   AuthenticatedPrazosRoute: typeof AuthenticatedPrazosRoute
@@ -299,6 +319,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedClientesRoute: AuthenticatedClientesRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedFinanceiroRoute: AuthenticatedFinanceiroRoute,
+  AuthenticatedMensagensRoute: AuthenticatedMensagensRoute,
   AuthenticatedMyDocumentsRoute: AuthenticatedMyDocumentsRoute,
   AuthenticatedPerfilRoute: AuthenticatedPerfilRoute,
   AuthenticatedPrazosRoute: AuthenticatedPrazosRoute,

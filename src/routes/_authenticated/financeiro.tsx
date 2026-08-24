@@ -2531,6 +2531,8 @@ function RegisterPaymentDialog({
     responsavel_recebimento: "",
     metodo_pagamento: "PIX",
     descricao: "",
+    pagador_nome: "",
+    pagador_cpf: "",
   });
 
   const { data: results } = useQuery({
