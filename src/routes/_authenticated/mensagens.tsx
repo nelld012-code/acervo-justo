@@ -202,11 +202,26 @@ function MensagensPage() {
                 {(conversaQuery.data ?? []).map((m) => {
                   const minha = m.sender_id === meuId;
                   return (
-                    <div key={m.id} className={`flex ${minha ? "justify-end" : "justify-start"}`}>
+                    <div key={m.id} className={`group flex items-center gap-1 ${minha ? "justify-end" : "justify-start"}`}>
+                      {minha && (
+                        <div className="flex shrink-0 items-center gap-0.5 opacity-60 transition-opacity group-hover:opacity-100">
+                          <Button variant="ghost" size="icon" className="h-7 w-7" aria-label="Copiar mensagem" onClick={() => void copiar(m.body)}>
+                            <Copy className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" aria-label="Excluir mensagem" onClick={() => void excluir(m.id)}>
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      )}
                       <div className={`max-w-[85%] rounded-lg px-3 py-2 text-sm ${minha ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
                         <p className="whitespace-pre-wrap break-words">{m.body}</p>
                         <p className={`mt-1 text-[11px] ${minha ? "text-primary-foreground/70" : "text-muted-foreground"}`}>{formatHora(m.created_at)}</p>
                       </div>
+                      {!minha && (
+                        <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 opacity-60 transition-opacity group-hover:opacity-100" aria-label="Copiar mensagem" onClick={() => void copiar(m.body)}>
+                          <Copy className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
                     </div>
                   );
                 })}
