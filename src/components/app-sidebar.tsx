@@ -1,5 +1,5 @@
 import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
-import { LayoutDashboard, Upload, Search, FolderOpen, ClipboardList, LogOut, Scale, Users, Wallet, UserCog, ConciergeBell, CalendarClock, ChevronDown, FileBarChart2 } from "lucide-react";
+import { LayoutDashboard, Upload, Search, FolderOpen, ClipboardList, LogOut, Scale, Users, Wallet, UserCog, ConciergeBell, CalendarClock, ChevronDown, FileBarChart2, MessagesSquare } from "lucide-react";
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarHeader, SidebarFooter } from "@/components/ui/sidebar";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { supabase } from "@/integrations/supabase/client";
