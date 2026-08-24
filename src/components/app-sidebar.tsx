@@ -14,6 +14,7 @@ const groups = [
   { title: "Principal", items: [
     { title: "Recepção", url: "/recepcao", icon: ConciergeBell, need: "all" },
     { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard, need: "all" },
+    { title: "Mensagens", url: "/mensagens", icon: MessagesSquare, need: "all" },
   ] },
   { title: "Gestão", items: [
     { title: "Clientes", url: "/clientes", icon: Users, need: "all" },
