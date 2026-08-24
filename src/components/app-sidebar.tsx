@@ -46,7 +46,14 @@ export function AppSidebar() {
   const naoLidasQuery = useQuery({
     queryKey: ["messages-unread-count"],
     queryFn: async () => {
-      const { count, error } = await supabase.from("messages").select("id", { count: "exact", head: true }).is("read_at", null);
+      const { data: auth } = await supabase.auth.getUser();
+      const meuId = auth.user?.id;
+      if (!meuId) return 0;
+      const { count, error } = await supabase
+        .from("messages")
+        .select("id", { count: "exact", head: true })
+        .eq("recipient_id", meuId)
+        .is("read_at", null);
       if (error) throw error;
       return count ?? 0;
     },
