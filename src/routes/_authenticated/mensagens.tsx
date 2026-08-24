@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { ArrowLeft, MessagesSquare, Send } from "lucide-react";
+import { ArrowLeft, Copy, MessagesSquare, Send, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { CARGO_LABELS, type Cargo } from "@/hooks/use-profile";
 
