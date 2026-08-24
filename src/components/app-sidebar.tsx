@@ -43,6 +43,27 @@ export function AppSidebar() {
   const { profile, perms } = useProfile();
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({ Principal: true, Gestão: true, Documentos: true, Relatórios: true });
 
+  const naoLidasQuery = useQuery({
+    queryKey: ["messages-unread-count"],
+    queryFn: async () => {
+      const { count, error } = await supabase.from("messages").select("id", { count: "exact", head: true }).is("read_at", null);
+      if (error) throw error;
+      return count ?? 0;
+    },
+    staleTime: 30_000,
+  });
+  const naoLidas = naoLidasQuery.data ?? 0;
+
+  useEffect(() => {
+    const channel = supabase
+      .channel("mensageria-sidebar")
+      .on("postgres_changes", { event: "*", schema: "public", table: "messages" }, () => {
+        queryClient.invalidateQueries({ queryKey: ["messages-unread-count"] });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [queryClient]);
+
   useEffect(() => {
     setOpenGroups((current) => {
       const next = { ...current };
