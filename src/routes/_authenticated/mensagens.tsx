@@ -132,6 +132,24 @@ function MensagensPage() {
     queryClient.invalidateQueries({ queryKey: ["messages-thread", selecionado.id] });
   }
 
+  async function copiar(corpo: string) {
+    try {
+      await navigator.clipboard.writeText(corpo);
+      toast.success("Mensagem copiada.");
+    } catch {
+      toast.error("Não foi possível copiar a mensagem.");
+    }
+  }
+
+  async function excluir(id: string) {
+    if (!window.confirm("Excluir esta mensagem? Esta ação não pode ser desfeita.")) return;
+    const { error } = await supabase.from("messages").delete().eq("id", id);
+    if (error) { toast.error("Não foi possível excluir: " + error.message); return; }
+    toast.success("Mensagem excluída.");
+    queryClient.invalidateQueries({ queryKey: ["messages-thread"] });
+    queryClient.invalidateQueries({ queryKey: ["messages-unread"] });
+  }
+
   const contatos = contatosQuery.data ?? [];
 
   return (
