@@ -320,6 +320,36 @@ export type Database = {
         }
         Relationships: []
       }
+      messages: {
+        Row: {
+          body: string
+          created_at: string
+          expires_at: string
+          id: string
+          read_at: string | null
+          recipient_id: string
+          sender_id: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          read_at?: string | null
+          recipient_id: string
+          sender_id: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          read_at?: string | null
+          recipient_id?: string
+          sender_id?: string
+        }
+        Relationships: []
+      }
       payments: {
         Row: {
           cliente_id: string | null
@@ -588,7 +618,16 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      list_message_contacts: {
+        Args: never
+        Returns: {
+          cargo: string
+          id: string
+          nome: string
+        }[]
+      }
       only_digits: { Args: { v: string }; Returns: string }
+      purge_expired_messages: { Args: never; Returns: undefined }
     }
     Enums: {
       app_role: "admin" | "manager" | "user"
