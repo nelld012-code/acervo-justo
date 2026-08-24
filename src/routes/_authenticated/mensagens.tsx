@@ -55,9 +55,14 @@ function MensagensPage() {
   });
 
   const naoLidasQuery = useQuery({
-    queryKey: ["messages-unread"],
+    queryKey: ["messages-unread", meuId],
+    enabled: !!meuId,
     queryFn: async () => {
-      const { data, error } = await supabase.from("messages").select("sender_id").is("read_at", null);
+      const { data, error } = await supabase
+        .from("messages")
+        .select("sender_id")
+        .eq("recipient_id", meuId!)
+        .is("read_at", null);
       if (error) throw error;
       const mapa: Record<string, number> = {};
       (data ?? []).forEach((m) => { mapa[m.sender_id] = (mapa[m.sender_id] ?? 0) + 1; });
