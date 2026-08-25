@@ -7,9 +7,18 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { ArrowLeft, Copy, MessagesSquare, Send, Trash2 } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Progress } from "@/components/ui/progress";
+import { ArrowLeft, Copy, Loader2, MessagesSquare, Paperclip, Send, Smile, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { CARGO_LABELS, type Cargo } from "@/hooks/use-profile";
+import {
+  MessageAttachment,
+  TAMANHO_MAX_ANEXO,
+  TIPOS_ANEXO_PERMITIDOS,
+  ehImagem,
+  formatarTamanho,
+} from "@/components/message-attachment";
 
 export const Route = createFileRoute("/_authenticated/mensagens")({
   head: () => ({
@@ -26,11 +35,35 @@ export const Route = createFileRoute("/_authenticated/mensagens")({
 });
 
 type Contato = { id: string; nome: string; cargo: string };
-type Mensagem = { id: string; sender_id: string; recipient_id: string; body: string; read_at: string | null; created_at: string };
+type Mensagem = {
+  id: string;
+  sender_id: string;
+  recipient_id: string;
+  body: string;
+  read_at: string | null;
+  created_at: string;
+  attachment_path: string | null;
+  attachment_name: string | null;
+  attachment_type: string | null;
+  attachment_size: number | null;
+};
+
+const EMOJIS = [
+  "😀","😃","😄","😁","😉","😊","😍","😘","😜","🤔","😐","😴","😅","😂","🥲","😢",
+  "😭","😡","😱","🤝","👍","👎","👏","🙏","💪","👌","✌️","🫡","❤️","🔥","⭐","✅",
+  "❌","⚠️","📌","📎","📄","📁","⚖️","🗓️","⏰","💰","📞","✉️","🏛️","🚀","🎉","🙂",
+];
 
 function formatHora(iso: string) {
   return new Date(iso).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
 }
+
+function extensaoDe(file: File) {
+  const nome = file.name.toLowerCase();
+  const ponto = nome.lastIndexOf(".");
+  return ponto > -1 ? nome.slice(ponto + 1) : "bin";
+}
+
 
 function MensagensPage() {
   const queryClient = useQueryClient();
