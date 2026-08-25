@@ -116,7 +116,7 @@ function MensagensPage() {
       const outro = selecionado!.id;
       const { data, error } = await supabase
         .from("messages")
-        .select("id, sender_id, recipient_id, body, read_at, created_at")
+        .select("id, sender_id, recipient_id, body, read_at, created_at, attachment_path, attachment_name, attachment_type, attachment_size")
         .or(`sender_id.eq.${outro},recipient_id.eq.${outro}`)
         .order("created_at", { ascending: true });
       if (error) throw error;
