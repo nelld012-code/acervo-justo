@@ -334,15 +334,25 @@ function MensagensPage() {
                           <Button variant="ghost" size="icon" className="h-7 w-7" aria-label="Copiar mensagem" onClick={() => void copiar(m.body)}>
                             <Copy className="h-3.5 w-3.5" />
                           </Button>
-                          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" aria-label="Excluir mensagem" onClick={() => void excluir(m.id)}>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" aria-label="Excluir mensagem" onClick={() => void excluir(m)}>
                             <Trash2 className="h-3.5 w-3.5" />
                           </Button>
                         </div>
                       )}
-                      <div className={`max-w-[85%] rounded-lg px-3 py-2 text-sm ${minha ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
-                        <p className="whitespace-pre-wrap break-words">{m.body}</p>
+                      <div className={`max-w-[85%] space-y-2 rounded-lg px-3 py-2 text-sm ${minha ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
+                        {m.attachment_path && (
+                          <MessageAttachment
+                            path={m.attachment_path}
+                            name={m.attachment_name}
+                            type={m.attachment_type}
+                            size={m.attachment_size}
+                            minha={minha}
+                          />
+                        )}
+                        {m.body && <p className="whitespace-pre-wrap break-words">{m.body}</p>}
                         <p className={`mt-1 text-[11px] ${minha ? "text-primary-foreground/70" : "text-muted-foreground"}`}>{formatHora(m.created_at)}</p>
                       </div>
+
                       {!minha && (
                         <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 opacity-60 transition-opacity group-hover:opacity-100" aria-label="Copiar mensagem" onClick={() => void copiar(m.body)}>
                           <Copy className="h-3.5 w-3.5" />
