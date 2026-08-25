@@ -160,14 +160,79 @@ function MensagensPage() {
     [naoLidasQuery.data],
   );
 
+  function escolherArquivo(file: File | null) {
+    if (!file) return;
+    if (!TIPOS_ANEXO_PERMITIDOS.includes(file.type)) {
+      toast.error("Tipo não permitido. Envie JPG, PNG, WebP, PDF, DOC ou DOCX.");
+      return;
+    }
+    if (file.size > TAMANHO_MAX_ANEXO) {
+      toast.error("Arquivo muito grande. O limite é de 10 MB.");
+      return;
+    }
+    setArquivo(file);
+    setPrevia(ehImagem(file.type) ? URL.createObjectURL(file) : null);
+  }
+
+  function limparAnexo() {
+    if (previa) URL.revokeObjectURL(previa);
+    setArquivo(null);
+    setPrevia(null);
+    if (inputArquivoRef.current) inputArquivoRef.current.value = "";
+  }
+
   async function enviar() {
     const corpo = texto.trim();
-    if (!corpo || !selecionado || !meuId) return;
+    if (enviando || !selecionado || !meuId) return;
+    if (!corpo && !arquivo) return;
     setEnviando(true);
-    const { error } = await supabase.from("messages").insert({ sender_id: meuId, recipient_id: selecionado.id, body: corpo });
+    setProgresso(arquivo ? 10 : 0);
+
+    let anexo: {
+      attachment_path: string;
+      attachment_name: string;
+      attachment_type: string;
+      attachment_size: number;
+    } | null = null;
+
+    if (arquivo) {
+      const caminho = `${meuId}/${crypto.randomUUID()}.${extensaoDe(arquivo)}`;
+      setProgresso(40);
+      const { error: upErro } = await supabase.storage
+        .from("message_attachments")
+        .upload(caminho, arquivo, { contentType: arquivo.type, upsert: false });
+      if (upErro) {
+        setEnviando(false);
+        setProgresso(0);
+        toast.error("Falha ao enviar o anexo: " + upErro.message);
+        return;
+      }
+      setProgresso(80);
+      anexo = {
+        attachment_path: caminho,
+        attachment_name: arquivo.name,
+        attachment_type: arquivo.type,
+        attachment_size: arquivo.size,
+      };
+    }
+
+    const { error } = await supabase
+      .from("messages")
+      .insert({ sender_id: meuId, recipient_id: selecionado.id, body: corpo, ...(anexo ?? {}) });
+
+    if (error) {
+      if (anexo) await supabase.storage.from("message_attachments").remove([anexo.attachment_path]);
+      setEnviando(false);
+      setProgresso(0);
+      toast.error("Não foi possível enviar: " + error.message);
+      return;
+    }
+
+    setProgresso(100);
     setEnviando(false);
-    if (error) { toast.error("Não foi possível enviar: " + error.message); return; }
+    setProgresso(0);
     setTexto("");
+    limparAnexo();
     queryClient.invalidateQueries({ queryKey: ["messages-thread", selecionado.id] });
   }
 
@@ -180,14 +245,18 @@ function MensagensPage() {
     }
   }
 
-  async function excluir(id: string) {
+  async function excluir(m: Mensagem) {
     if (!window.confirm("Excluir esta mensagem? Esta ação não pode ser desfeita.")) return;
-    const { error } = await supabase.from("messages").delete().eq("id", id);
+    const { error } = await supabase.from("messages").delete().eq("id", m.id);
     if (error) { toast.error("Não foi possível excluir: " + error.message); return; }
+    if (m.attachment_path) {
+      await supabase.storage.from("message_attachments").remove([m.attachment_path]);
+    }
     toast.success("Mensagem excluída.");
     queryClient.invalidateQueries({ queryKey: ["messages-thread"] });
     queryClient.invalidateQueries({ queryKey: ["messages-unread"] });
   }
+
 
   const contatos = contatosQuery.data ?? [];
 
