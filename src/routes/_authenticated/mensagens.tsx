@@ -364,21 +364,84 @@ function MensagensPage() {
                 <div ref={fimRef} />
               </div>
             </ScrollArea>
+            {arquivo && (
+              <div className="flex items-center gap-3 rounded-md border p-2">
+                {previa ? (
+                  <img src={previa} alt="Prévia do anexo" className="h-14 w-14 rounded object-cover" />
+                ) : (
+                  <Paperclip className="h-5 w-5 shrink-0 text-muted-foreground" />
+                )}
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium">{arquivo.name}</p>
+                  <p className="text-xs text-muted-foreground">{formatarTamanho(arquivo.size)}</p>
+                </div>
+                <Button type="button" variant="ghost" size="icon" onClick={limparAnexo} disabled={enviando} aria-label="Remover anexo">
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
+            {enviando && arquivo && (
+              <div className="space-y-1">
+                <Progress value={progresso} />
+                <p className="text-xs text-muted-foreground">Enviando anexo... {progresso}%</p>
+              </div>
+            )}
             <form
               className="flex gap-2"
               onSubmit={(e) => { e.preventDefault(); void enviar(); }}
             >
+              <input
+                ref={inputArquivoRef}
+                type="file"
+                className="hidden"
+                accept=".jpg,.jpeg,.png,.webp,.pdf,.doc,.docx"
+                onChange={(e) => escolherArquivo(e.target.files?.[0] ?? null)}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="shrink-0"
+                disabled={!selecionado || enviando}
+                onClick={() => inputArquivoRef.current?.click()}
+                aria-label="Anexar arquivo"
+              >
+                <Paperclip className="h-4 w-4" />
+              </Button>
+              <Popover open={emojiAberto} onOpenChange={setEmojiAberto}>
+                <PopoverTrigger asChild>
+                  <Button type="button" variant="outline" size="icon" className="shrink-0" disabled={!selecionado || enviando} aria-label="Inserir emoji">
+                    <Smile className="h-4 w-4" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent align="start" className="w-64 p-2">
+                  <div className="grid grid-cols-8 gap-1">
+                    {EMOJIS.map((emoji) => (
+                      <button
+                        key={emoji}
+                        type="button"
+                        className="rounded p-1 text-lg leading-none hover:bg-muted"
+                        onClick={() => { setTexto((t) => t + emoji); setEmojiAberto(false); }}
+                        aria-label={`Inserir ${emoji}`}
+                      >
+                        {emoji}
+                      </button>
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
               <Input
                 value={texto}
                 onChange={(e) => setTexto(e.target.value)}
                 placeholder={selecionado ? "Escreva sua mensagem..." : "Selecione um usuário"}
                 disabled={!selecionado || enviando}
               />
-              <Button type="submit" disabled={!selecionado || enviando || !texto.trim()}>
-                <Send className="h-4 w-4" />
+              <Button type="submit" className="shrink-0" disabled={!selecionado || enviando || (!texto.trim() && !arquivo)}>
+                {enviando ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                 <span className="ml-2 hidden sm:inline">Enviar</span>
               </Button>
             </form>
+
           </CardContent>
         </Card>
       </div>
