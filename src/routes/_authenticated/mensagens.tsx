@@ -71,7 +71,13 @@ function MensagensPage() {
   const [selecionado, setSelecionado] = useState<Contato | null>(null);
   const [texto, setTexto] = useState("");
   const [enviando, setEnviando] = useState(false);
+  const [arquivo, setArquivo] = useState<File | null>(null);
+  const [previa, setPrevia] = useState<string | null>(null);
+  const [progresso, setProgresso] = useState(0);
+  const [emojiAberto, setEmojiAberto] = useState(false);
   const fimRef = useRef<HTMLDivElement>(null);
+  const inputArquivoRef = useRef<HTMLInputElement>(null);
+
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setMeuId(data.user?.id ?? null));
