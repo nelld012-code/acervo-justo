@@ -1,10 +1,10 @@
-import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
+import { createFileRoute, Link, Outlet, redirect } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { AppSidebar } from "@/components/app-sidebar";
 import { PrazoReminders } from "@/components/prazo-reminders";
 import { SidebarProvider, useSidebar } from "@/components/ui/sidebar";
-import { Menu, MessageSquare, X } from "lucide-react";
+import { Menu, MessageSquare, X, UserCircle, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/_authenticated")({
@@ -136,6 +136,38 @@ function NewMessagePopup() {
   );
 }
 
+function HeaderActions() {
+  async function sair() {
+    await supabase.auth.signOut();
+    window.location.assign("/auth");
+  }
+
+  return (
+    <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-2">
+      <Link
+        to="/perfil"
+        className="inline-flex h-9 items-center gap-1.5 rounded-md px-2 text-sm font-medium text-foreground transition-colors hover:bg-muted sm:px-3"
+        title="Perfil"
+        aria-label="Abrir perfil"
+      >
+        <UserCircle className="h-4 w-4" />
+        <span>Perfil</span>
+      </Link>
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => void sair()}
+        className="h-9 gap-1.5 px-2 text-sm font-medium text-foreground hover:bg-muted sm:px-3"
+        title="Sair"
+        aria-label="Sair do sistema"
+      >
+        <LogOut className="h-4 w-4" />
+        <span>Sair</span>
+      </Button>
+    </div>
+  );
+}
+
 function AuthenticatedLayout() {
   return (
     <SidebarProvider>
@@ -144,7 +176,7 @@ function AuthenticatedLayout() {
         <div className="flex min-w-0 flex-1 flex-col min-h-screen">
           <header className="flex min-h-14 items-center gap-2 border-b bg-card px-3 sm:px-4">
             <MobileMenuTrigger />
-            <div className="min-w-0 flex flex-col justify-center">
+            <div className="min-w-0 flex flex-1 flex-col justify-center">
               <h1 className="truncate text-base font-semibold leading-tight text-foreground md:text-lg lg:text-xl md:whitespace-nowrap">
                 <span className="md:hidden">Gestão de Documentos Judiciais</span>
                 <span className="hidden md:inline">J DIMAS GONÇALVES ESCRITORIO DE ADVOCACIA</span>
@@ -153,6 +185,7 @@ function AuthenticatedLayout() {
                 Sistema de Gestão de Documentos Judiciais
               </div>
             </div>
+            <HeaderActions />
           </header>
           <main className="min-w-0 flex-1 overflow-x-hidden p-4 sm:p-6">
             <Outlet />
