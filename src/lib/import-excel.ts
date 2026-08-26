@@ -253,3 +253,150 @@ export async function parseRecepcaoExcel(file: File): Promise<ImportRecepcaoResu
   const matrix = XLSX.utils.sheet_to_json<ExcelCell[]>(sheet, { header: 1, raw: true, defval: "", blankrows: false });
   return parseRecepcaoRows(matrix);
 }
+
+/* ============================ CLIENTES ============================ */
+
+export type ImportClienteRow = {
+  nome: string;
+  cpf_cnpj: string | null;
+  email: string | null;
+  telefone: string;
+  endereco: string | null;
+  bairro: string | null;
+  cidade: string | null;
+  rg: string | null;
+  estado_civil: string | null;
+  profissao: string | null;
+  observacoes: string | null;
+  data_atendimento: string | null;
+  reu_nome: string | null;
+  reu_rg_cnpj: string | null;
+  reu_estado_civil: string | null;
+  reu_profissao: string | null;
+  reu_endereco: string | null;
+  reu_bairro: string | null;
+  reu_cidade: string | null;
+  tipo_acao: string | null;
+  numero_processo: string | null;
+  resumo_atendimento: string | null;
+};
+
+export type ImportClienteResult = {
+  validos: { linha: number; dados: ImportClienteRow }[];
+  invalidos: { linha: number; motivo: string }[];
+};
+
+const CLIENTE_ALIASES: Record<keyof ImportClienteRow, string[]> = {
+  nome: ["nome", "nome do cliente", "cliente", "nome completo", "nome do autor"],
+  cpf_cnpj: ["cpf cnpj", "cpf/cnpj", "cpf", "cnpj", "cpf ou cnpj", "documento"],
+  email: ["email", "e mail", "e-mail"],
+  telefone: ["telefone", "celular", "fone", "whatsapp", "contato"],
+  endereco: ["endereco", "endereco do autor", "logradouro"],
+  bairro: ["bairro"],
+  cidade: ["cidade", "municipio"],
+  rg: ["rg", "registro geral", "identidade"],
+  estado_civil: ["estado civil"],
+  profissao: ["profissao"],
+  observacoes: ["observacoes", "observacao", "obs"],
+  data_atendimento: ["data do atendimento", "data atendimento", "data"],
+  reu_nome: ["nome do reu", "reu", "reu nome"],
+  reu_rg_cnpj: ["rg cnpj do reu", "rg/cnpj do reu", "rg cnpj reu", "documento do reu", "cpf cnpj do reu"],
+  reu_estado_civil: ["estado civil do reu", "estado civil reu"],
+  reu_profissao: ["profissao do reu", "profissao reu"],
+  reu_endereco: ["endereco do reu", "endereco reu"],
+  reu_bairro: ["bairro do reu", "bairro reu"],
+  reu_cidade: ["cidade do reu", "cidade reu"],
+  tipo_acao: ["tipo de acao", "tipo de acao / proposta", "tipo de acao proposta", "tipo acao", "proposta"],
+  numero_processo: ["numero do processo", "numero processo", "processo", "n do processo", "expediente"],
+  resumo_atendimento: ["resumo do atendimento", "resumo", "resumo atendimento"],
+};
+
+const CLIENTE_CAMPOS = Object.keys(CLIENTE_ALIASES) as (keyof ImportClienteRow)[];
+
+export function parseClientesRows(matrix: ExcelCell[][]): ImportClienteResult {
+  if (!matrix.length) return { validos: [], invalidos: [] };
+  const headerIndex = matrix.findIndex((row) =>
+    row.some((cell) => CLIENTE_ALIASES.nome.includes(normalizeHeader(cell))),
+  );
+  const start = headerIndex >= 0 ? headerIndex : 0;
+  const headers = (matrix[start] ?? []).map(normalizeHeader);
+
+  const indexes = {} as Record<keyof ImportClienteRow, number>;
+  const usados = new Set<number>();
+  for (const campo of CLIENTE_CAMPOS) {
+    const i = headers.findIndex(
+      (header, idx) => header !== "" && !usados.has(idx) && CLIENTE_ALIASES[campo].includes(header),
+    );
+    indexes[campo] = i;
+    if (i >= 0) usados.add(i);
+  }
+  if (indexes.nome < 0 || indexes.telefone < 0) {
+    throw new Error("Colunas obrigatórias ausentes: Nome e Telefone. Verifique o cabeçalho da planilha.");
+  }
+
+  const pick = (row: ExcelCell[], campo: keyof ImportClienteRow): ExcelCell => {
+    const i = indexes[campo];
+    return i >= 0 ? (row[i] ?? "") : "";
+  };
+  const opcional = (row: ExcelCell[], campo: keyof ImportClienteRow) =>
+    textDigitsSafe(pick(row, campo)).trim() || null;
+
+  const validos: ImportClienteResult["validos"] = [];
+  const invalidos: ImportClienteResult["invalidos"] = [];
+
+  matrix.slice(start + 1).forEach((row, i) => {
+    const linha = start + 2 + i;
+    const preenchida = CLIENTE_CAMPOS.some((campo) => textDigitsSafe(pick(row, campo)).trim() !== "");
+    if (!preenchida) return;
+
+    const nome = text(pick(row, "nome"));
+    const telefone = textDigitsSafe(pick(row, "telefone")).trim();
+    const faltando: string[] = [];
+    if (!nome) faltando.push("Nome");
+    if (!telefone) faltando.push("Telefone");
+    if (faltando.length) {
+      invalidos.push({ linha, motivo: `Campos obrigatórios ausentes: ${faltando.join(", ")}` });
+      return;
+    }
+
+    validos.push({
+      linha,
+      dados: {
+        nome,
+        telefone,
+        cpf_cnpj: opcional(row, "cpf_cnpj"),
+        email: opcional(row, "email"),
+        endereco: opcional(row, "endereco"),
+        bairro: opcional(row, "bairro"),
+        cidade: opcional(row, "cidade"),
+        rg: opcional(row, "rg"),
+        estado_civil: opcional(row, "estado_civil"),
+        profissao: opcional(row, "profissao"),
+        observacoes: opcional(row, "observacoes"),
+        data_atendimento: normalizeDate(pick(row, "data_atendimento")),
+        reu_nome: opcional(row, "reu_nome"),
+        reu_rg_cnpj: opcional(row, "reu_rg_cnpj"),
+        reu_estado_civil: opcional(row, "reu_estado_civil"),
+        reu_profissao: opcional(row, "reu_profissao"),
+        reu_endereco: opcional(row, "reu_endereco"),
+        reu_bairro: opcional(row, "reu_bairro"),
+        reu_cidade: opcional(row, "reu_cidade"),
+        tipo_acao: opcional(row, "tipo_acao"),
+        numero_processo: opcional(row, "numero_processo"),
+        resumo_atendimento: opcional(row, "resumo_atendimento"),
+      },
+    });
+  });
+
+  return { validos, invalidos };
+}
+
+export async function parseClientesExcel(file: File): Promise<ImportClienteResult> {
+  if (!/\.xlsx$/i.test(file.name)) throw new Error("Selecione um arquivo Excel no formato .xlsx.");
+  const workbook = XLSX.read(await file.arrayBuffer(), { type: "array", cellDates: true });
+  const sheetName = workbook.SheetNames[0];
+  const sheet = sheetName ? workbook.Sheets[sheetName] : undefined;
+  if (!sheet) throw new Error("Não foi possível localizar a planilha do Excel.");
+  const matrix = XLSX.utils.sheet_to_json<ExcelCell[]>(sheet, { header: 1, raw: true, defval: "", blankrows: false });
+  return parseClientesRows(matrix);
+}
