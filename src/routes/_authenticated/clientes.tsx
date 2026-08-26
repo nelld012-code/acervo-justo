@@ -26,7 +26,7 @@ const emptyForm: FormState = { nome: "", cpf_cnpj: "", email: "", telefone: "", 
 const PAGE_SIZE = 8;
 
 const CAMPOS_IMPORT_LABEL: Record<string, string> = { nome: "Nome", cpf_cnpj: "CPF/CNPJ", email: "E-mail", telefone: "Telefone", endereco: "Endereço", bairro: "Bairro", cidade: "Cidade", rg: "RG", estado_civil: "Estado civil", profissao: "Profissão", observacoes: "Observações", data_atendimento: "Data do atendimento", reu_nome: "Nome do réu", reu_rg_cnpj: "RG/CNPJ do réu", reu_estado_civil: "Estado civil do réu", reu_profissao: "Profissão do réu", reu_endereco: "Endereço do réu", reu_bairro: "Bairro do réu", reu_cidade: "Cidade do réu", tipo_acao: "Tipo de ação / proposta", numero_processo: "Número do processo", resumo_atendimento: "Resumo do atendimento" };
-type ImportUpdateCliente = { cliente: Cliente; patch: Record<string, string>; mudancas: { rotulo: string; de: string; para: string }[] };
+type ImportUpdateCliente = { cliente: Cliente; patch: Partial<Cliente>; mudancas: { rotulo: string; de: string; para: string }[] };
 const soDigitos = (v: string | null | undefined) => (v ?? "").replace(/\D/g, "");
 const dataBR = (v: string | null | undefined) => (v ? format(new Date(v + "T00:00:00"), "dd/MM/yyyy") : "—");
 
