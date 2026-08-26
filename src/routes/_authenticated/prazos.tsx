@@ -600,20 +600,17 @@ function PrazosPage() {
           <p className="text-sm text-muted-foreground">Controle dos prazos com alertas automáticos por urgência.</p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row">
+          {podeGerenciar && (
+            <Button onClick={abrirNovo} className="min-h-11 w-full sm:w-auto">
+              <Plus className="mr-2 h-4 w-4" />Novo Prazo
+            </Button>
+          )}
           <Button onClick={imprimirLista} variant="outline" className="min-h-11 w-full sm:w-auto" disabled={!lista.length}>
             <Printer className="mr-2 h-4 w-4" />Imprimir lista
-          </Button>
-          <Button onClick={exportarExcel} variant="outline" className="min-h-11 w-full sm:w-auto" disabled={!lista.length}>
-            <FileSpreadsheet className="mr-2 h-4 w-4" />Exportar Excel
           </Button>
           {podeGerenciar && (
             <Button onClick={abrirImportacao} variant="outline" className="min-h-11 w-full sm:w-auto">
               <Upload className="mr-2 h-4 w-4" />Importar Excel
-            </Button>
-          )}
-          {podeGerenciar && (
-            <Button onClick={abrirNovo} className="min-h-11 w-full sm:w-auto">
-              <Plus className="mr-2 h-4 w-4" />Novo Prazo
             </Button>
           )}
         </div>
@@ -758,6 +755,14 @@ function PrazosPage() {
         <div className="flex flex-col items-center justify-between gap-2 sm:flex-row">
           <p className="text-xs text-muted-foreground">Página {paginaAtual} de {totalPaginas} · {lista.length} registro(s)</p>
           <div className="flex gap-2"><Button size="sm" variant="outline" onClick={() => setPagina((p) => Math.max(1, p - 1))} disabled={paginaAtual === 1}>Anterior</Button><Button size="sm" variant="outline" onClick={() => setPagina((p) => Math.min(totalPaginas, p + 1))} disabled={paginaAtual === totalPaginas}>Próxima</Button></div>
+        </div>
+      )}
+
+      {lista.length > 0 && (
+        <div className="flex justify-end">
+          <Button onClick={exportarExcel} variant="outline" className="min-h-11 w-full sm:w-auto" disabled={!lista.length}>
+            <FileSpreadsheet className="mr-2 h-4 w-4" />Exportar Excel
+          </Button>
         </div>
       )}
 
