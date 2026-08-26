@@ -154,8 +154,8 @@ function worksheetXml(headers: string[], rows: ExcelValue[][]) {
   return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><dimension ref="A1:${lastColumn}${lastRow}"/><sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><sheetData>${xmlRows.join("")}</sheetData></worksheet>`;
 }
 
-function workbookXml() {
-  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Prazos" sheetId="1" r:id="rId1"/></sheets></workbook>`;
+function workbookXml(sheetName: string) {
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="${escapeXml(sheetName)}" sheetId="1" r:id="rId1"/></sheets></workbook>`;
 }
 
 function contentTypesXml() {
@@ -170,14 +170,24 @@ function workbookRelsXml() {
   return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/></Relationships>`;
 }
 
-export function exportToExcel(filename: string, headers: string[], rows: ExcelValue[][]) {
-  // Esses campos são usados internamente pelo sistema de lembretes,
-  // mas não precisam ser levados para a planilha da advogada.
-  const colunasExcluidas = new Set([
-    "Lembrete",
-    "Antecedência",
-    "Repetição diária",
-  ]);
+export type ExportExcelOptions = {
+  /** Nome da planilha (aba). Padrão: "Prazos" (retrocompatível). */
+  sheetName?: string;
+  /** Cabeçalhos que não devem ir para o arquivo. Padrão: colunas internas de Prazos. */
+  excludeColumns?: string[];
+};
+
+/** Colunas internas do módulo Prazos, ocultadas por padrão para retrocompatibilidade. */
+const PRAZOS_COLUNAS_EXCLUIDAS = ["Lembrete", "Antecedência", "Repetição diária"];
+
+export function exportToExcel(
+  filename: string,
+  headers: string[],
+  rows: ExcelValue[][],
+  options: ExportExcelOptions = {},
+) {
+  const sheetName = options.sheetName ?? "Prazos";
+  const colunasExcluidas = new Set(options.excludeColumns ?? PRAZOS_COLUNAS_EXCLUIDAS);
   const indicesExcluidos = new Set(
     headers.flatMap((header, index) => colunasExcluidas.has(header) ? [index] : []),
   );
@@ -187,7 +197,7 @@ export function exportToExcel(filename: string, headers: string[], rows: ExcelVa
   const files: ZipFile[] = [
     { name: "[Content_Types].xml", data: toUtf8(contentTypesXml()) },
     { name: "_rels/.rels", data: toUtf8(rootRelsXml()) },
-    { name: "xl/workbook.xml", data: toUtf8(workbookXml()) },
+    { name: "xl/workbook.xml", data: toUtf8(workbookXml(sheetName)) },
     { name: "xl/_rels/workbook.xml.rels", data: toUtf8(workbookRelsXml()) },
     { name: "xl/worksheets/sheet1.xml", data: toUtf8(worksheetXml(headersExportados, rowsExportadas)) },
   ];
