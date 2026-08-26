@@ -1,9 +1,8 @@
-import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
-import { LayoutDashboard, Upload, Search, FolderOpen, ClipboardList, LogOut, Scale, Users, Wallet, UserCog, ConciergeBell, CalendarClock, ChevronDown, FileBarChart2, MessagesSquare } from "lucide-react";
-import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarHeader, SidebarFooter } from "@/components/ui/sidebar";
+import { Link, useRouterState } from "@tanstack/react-router";
+import { LayoutDashboard, Upload, Search, FolderOpen, ClipboardList, Scale, Users, Wallet, ConciergeBell, CalendarClock, ChevronDown, FileBarChart2, MessagesSquare } from "lucide-react";
+import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarHeader } from "@/components/ui/sidebar";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useProfile, CARGO_LABELS, type Cargo } from "@/hooks/use-profile";
 import { useEffect, useState } from "react";
@@ -38,7 +37,6 @@ function menuItemVisible(item: { need: string }, perms: { canAccessFinance: bool
 
 export function AppSidebar() {
   const pathname = useRouterState({ select: (r) => r.location.pathname });
-  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { profile, perms } = useProfile();
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({ Principal: true, Gestão: true, Documentos: true, Relatórios: true });
@@ -79,14 +77,6 @@ export function AppSidebar() {
     });
   }, [pathname]);
 
-  async function handleLogout() {
-    await queryClient.cancelQueries();
-    queryClient.clear();
-    await supabase.auth.signOut();
-    toast.success("Sessão encerrada");
-    navigate({ to: "/auth", replace: true });
-  }
-
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader className="border-b border-sidebar-border">
@@ -114,10 +104,6 @@ export function AppSidebar() {
           })}
         </SidebarMenu></SidebarGroupContent></SidebarGroup>
       </SidebarContent>
-      <SidebarFooter className="border-t border-sidebar-border"><SidebarMenu>
-        <SidebarMenuItem><SidebarMenuButton asChild isActive={pathname === "/perfil"} tooltip="Meu Perfil"><Link to="/perfil"><UserCog className="h-4 w-4" /><span>Meu Perfil</span></Link></SidebarMenuButton></SidebarMenuItem>
-        <SidebarMenuItem><SidebarMenuButton onClick={handleLogout} tooltip="Sair"><LogOut className="h-4 w-4" /><span>Sair</span></SidebarMenuButton></SidebarMenuItem>
-      </SidebarMenu></SidebarFooter>
     </Sidebar>
   );
 }
