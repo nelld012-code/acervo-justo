@@ -99,6 +99,7 @@ const emptyForm = {
   lembrete_ativo: true,
   antecedencia_dias: 3,
   repetir_alerta_diariamente: true,
+  status: "Em andamento" as "Em andamento" | "Concluído",
 };
 
 function brDate(d: string | null) {
@@ -217,6 +218,7 @@ function PrazosPage() {
       lembrete_ativo: p.lembrete_ativo,
       antecedencia_dias: p.antecedencia_dias,
       repetir_alerta_diariamente: p.repetir_alerta_diariamente,
+      status: p.status === "Concluído" ? "Concluído" : "Em andamento",
     });
     setDialogOpen(true);
   }
@@ -232,6 +234,9 @@ function PrazosPage() {
     if (!form.data_limite) return toast.error("Informe a data limite.");
     setSalvando(true);
     try {
+      const dataConclusao = form.status === "Concluído"
+        ? (editando?.data_conclusao ?? new Date().toISOString().slice(0, 10))
+        : null;
       const payload = {
         nome: form.nome.trim(),
         numero_processo: form.numero_processo.trim() || null,
@@ -242,6 +247,8 @@ function PrazosPage() {
         lembrete_ativo: form.lembrete_ativo,
         antecedencia_dias: form.antecedencia_dias,
         repetir_alerta_diariamente: form.repetir_alerta_diariamente,
+        status: form.status,
+        data_conclusao: dataConclusao,
       };
       if (editando) {
         const { error } = await supabase.from("prazos").update(payload).eq("id", editando.id);
@@ -429,7 +436,6 @@ function PrazosPage() {
           const mudancas: ImportUpdate["mudancas"] = [];
           (Object.keys(valores) as CampoAtualizavel[]).forEach((campo) => {
             const novo = valores[campo];
-            // Célula vazia no Excel nunca apaga o valor já gravado.
             if (novo === null || novo === undefined || novo === "") return;
             const atual = existente[campo] ?? null;
             if ((atual ?? "") === novo) return;
@@ -874,6 +880,7 @@ function PrazosPage() {
             <div className="grid gap-4 sm:grid-cols-2"><div className="space-y-1.5"><Label>Parte</Label><Select value={form.parte} onValueChange={(v) => setForm({ ...form, parte: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{PARTES.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}</SelectContent></Select></div><div className="space-y-1.5"><Label>Advogado</Label><Select value={form.advogado} onValueChange={(v) => setForm({ ...form, advogado: v })}><SelectTrigger><SelectValue placeholder="Selecione o advogado" /></SelectTrigger><SelectContent>{Array.from(new Set([...ADVOGADOS, ...(form.advogado ? [form.advogado] : [])])).map((a) => <SelectItem key={a} value={a}>{a}</SelectItem>)}</SelectContent></Select></div></div>
             <div className="space-y-1.5"><Label>Data Limite *</Label><Input type="date" value={form.data_limite} onChange={(e) => setForm({ ...form, data_limite: e.target.value })} required /></div>
             <div className="space-y-1.5"><Label>Observação</Label><Textarea value={form.observacao} onChange={(e) => setForm({ ...form, observacao: e.target.value })} /></div>
+            <div className="space-y-1.5"><Label>Status</Label><Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v as "Em andamento" | "Concluído" })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="Em andamento">Em andamento</SelectItem><SelectItem value="Concluído">Concluído</SelectItem></SelectContent></Select></div>
             <div className="space-y-3 rounded-lg border border-border p-3"><div className="flex items-center gap-2"><Checkbox id="lembrete" checked={form.lembrete_ativo} onCheckedChange={(v) => setForm({ ...form, lembrete_ativo: v === true })} /><Label htmlFor="lembrete" className="cursor-pointer">Ativar lembrete</Label></div>{form.lembrete_ativo && <><div className="space-y-1.5"><Label>Antecedência do lembrete</Label><Select value={String(form.antecedencia_dias)} onValueChange={(v) => setForm({ ...form, antecedencia_dias: Number(v) })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{ANTECEDENCIA_DIAS_OPTIONS.map((o) => <SelectItem key={o.value} value={String(o.value)}>{o.label}</SelectItem>)}</SelectContent></Select></div><div className="flex items-center gap-2"><Checkbox id="repetir" checked={form.repetir_alerta_diariamente} onCheckedChange={(v) => setForm({ ...form, repetir_alerta_diariamente: v === true })} /><Label htmlFor="repetir" className="cursor-pointer">Repetir alerta diariamente</Label></div></>}</div>
             <DialogFooter><Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button><Button type="submit" disabled={salvando}>{salvando ? "Salvando..." : "Salvar"}</Button></DialogFooter>
           </form>
