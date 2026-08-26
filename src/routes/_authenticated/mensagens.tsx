@@ -21,6 +21,7 @@ import {
 } from "@/components/message-attachment";
 
 export const Route = createFileRoute("/_authenticated/mensagens")({
+  ssr: false,
   head: () => ({
     meta: [
       { title: "Mensagens - Gestão Judicial" },
@@ -64,7 +65,6 @@ function extensaoDe(file: File) {
   return ponto > -1 ? nome.slice(ponto + 1) : "bin";
 }
 
-
 function MensagensPage() {
   const queryClient = useQueryClient();
   const [meuId, setMeuId] = useState<string | null>(null);
@@ -77,7 +77,6 @@ function MensagensPage() {
   const [emojiAberto, setEmojiAberto] = useState(false);
   const fimRef = useRef<HTMLDivElement>(null);
   const inputArquivoRef = useRef<HTMLInputElement>(null);
-
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setMeuId(data.user?.id ?? null));
@@ -124,7 +123,6 @@ function MensagensPage() {
     },
   });
 
-  // Tempo real: qualquer alteração recarrega a conversa aberta e o contador.
   useEffect(() => {
     const channel = supabase
       .channel("mensageria-interna")
@@ -136,7 +134,6 @@ function MensagensPage() {
     return () => { supabase.removeChannel(channel); };
   }, [queryClient]);
 
-  // Marcar como lida ao abrir a conversa.
   useEffect(() => {
     if (!selecionado || !meuId) return;
     const naoLidas = (conversaQuery.data ?? []).filter((m) => m.recipient_id === meuId && !m.read_at);
@@ -257,20 +254,17 @@ function MensagensPage() {
     queryClient.invalidateQueries({ queryKey: ["messages-unread"] });
   }
 
-
   const contatos = contatosQuery.data ?? [];
 
   return (
     <div className="w-full max-w-full space-y-4 p-3 sm:p-4">
       <div>
         <h1 className="flex items-center gap-2 text-2xl font-semibold"><MessagesSquare className="h-6 w-6" /> Mensagens</h1>
-       {totalNaoLidas > 0 && (
-  <p className="text-sm text-muted-foreground">
-    <span className="font-medium text-foreground">
-      {totalNaoLidas} não lida(s).
-    </span>
-  </p>
-)}
+        {totalNaoLidas > 0 && (
+          <p className="text-sm text-muted-foreground">
+            <span className="font-medium text-foreground">{totalNaoLidas} não lida(s).</span>
+          </p>
+        )}
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[300px_1fr]">
@@ -355,7 +349,6 @@ function MensagensPage() {
                         {m.body && <p className="whitespace-pre-wrap break-words">{m.body}</p>}
                         <p className={`mt-1 text-[11px] ${minha ? "text-primary-foreground/70" : "text-muted-foreground"}`}>{formatHora(m.created_at)}</p>
                       </div>
-
                       {!minha && (
                         <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 opacity-60 transition-opacity group-hover:opacity-100" aria-label="Copiar mensagem" onClick={() => void copiar(m.body)}>
                           <Copy className="h-3.5 w-3.5" />
@@ -389,10 +382,7 @@ function MensagensPage() {
                 <p className="text-xs text-muted-foreground">Enviando anexo... {progresso}%</p>
               </div>
             )}
-            <form
-              className="flex gap-2"
-              onSubmit={(e) => { e.preventDefault(); void enviar(); }}
-            >
+            <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); void enviar(); }}>
               <input
                 ref={inputArquivoRef}
                 type="file"
@@ -400,15 +390,7 @@ function MensagensPage() {
                 accept=".jpg,.jpeg,.png,.webp,.pdf,.doc,.docx"
                 onChange={(e) => escolherArquivo(e.target.files?.[0] ?? null)}
               />
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                className="shrink-0"
-                disabled={!selecionado || enviando}
-                onClick={() => inputArquivoRef.current?.click()}
-                aria-label="Anexar arquivo"
-              >
+              <Button type="button" variant="outline" size="icon" className="shrink-0" disabled={!selecionado || enviando} onClick={() => inputArquivoRef.current?.click()} aria-label="Anexar arquivo">
                 <Paperclip className="h-4 w-4" />
               </Button>
               <Popover open={emojiAberto} onOpenChange={setEmojiAberto}>
@@ -444,7 +426,6 @@ function MensagensPage() {
                 <span className="ml-2 hidden sm:inline">Enviar</span>
               </Button>
             </form>
-
           </CardContent>
         </Card>
       </div>
