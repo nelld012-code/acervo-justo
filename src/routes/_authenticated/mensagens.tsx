@@ -264,10 +264,13 @@ function MensagensPage() {
     <div className="w-full max-w-full space-y-4 p-3 sm:p-6">
       <div>
         <h1 className="flex items-center gap-2 text-2xl font-semibold"><MessagesSquare className="h-6 w-6" /> Mensagens</h1>
-        <p className="text-sm text-muted-foreground">
-          Comunicação interna entre usuários do sistema. As mensagens são apagadas automaticamente após 60 dias.
-          {totalNaoLidas > 0 && <span className="ml-1 font-medium text-foreground">{totalNaoLidas} não lida(s).</span>}
-        </p>
+       {totalNaoLidas > 0 && (
+  <p className="text-sm text-muted-foreground">
+    <span className="font-medium text-foreground">
+      {totalNaoLidas} não lida(s).
+    </span>
+  </p>
+)}
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[300px_1fr]">
