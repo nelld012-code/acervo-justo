@@ -17,7 +17,7 @@ export type Prazo = {
 };
 
 export const PARTES = ["Parte Autora", "Parte Ré"] as const;
-export const STATUS_PRAZO = ["Em andamento", "Concluído"] as const;
+export const STATUS_PRAZO = ["Em andamento", "Concluído", "Normal", "Atenção", "Crítico"] as const;
 
 export const ANTECEDENCIA_DIAS_OPTIONS = [6, 5, 4, 3, 2, 1].map((d) => ({
   value: d,
@@ -52,8 +52,17 @@ export function diasRestantes(dataLimite: string, hoje = new Date()) {
   return Math.round((limite.getTime() - base.getTime()) / 86400000);
 }
 
+/**
+ * Situação visual do prazo.
+ * Os estados manuais Normal/Atenção/Crítico/Concluído têm prioridade.
+ * "Em andamento" continua sendo calculado pela data limite.
+ */
 export function situacaoDoPrazo(p: Prazo, hoje = new Date()): Situacao {
   if (p.status === "Concluído") return "concluido";
+  if (p.status === "Normal") return "normal";
+  if (p.status === "Atenção") return "atencao";
+  if (p.status === "Crítico") return "critico";
+
   const dias = diasRestantes(p.data_limite, hoje);
   if (dias < 0) return "vencido";
   if (dias === 0) return "hoje";
@@ -77,8 +86,6 @@ export function prazoEmAlerta(p: Prazo, hoje = new Date()) {
   const dias = diasRestantes(p.data_limite, hoje);
   if (dias > p.antecedencia_dias) return false;
   if (dias < 0) {
-    // Prazos vencidos só continuam alertando quando a repetição diária está ligada,
-    // e ainda assim por um período limitado (evita alertas infinitos).
     return p.repetir_alerta_diariamente && Math.abs(dias) <= DIAS_MAX_ALERTA_VENCIDO;
   }
   return true;
