@@ -758,6 +758,14 @@ function PrazosPage() {
         </div>
       )}
 
+      {lista.length > 0 && (
+        <div className="flex justify-end">
+          <Button onClick={exportarExcel} variant="outline" className="min-h-11 w-full sm:w-auto" disabled={!lista.length}>
+            <FileSpreadsheet className="mr-2 h-4 w-4" />Exportar Excel
+          </Button>
+        </div>
+      )}
+
       <Dialog open={detalhesOpen} onOpenChange={setDetalhesOpen}>
         <DialogContent className="max-h-[85vh] w-[calc(100vw-2rem)] max-w-[730px] overflow-y-auto">
           <DialogHeader>
