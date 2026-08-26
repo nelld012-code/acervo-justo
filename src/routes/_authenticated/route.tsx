@@ -1,4 +1,4 @@
-import { createFileRoute, Link, Outlet, redirect } from "@tanstack/react-router";
+import { createFileRoute, Link, Outlet, redirect, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { AppSidebar } from "@/components/app-sidebar";
@@ -41,6 +41,7 @@ type NewMessage = {
 };
 
 function NewMessagePopup() {
+  const navigate = useNavigate();
   const [userId, setUserId] = useState<string | null>(null);
   const [message, setMessage] = useState<NewMessage | null>(null);
   const [senderName, setSenderName] = useState("Usuário");
@@ -90,7 +91,7 @@ function NewMessagePopup() {
 
   function closeAndOpenMessages() {
     setMessage(null);
-    window.location.assign("/mensagens");
+    navigate({ to: "/mensagens" });
   }
 
   return (
