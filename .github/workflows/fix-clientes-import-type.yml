@@ -1,0 +1,38 @@
+name: Fix Clientes Import Type
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Corrigir tipagem do patch de importação
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path("src/routes/_authenticated/clientes.tsx")
+          s = p.read_text(encoding="utf-8")
+          old = 'type ImportUpdateCliente = { cliente: Cliente; patch: Record<string, string>; mudancas: { rotulo: string; de: string; para: string }[] };'
+          new = 'type ImportUpdateCliente = { cliente: Cliente; patch: Partial<Cliente>; mudancas: { rotulo: string; de: string; para: string }[] };'
+          if old not in s:
+              raise SystemExit("Tipagem esperada não encontrada; nenhuma alteração feita.")
+          p.write_text(s.replace(old, new, 1), encoding="utf-8")
+
+      - name: Remover workflow temporário e salvar correção
+        run: |
+          rm .github/workflows/fix-clientes-import-type.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/routes/_authenticated/clientes.tsx .github/workflows/fix-clientes-import-type.yml
+          git commit -m "fix: corrigir tipagem da importação de clientes"
+          git push
