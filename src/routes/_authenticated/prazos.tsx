@@ -600,20 +600,17 @@ function PrazosPage() {
           <p className="text-sm text-muted-foreground">Controle dos prazos com alertas automáticos por urgência.</p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row">
+          {podeGerenciar && (
+            <Button onClick={abrirNovo} className="min-h-11 w-full sm:w-auto">
+              <Plus className="mr-2 h-4 w-4" />Novo Prazo
+            </Button>
+          )}
           <Button onClick={imprimirLista} variant="outline" className="min-h-11 w-full sm:w-auto" disabled={!lista.length}>
             <Printer className="mr-2 h-4 w-4" />Imprimir lista
-          </Button>
-          <Button onClick={exportarExcel} variant="outline" className="min-h-11 w-full sm:w-auto" disabled={!lista.length}>
-            <FileSpreadsheet className="mr-2 h-4 w-4" />Exportar Excel
           </Button>
           {podeGerenciar && (
             <Button onClick={abrirImportacao} variant="outline" className="min-h-11 w-full sm:w-auto">
               <Upload className="mr-2 h-4 w-4" />Importar Excel
-            </Button>
-          )}
-          {podeGerenciar && (
-            <Button onClick={abrirNovo} className="min-h-11 w-full sm:w-auto">
-              <Plus className="mr-2 h-4 w-4" />Novo Prazo
             </Button>
           )}
         </div>
