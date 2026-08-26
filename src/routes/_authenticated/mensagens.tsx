@@ -261,7 +261,7 @@ function MensagensPage() {
   const contatos = contatosQuery.data ?? [];
 
   return (
-    <div className="w-full max-w-full space-y-4 p-3 sm:p-6">
+    <div className="w-full max-w-full space-y-4 p-3 sm:p-4">
       <div>
         <h1 className="flex items-center gap-2 text-2xl font-semibold"><MessagesSquare className="h-6 w-6" /> Mensagens</h1>
        {totalNaoLidas > 0 && (
