@@ -193,6 +193,13 @@ function PrazosPage() {
   const [importFileName, setImportFileName] = useState("");
   const [importando, setImportando] = useState(false);
 
+  useEffect(() => {
+    const filtroSolicitado = new URLSearchParams(window.location.search).get("filtroPrazo");
+    if (filtroSolicitado && (FILTROS as readonly string[]).includes(filtroSolicitado)) {
+      setFiltro(filtroSolicitado as Filtro);
+    }
+  }, []);
+
   const { data, isLoading, isError } = useQuery({
     queryKey: ["prazos"],
     queryFn: async () => {
