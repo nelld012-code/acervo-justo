@@ -115,14 +115,14 @@ function escapeHtml(value: string) {
     .replaceAll("'", "&#039;");
 }
 
-function printHtml(title: string, body: string) {
+function printHtml(title: string, body: string, orientation: "portrait" | "landscape" = "portrait") {
   const win = window.open("", "_blank", "width=1000,height=800");
   if (!win || !win.document) {
     toast.error("Não foi possível abrir a janela de impressão. Verifique o bloqueador de pop-ups.");
     return;
   }
   const html = `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>${escapeHtml(title)}</title><style>
-    @page { size: A4 portrait; margin: 14mm; }
+    @page { size: A4 ${orientation}; margin: 14mm; }
     body { font-family: Arial, sans-serif; color: #111; font-size: 12px; margin: 0; }
     h1 { font-size: 20px; margin: 0 0 4px; }
     h2 { font-size: 15px; margin: 18px 0 8px; }
@@ -131,6 +131,7 @@ function printHtml(title: string, body: string) {
     table { width: 100%; border-collapse: collapse; }
     th, td { border: 1px solid #bbb; padding: 6px 7px; text-align: left; vertical-align: top; }
     th { background: #eee; }
+    .obs-cell { white-space: pre-wrap; word-wrap: break-word; max-width: 260px; }
     .item { border: 1px solid #bbb; padding: 12px; margin-bottom: 10px; break-inside: avoid; }
     .item p { margin: 5px 0; }
     .print-date { margin-top: 18px; font-size: 10px; color: #666; }
