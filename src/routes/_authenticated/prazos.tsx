@@ -335,14 +335,16 @@ function PrazosPage() {
         <td>${escapeHtml(brDate(p.data_limite))}</td>
         <td>${escapeHtml(p.status === "Concluído" ? "—" : String(diasRestantes(p.data_limite)))}</td>
         <td>${escapeHtml(SITUACAO_LABEL[s])}</td>
+        <td class="obs-cell">${escapeHtml(p.observacao || "—")}</td>
+        <td>${escapeHtml(p.data_conclusao ? brDate(p.data_conclusao) : "—")}</td>
       </tr>`;
     }).join("");
     const body = `
       <h1>Lista de Prazos</h1>
       <div class="meta muted">${lista.length} prazo(s) · filtros e ordenação atuais aplicados</div>
-      <table><thead><tr><th>Nome</th><th>Processo</th><th>Parte</th><th>Advogado</th><th>Data Limite</th><th>Dias</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table>
+      <table><thead><tr><th>Nome</th><th>Processo</th><th>Parte</th><th>Advogado</th><th>Data Limite</th><th>Dias</th><th>Status</th><th>Observação</th><th>Data de Conclusão</th></tr></thead><tbody>${rows}</tbody></table>
       <div class="print-date">Gerado em ${escapeHtml(new Date().toLocaleString("pt-BR"))}</div>`;
-    printHtml("Lista de Prazos", body);
+    printHtml("Lista de Prazos", body, "landscape");
   }
 
   const lista = useMemo(() => {
