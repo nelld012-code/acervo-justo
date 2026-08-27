@@ -129,8 +129,14 @@ function printHtml(title: string, body: string, orientation: "portrait" | "lands
     .muted { color: #555; }
     .meta { margin-bottom: 16px; }
     table { width: 100%; border-collapse: collapse; }
-    th, td { border: 1px solid #bbb; padding: 6px 7px; text-align: left; vertical-align: top; }
+    th, td { border: 1px solid #bbb; padding: 4px 6px; text-align: left; vertical-align: middle; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     th { background: #eee; }
+    .print-table { table-layout: fixed; }
+    .col-nome { width: 18%; }
+    .col-processo { width: 20%; }
+    .col-advogado { width: 14%; }
+    .col-data { width: 12%; }
+    .col-obs { width: 36%; }
     .obs-cell { white-space: pre-wrap; word-wrap: break-word; max-width: 260px; }
     .item { border: 1px solid #bbb; padding: 12px; margin-bottom: 10px; break-inside: avoid; }
     .item p { margin: 5px 0; }
@@ -326,23 +332,29 @@ function PrazosPage() {
       return;
     }
     const rows = lista.map((p) => {
-      const s = situacaoDoPrazo(p);
       return `<tr>
-        <td>${escapeHtml(p.nome)}</td>
-        <td>${escapeHtml(processoOuTraco(p.numero_processo))}</td>
-        <td>${escapeHtml(p.parte)}</td>
-        <td>${escapeHtml(p.advogado || "—")}</td>
-        <td>${escapeHtml(brDate(p.data_limite))}</td>
-        <td>${escapeHtml(p.status === "Concluído" ? "—" : String(diasRestantes(p.data_limite)))}</td>
-        <td>${escapeHtml(SITUACAO_LABEL[s])}</td>
-        <td class="obs-cell">${escapeHtml(p.observacao || "—")}</td>
-        <td>${escapeHtml(p.data_conclusao ? brDate(p.data_conclusao) : "—")}</td>
+        <td class="col-nome">${escapeHtml(p.nome)}</td>
+        <td class="col-processo">${escapeHtml(processoOuTraco(p.numero_processo))}</td>
+        <td class="col-advogado">${escapeHtml(p.advogado || "—")}</td>
+        <td class="col-data">${escapeHtml(brDate(p.data_limite))}</td>
+        <td class="col-obs">${escapeHtml(p.observacao || "—")}</td>
       </tr>`;
     }).join("");
     const body = `
       <h1>Lista de Prazos</h1>
       <div class="meta muted">${lista.length} prazo(s) · filtros e ordenação atuais aplicados</div>
-      <table><thead><tr><th>Nome</th><th>Processo</th><th>Parte</th><th>Advogado</th><th>Data Limite</th><th>Dias</th><th>Status</th><th>Observação</th><th>Data de Conclusão</th></tr></thead><tbody>${rows}</tbody></table>
+      <table class="print-table">
+        <thead>
+          <tr>
+            <th class="col-nome">Nome</th>
+            <th class="col-processo">Processo</th>
+            <th class="col-advogado">Advogado</th>
+            <th class="col-data">Data Limite</th>
+            <th class="col-obs">Observação</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
       <div class="print-date">Gerado em ${escapeHtml(new Date().toLocaleString("pt-BR"))}</div>`;
     printHtml("Lista de Prazos", body, "landscape");
   }
