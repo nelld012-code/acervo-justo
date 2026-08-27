@@ -91,6 +91,17 @@ function Dashboard() {
   });
   const prazosProximos = prazosAndamento.filter((p) => diasRestantes(p.data_limite) <= 6).length;
 
+  const prazoResumo = [
+    { filtro: "hoje" as const, label: "Vencem hoje", value: prazosHoje.length, icon: "🔴", className: "border-red-500/40 bg-red-500/5 hover:bg-red-500/10" },
+    { filtro: "3dias" as const, label: "Próximos 3 dias", value: prazos3Dias.length, icon: "🟠", className: "border-orange-500/40 bg-orange-500/5 hover:bg-orange-500/10" },
+    { filtro: "7dias" as const, label: "Próximos 7 dias", value: prazosAndamento.filter((p) => { const dias = diasRestantes(p.data_limite); return dias >= 1 && dias <= 7; }).length, icon: "🟡", className: "border-yellow-500/40 bg-yellow-500/5 hover:bg-yellow-500/10" },
+    { filtro: "concluidos" as const, label: "Concluídos", value: (prazos ?? []).filter((p) => p.status === "Concluído").length, icon: "🟢", className: "border-emerald-500/40 bg-emerald-500/5 hover:bg-emerald-500/10" },
+  ];
+
+  function abrirPrazosComFiltro(filtro: FiltroPrazo) {
+    window.location.href = `/prazos?filtro=${encodeURIComponent(filtro)}`;
+  }
+
   const prazosFiltrados = useMemo(() => {
     return (prazos ?? []).filter((p) => {
       const dias = diasRestantes(p.data_limite);
@@ -168,6 +179,24 @@ function Dashboard() {
               <div className="text-2xl font-bold text-foreground sm:text-3xl">{isLoading ? "—" : c.value}</div>
             </CardContent>
           </Card>
+        ))}
+      </div>
+
+      <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+        {prazoResumo.map((item) => (
+          <button
+            key={item.filtro}
+            type="button"
+            onClick={() => abrirPrazosComFiltro(item.filtro)}
+            className={`rounded-xl border p-4 text-left transition-all hover:-translate-y-0.5 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${item.className}`}
+          >
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-sm font-medium text-muted-foreground">{item.icon} {item.label}</span>
+              <CalendarClock className="h-4 w-4 text-muted-foreground" />
+            </div>
+            <div className="mt-2 text-3xl font-bold text-foreground">{isLoading ? "—" : item.value}</div>
+            <div className="mt-1 text-xs text-muted-foreground">Clique para abrir Prazos filtrados</div>
+          </button>
         ))}
       </div>
 
