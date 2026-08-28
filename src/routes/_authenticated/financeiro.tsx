@@ -45,6 +45,7 @@ import {
 import { format, startOfMonth, endOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { printReport } from "@/lib/print-report";
+import { StandardPagination } from "@/components/standard-pagination";
 import {
   printFinancialRecord,
   isSalario,
@@ -1363,63 +1364,7 @@ function FinanceiroPage() {
             </Table>
           </div>
 
-          {registrosFiltrados.length > 0 && (
-            <div className="flex flex-col items-center justify-between gap-3 border-t p-4 sm:flex-row">
-              <p className="text-xs text-muted-foreground">
-                Mostrando{" "}
-                {(paginaAtual - 1) * PAGE_SIZE + 1}–
-                {Math.min(
-                  paginaAtual * PAGE_SIZE,
-                  registrosFiltrados.length,
-                )}{" "}
-                de {registrosFiltrados.length} registros
-              </p>
-
-              <div className="flex flex-wrap items-center justify-center gap-1">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={paginaAtual <= 1}
-                  onClick={() => setPagina(paginaAtual - 1)}
-                >
-                  Anterior
-                </Button>
-
-                {totalPaginas <= 7 ? (
-                  Array.from(
-                    { length: totalPaginas },
-                    (_, i) => i + 1,
-                  ).map((n) => (
-                    <Button
-                      key={n}
-                      size="sm"
-                      variant={
-                        n === paginaAtual
-                          ? "default"
-                          : "outline"
-                      }
-                      onClick={() => setPagina(n)}
-                    >
-                      {n}
-                    </Button>
-                  ))
-                ) : (
-                  <span className="px-2 text-xs text-muted-foreground">
-                    Página {paginaAtual} de {totalPaginas}
-                  </span>
-                )}
-
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={paginaAtual >= totalPaginas}
-                  onClick={() => setPagina(paginaAtual + 1)}
-                >
-                  Próxima
-                </Button>
-              </div>
-            </div>
-          )}
+          {registrosFiltrados.length > 0 && <StandardPagination current={paginaAtual} total={totalPaginas} totalItems={registrosFiltrados.length} pageSize={PAGE_SIZE} onChange={setPagina} />}
         </CardContent>
       </Card>
 
