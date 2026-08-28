@@ -21,6 +21,7 @@ import {
 import { CalendarClock, CheckCircle2, Eye, FileSpreadsheet, Upload, Pencil, Plus, Printer, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useProfile } from "@/hooks/use-profile";
+import { StandardPagination } from "@/components/standard-pagination";
 import { logAudit } from "@/lib/documents";
 import { exportToExcel } from "@/lib/export-excel";
 import { parsePrazosExcel, type ImportPrazoRow } from "@/lib/import-excel";
@@ -779,12 +780,7 @@ function PrazosPage() {
         </CardContent>
       </Card>
 
-      {lista.length > 0 && (
-        <div className="flex flex-col items-center justify-between gap-2 sm:flex-row">
-          <p className="text-xs text-muted-foreground">Página {paginaAtual} de {totalPaginas} · {lista.length} registro(s)</p>
-          <div className="flex gap-2"><Button size="sm" variant="outline" onClick={() => setPagina((p) => Math.max(1, p - 1))} disabled={paginaAtual === 1}>Anterior</Button><Button size="sm" variant="outline" onClick={() => setPagina((p) => Math.min(totalPaginas, p + 1))} disabled={paginaAtual === totalPaginas}>Próxima</Button></div>
-        </div>
-      )}
+      {lista.length > 0 && <StandardPagination current={paginaAtual} total={totalPaginas} totalItems={lista.length} pageSize={ITENS_POR_PAGINA} onChange={setPagina} />}
 
       {lista.length > 0 && (
         <div className="flex justify-end">
