@@ -7,6 +7,7 @@ import { PrazoReminders } from "@/components/prazo-reminders";
 import { SidebarProvider, useSidebar } from "@/components/ui/sidebar";
 import { Menu, MessageSquare, X, UserCircle, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useProfile, CARGO_LABELS } from "@/hooks/use-profile";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
@@ -80,8 +81,27 @@ function NewMessagePopup() {
 }
 
 function HeaderActions() {
+  const { profile, cargo } = useProfile();
   async function sair() { await supabase.auth.signOut(); window.location.assign("/auth"); }
-  return <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-2"><Link to="/perfil" className="inline-flex h-9 items-center gap-1.5 rounded-md px-2 text-sm font-medium text-foreground transition-colors hover:bg-muted sm:px-3" title="Perfil" aria-label="Abrir perfil"><UserCircle className="h-4 w-4" /><span>Perfil</span></Link><Button variant="ghost" size="sm" onClick={() => void sair()} className="h-9 gap-1.5 px-2 text-sm font-medium text-foreground hover:bg-muted sm:px-3" title="Sair" aria-label="Sair do sistema"><LogOut className="h-4 w-4" /><span>Sair</span></Button></div>;
+  const nome = profile?.nome?.trim() || "Usuário";
+  const cargoLabel = CARGO_LABELS[cargo] ?? cargo;
+  return (
+    <div className="ml-auto flex shrink-0 flex-col items-end">
+      <div className="flex items-center gap-1 sm:gap-2">
+        <Link to="/perfil" className="inline-flex h-9 items-center gap-1.5 rounded-md px-2 text-sm font-medium text-foreground transition-colors hover:bg-muted sm:px-3" title="Perfil" aria-label="Abrir perfil">
+          <UserCircle className="h-4 w-4" /><span>Perfil</span>
+        </Link>
+        <Button variant="ghost" size="sm" onClick={() => void sair()} className="h-9 gap-1.5 px-2 text-sm font-medium text-foreground hover:bg-muted sm:px-3" title="Sair" aria-label="Sair do sistema">
+          <LogOut className="h-4 w-4" /><span>Sair</span>
+        </Button>
+      </div>
+      <div className="max-w-[16rem] truncate text-right text-[11px] leading-tight text-muted-foreground sm:max-w-[20rem] sm:text-xs" title={`${nome} · ${cargoLabel}`}>
+        <span className="font-medium text-foreground/80">{nome}</span>
+        <span className="mx-1">·</span>
+        <span>{cargoLabel}</span>
+      </div>
+    </div>
+  );
 }
 
 function AuthenticatedLayout() {
