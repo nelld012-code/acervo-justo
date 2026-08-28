@@ -91,7 +91,7 @@ export function AppSidebar() {
             <span className="block truncate font-semibold text-sidebar-foreground">J DIMAS GONÇALVES</span>
             <span className="block truncate text-xs text-sidebar-foreground/70">ESCRITORIO DE ADVOCACIA</span>
             <span className="mt-0.5 block truncate text-[11px] text-sidebar-foreground/60">Gestão Judicial</span>
-            {profile && <span className="mt-1 block truncate text-[11px] text-sidebar-foreground/60">{(profile.nome || profile.email || "") + " · " + CARGO_LABELS[(profile.cargo as Cargo) ?? "assistente"]}</span>}
+            
           </div>
         </div>
       </SidebarHeader>
