@@ -84,13 +84,13 @@ export function AppSidebar() {
 
   return (
     <Sidebar collapsible="icon">
-      <SidebarHeader className="border-b border-sidebar-border">
-        <div className="flex items-center gap-2 px-2 py-2">
+      <SidebarHeader className="h-[76px] border-b border-sidebar-border">
+        <div className="flex h-full items-center gap-2 px-2 py-1.5">
           <Scale className="h-5 w-5 shrink-0 text-sidebar-primary" />
           <div className="min-w-0 group-data-[collapsible=icon]:hidden">
             <span className="block truncate font-semibold text-sidebar-foreground">J DIMAS GONÇALVES</span>
-            <span className="block truncate text-xs text-sidebar-foreground/70">ESCRITORIO DE ADVOCACIA</span>
-            <span className="mt-0.5 block truncate text-[11px] text-sidebar-foreground/60">Gestão Judicial</span>
+            <span className="block truncate text-xs leading-tight text-sidebar-foreground/70">ESCRITORIO DE ADVOCACIA</span>
+            <span className="block truncate text-[11px] leading-tight text-sidebar-foreground/60">Gestão Judicial</span>
             
           </div>
         </div>
