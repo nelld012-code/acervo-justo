@@ -1,0 +1,1 @@
+ALTER TABLE public.reception_entries ADD COLUMN IF NOT EXISTS hora text;
