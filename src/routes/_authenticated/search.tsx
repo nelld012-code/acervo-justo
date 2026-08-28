@@ -13,6 +13,7 @@ import { DocumentDetailSheet } from "@/components/document-detail-sheet";
 import { TIPOS_DOCUMENTO, ESTADOS, type Documento, badgeVariantForStatus, processoLabel } from "@/lib/documents";
 import { format } from "date-fns";
 import { Search as SearchIcon, X, Pencil, Trash2, UploadCloud, Printer } from "lucide-react";
+import { StandardPagination } from "@/components/standard-pagination";
 import { toast } from "sonner";
 import { printReport } from "@/lib/print-report";
 import {
@@ -271,14 +272,7 @@ function SearchPage() {
         </CardContent>
       </Card>
 
-      <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
-        <span className="text-muted-foreground">{data?.count ?? 0} resultado(s)</span>
-        <div className="flex gap-2">
-          <Button size="sm" variant="outline" onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0}>Anterior</Button>
-          <span className="flex items-center px-2">{page + 1} / {totalPages}</span>
-          <Button size="sm" variant="outline" onClick={() => setPage((p) => (p + 1 < totalPages ? p + 1 : p))} disabled={page + 1 >= totalPages}>Próxima</Button>
-        </div>
-      </div>
+      <StandardPagination current={page + 1} total={totalPages} totalItems={data?.count ?? 0} pageSize={PAGE_SIZE} onChange={(p) => setPage(p - 1)} label="registros" />
 
       <DocumentDetailSheet doc={selected} open={!!selected} onOpenChange={(o) => !o && setSelected(null)} />
 
