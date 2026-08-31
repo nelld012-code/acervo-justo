@@ -7,7 +7,7 @@ export type ImportPrazoRow = {
   numero_processo: string | null;
   parte: string;
   advogado: string | null;
-  data_limite: string;
+  data_limite: string | null;
   status: string;
   observacao: string | null;
   data_conclusao: string | null;
