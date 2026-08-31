@@ -323,7 +323,7 @@ function PrazosPage() {
         <p><strong>Parte:</strong> ${escapeHtml(p.parte)}</p>
         <p><strong>Advogado:</strong> ${escapeHtml(p.advogado || "—")}</p>
         <p><strong>Data Limite:</strong> ${escapeHtml(brDate(p.data_limite))}</p>
-        <p><strong>Dias Restantes:</strong> ${escapeHtml(p.status === "Concluído" ? "—" : String(diasRestantes(p.data_limite)))}</p>
+        <p><strong>Dias Restantes:</strong> ${escapeHtml(p.status === "Concluído" ? "—" : p.data_limite ? String(diasRestantes(p.data_limite)) : "—")}</p>
         <p><strong>Status:</strong> ${escapeHtml(SITUACAO_LABEL[status])}</p>
         <p><strong>Lembrete:</strong> ${escapeHtml(p.lembrete_ativo ? `${p.antecedencia_dias} dia(s) antes` : "Desativado")}</p>
         <p><strong>Observação:</strong> ${escapeHtml(p.observacao || "—")}</p>
@@ -383,14 +383,14 @@ function PrazosPage() {
       if (filtro === "Em andamento") return p.status === "Em andamento";
       if (filtro === "Concluídos") return p.status === "Concluído";
       if (filtro === "Próximos 3 dias") {
-        return p.status !== "Concluído" && ["normal", "atencao", "critico"].includes(situacao)
+        return p.data_limite != null && p.status !== "Concluído" && ["normal", "atencao", "critico"].includes(situacao)
           && diasRestantes(p.data_limite) >= 1 && diasRestantes(p.data_limite) <= 3;
       }
       if (filtro === "Próximos 7 dias") {
-        return p.status !== "Concluído" && ["normal", "atencao", "critico"].includes(situacao)
+        return p.data_limite != null && p.status !== "Concluído" && ["normal", "atencao", "critico"].includes(situacao)
           && diasRestantes(p.data_limite) >= 1 && diasRestantes(p.data_limite) <= 7;
       }
-      return situacao === FILTRO_SITUACAO[filtro];
+      return p.data_limite != null && situacao === FILTRO_SITUACAO[filtro];
     });
     const ordemStatus: Record<Situacao, number> = {
       vencido: 0, hoje: 1, critico: 2, atencao: 3, normal: 4, concluido: 5,
@@ -478,11 +478,7 @@ function PrazosPage() {
           erros.push(`Linha ${linha}: Nome não informado.`);
           return;
         }
-        if (!row.data_limite) {
-          erros.push(`Linha ${linha}: Data Limite inválida ou não informada.`);
-          return;
-        }
-        const chave = `${row.nome.trim().toLowerCase()}|${chaveProc}|${row.data_limite}`;
+        const chave = `${row.nome.trim().toLowerCase()}|${chaveProc}|${row.data_limite ?? ""}`;
         if (vistosNovos.has(chave)) {
           erros.push(`Linha ${linha}: possível registro duplicado (${row.nome} · ${brDate(row.data_limite)}).`);
           return;
@@ -734,14 +730,14 @@ function PrazosPage() {
             ) : lista.length ? (
               listaPaginada.map((p) => {
                 const s = situacaoDoPrazo(p);
-                const dias = diasRestantes(p.data_limite);
+                const dias = p.data_limite ? diasRestantes(p.data_limite) : Number.NaN;
                 return <div key={p.id} className="space-y-2 p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0"><p className="break-words font-medium">{p.nome}</p><p className="text-xs text-muted-foreground">{p.parte} · {p.advogado || "—"} · Limite: {brDate(p.data_limite)}</p></div>
                     <Badge variant="outline" className={`shrink-0 ${SITUACAO_CLASS[s]}`}>{SITUACAO_LABEL[s]}</Badge>
                   </div>
                   <p className="text-sm">Processo: {processoOuTraco(p.numero_processo)}</p>
-                  <p className="text-xs text-muted-foreground">{p.status === "Concluído" ? `Concluído em ${brDate(p.data_conclusao)}` : `${dias} dia(s) restante(s)`} · Lembrete: {p.lembrete_ativo ? "ativo" : "desativado"}</p>
+                  <p className="text-xs text-muted-foreground">{p.status === "Concluído" ? `Concluído em ${brDate(p.data_conclusao)}` : (p.data_limite ? `${dias} dia(s) restante(s)` : "Sem data limite")} · Lembrete: {p.lembrete_ativo ? "ativo" : "desativado"}</p>
                   <div className="flex flex-wrap gap-2 pt-1">
                     <Button size="sm" variant="outline" onClick={() => abrirDetalhes(p)}><Eye className="mr-1 h-4 w-4" />Ver</Button>
                     <Button size="sm" variant="outline" onClick={() => imprimirPrazo(p)}><Printer className="mr-1 h-4 w-4" />Imprimir</Button>
