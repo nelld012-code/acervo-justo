@@ -193,12 +193,37 @@ export async function printAtestadoComparecimento(atestado: AtestadoComparecimen
   page.drawRectangle({ x: margin, y: y + 14, width: width - margin * 2, height: boxTop - y - 6, borderColor: rgb(0.8, 0.82, 0.87), borderWidth: 0.8 });
   y -= 28;
   const declaracao = "Atestamos, para os devidos fins, que " + nome + (cpf !== "—" ? ", inscrito(a) no CPF sob nº " + cpf : "") + ", compareceu a este escritório de advocacia no dia " + data + ", permanecendo nas dependências no período " + periodo + ", para tratar de assuntos relacionados a " + assunto + ".";
-  const palavras = declaracao.split(" ");
-  let linha = "";
+  const maxWidth = width - margin * 2;
+  const fontSize = 10.5;
+  const palavras = declaracao.split(/\s+/);
   const linhasDeclaracao: string[] = [];
-  for (const palavra of palavras) { const teste = linha ? linha + " " + palavra : palavra; if (teste.length > 78) { linhasDeclaracao.push(linha); linha = palavra; } else { linha = teste; } }
+  let linha = "";
+  for (const palavra of palavras) {
+    const teste = linha ? linha + " " + palavra : palavra;
+    if (font.widthOfTextAtSize(teste, fontSize) > maxWidth && linha) {
+      linhasDeclaracao.push(linha);
+      linha = palavra;
+    } else {
+      linha = teste;
+    }
+  }
   if (linha) linhasDeclaracao.push(linha);
-  for (const texto of linhasDeclaracao) { page.drawText(texto, { x: margin, y, size: 10.5, font, color: rgb(0.16, 0.18, 0.23) }); y -= 16; }
+  linhasDeclaracao.forEach((texto, index) => {
+    const isLast = index === linhasDeclaracao.length - 1;
+    if (isLast) {
+      page.drawText(texto, { x: margin, y, size: fontSize, font, color: rgb(0.16, 0.18, 0.23) });
+    } else {
+      const words = texto.split(" ");
+      const textWidth = font.widthOfTextAtSize(texto, fontSize);
+      const extra = words.length > 1 ? (maxWidth - textWidth) / (words.length - 1) : 0;
+      let x = margin;
+      words.forEach((word) => {
+        page.drawText(word, { x, y, size: fontSize, font, color: rgb(0.16, 0.18, 0.23) });
+        x += font.widthOfTextAtSize(word, fontSize) + extra;
+      });
+    }
+    y -= 16;
+  });
   y -= 10;
   page.drawText("Por ser verdade, firmamos o presente atestado.", { x: margin, y, size: 10.5, font, color: rgb(0.16, 0.18, 0.23) });
   y -= 48;
