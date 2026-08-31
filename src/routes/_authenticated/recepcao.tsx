@@ -15,6 +15,7 @@ import { printReport } from "@/lib/print-report";
 import { whatsappLink } from "@/lib/documents";
 import { parseReceptionExcel, type ReceptionImportRow, type ReceptionImportError } from "@/lib/reception-import";
 import { StandardPagination } from "@/components/standard-pagination";
+import { WeeklyAgenda } from "@/components/weekly-agenda";
 
 export const Route = createFileRoute("/_authenticated/recepcao")({ head: () => ({ meta: [{ title: "Recepção - Gestão Judicial" }, { name: "description", content: "Registro de atendimentos da recepção: data, hora, advogado, cliente, CPF, telefone e atendente." }, { property: "og:title", content: "Recepção - Gestão Judicial" }, { property: "og:description", content: "Cadastre e consulte os atendimentos recebidos na recepção." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }), component: RecepcaoPage });
 
@@ -78,6 +79,7 @@ function RecepcaoPage() {
     <div className="grid gap-3 sm:grid-cols-3">
       {[{ label: "Hoje", value: counts.hoje }, { label: "Esta semana", value: counts.semana }, { label: "Total", value: counts.total }].map(c => <Card key={c.label}><CardContent className="p-4"><div className="text-xs uppercase text-muted-foreground">{c.label}</div><div className="text-2xl font-semibold">{c.value}</div></CardContent></Card>)}
     </div>
+    <WeeklyAgenda />
     <Card><CardContent className="space-y-3 p-4">
       <Input placeholder="Buscar por cliente, advogado, atendente, CPF ou telefone" value={busca} onChange={e => { setBusca(e.target.value); setPage(1); }} />
       <div className="flex flex-wrap gap-2">
