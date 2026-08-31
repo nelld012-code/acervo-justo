@@ -227,7 +227,7 @@ export async function printAtestadoComparecimento(atestado: AtestadoComparecimen
   y -= 10;
   page.drawText("Por ser verdade, firmamos o presente atestado.", { x: margin, y, size: 10.5, font, color: rgb(0.16, 0.18, 0.23) });
   y -= 48;
-  page.drawText("Cidade, " + new Date().toLocaleDateString("pt-BR") + ".", { x: margin, y, size: 10.5, font, color: rgb(0.16, 0.18, 0.23) });
+  page.drawText("Belo Horizonte/MG, " + new Date().toLocaleDateString("pt-BR") + ".", { x: margin, y, size: 10.5, font, color: rgb(0.16, 0.18, 0.23) });
   y -= 72;
   page.drawLine({ start: { x: margin, y }, end: { x: margin + 300, y }, thickness: 0.8, color: rgb(0.2, 0.22, 0.3) });
   page.drawText("J DIMAS GONÇALVES", { x: margin, y: y - 16, size: 11, font: bold, color: rgb(0.08, 0.09, 0.16) });
