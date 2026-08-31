@@ -4,7 +4,7 @@ export type Prazo = {
   numero_processo: string | null;
   parte: string;
   advogado: string | null;
-  data_limite: string;
+  data_limite: string | null;
   observacao: string | null;
   lembrete_ativo: boolean;
   antecedencia_dias: number;
@@ -45,7 +45,8 @@ export const SITUACAO_CLASS: Record<Situacao, string> = {
 };
 
 /** Dias restantes calculados dinamicamente (nunca persistidos). */
-export function diasRestantes(dataLimite: string, hoje = new Date()) {
+export function diasRestantes(dataLimite: string | null | undefined, hoje = new Date()) {
+  if (!dataLimite) return Number.NaN;
   const [y, m, d] = dataLimite.split("-").map(Number);
   const limite = new Date(y, (m ?? 1) - 1, d ?? 1);
   const base = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
@@ -63,6 +64,8 @@ export function situacaoDoPrazo(p: Prazo, hoje = new Date()): Situacao {
   if (p.status === "Atenção") return "atencao";
   if (p.status === "Crítico") return "critico";
 
+  if (!p.data_limite) return "normal";
+  if (!p.data_limite) return false;
   const dias = diasRestantes(p.data_limite, hoje);
   if (dias < 0) return "vencido";
   if (dias === 0) return "hoje";
