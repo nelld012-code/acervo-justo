@@ -116,7 +116,7 @@ function Dashboard() {
         case "concluidos": return p.status === "Concluído";
         default: return true;
       }
-    }).sort((a, b) => a.data_limite.localeCompare(b.data_limite));
+    }).sort((a, b) => (a.data_limite ?? "9999-12-31").localeCompare(b.data_limite ?? "9999-12-31"));
   }, [prazos, filtroPrazo, filtroAdvogado]);
 
   const total = data?.length ?? 0;
