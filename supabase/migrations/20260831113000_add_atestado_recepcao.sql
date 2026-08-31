@@ -1,0 +1,1 @@
+ALTER TABLE public.reception_entries ADD COLUMN IF NOT EXISTS hora_saida time; ALTER TABLE public.reception_entries ADD COLUMN IF NOT EXISTS assunto text; ALTER TABLE public.reception_entries ADD COLUMN IF NOT EXISTS atestado_emitido boolean NOT NULL DEFAULT false; ALTER TABLE public.reception_entries ADD COLUMN IF NOT EXISTS atestado_emitido_em timestamptz;
