@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Pencil, Trash2, Printer, MessageCircle, Upload, FileSpreadsheet, X } from "lucide-react";
+import { Plus, Pencil, Trash2, Printer, MessageCircle, Upload, FileSpreadsheet, X, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { printReport } from "@/lib/print-report";
 import { whatsappLink } from "@/lib/documents";
