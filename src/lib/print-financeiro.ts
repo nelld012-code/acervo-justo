@@ -150,6 +150,70 @@ export async function buildFinancialRecordPdf(rec: RegistroFinanceiro): Promise<
   return new Blob([out as unknown as BlobPart], { type: "application/pdf" });
 }
 
+
+export type AtestadoComparecimento = {
+  nome: string;
+  cpf?: string | null;
+  data: string;
+  horaInicio?: string | null;
+  horaFim?: string | null;
+  assunto?: string | null;
+};
+
+export async function printAtestadoComparecimento(atestado: AtestadoComparecimento) {
+  const pdf = await PDFDocument.create();
+  const font = await pdf.embedFont(StandardFonts.Helvetica);
+  const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
+  const A4: [number, number] = [595.28, 841.89];
+  const margin = 56;
+  const page = pdf.addPage(A4);
+  const width = A4[0];
+  const brLocal = (d: string) => { const parts = String(d || "").split("-"); return parts.length === 3 ? parts[2] + "/" + parts[1] + "/" + parts[0] : String(d || ""); };
+  const safeLocal = (v: string | null | undefined, fallback = "—") => { const x = String(v ?? "").trim(); return x || fallback; };
+  const nome = safeLocal(atestado.nome);
+  const cpf = safeLocal(atestado.cpf);
+  const data = brLocal(atestado.data);
+  const inicio = safeLocal(atestado.horaInicio, "___:___");
+  const fim = safeLocal(atestado.horaFim, "___:___");
+  const assunto = safeLocal(atestado.assunto, "atendimento profissional");
+  const periodo = "de " + inicio + " às " + fim;
+  page.drawRectangle({ x: 0, y: A4[1] - 110, width, height: 110, color: rgb(0.06, 0.09, 0.16) });
+  page.drawText("Sistema de Gestão Judicial", { x: margin, y: A4[1] - 40, size: 10, font, color: rgb(0.78, 0.81, 0.9) });
+  page.drawText("J DIMAS GONÇALVES", { x: margin, y: A4[1] - 60, size: 13, font: bold, color: rgb(1, 1, 1) });
+  page.drawText("ATESTADO DE COMPARECIMENTO", { x: margin, y: A4[1] - 88, size: 15, font: bold, color: rgb(0.72, 0.78, 1) });
+  let y = A4[1] - 146;
+  const linhas: [string, string][] = [["Documento", "Comparecimento"], ["Nome", nome], ["CPF", cpf], ["Data", data], ["Horário", periodo], ["Assunto", assunto]];
+  const boxTop = y + 8;
+  for (const [label, value] of linhas) {
+    page.drawText(label + ":", { x: margin + 10, y, size: 9.5, font: bold, color: rgb(0.35, 0.38, 0.45) });
+    const val = value.length > 52 ? value.slice(0, 52) + "…" : value;
+    page.drawText(val, { x: margin + 210, y, size: 11, font, color: rgb(0.08, 0.09, 0.16) });
+    y -= 24;
+  }
+  page.drawRectangle({ x: margin, y: y + 14, width: width - margin * 2, height: boxTop - y - 6, borderColor: rgb(0.8, 0.82, 0.87), borderWidth: 0.8 });
+  y -= 28;
+  const declaracao = "Atestamos, para os devidos fins, que " + nome + (cpf !== "—" ? ", inscrito(a) no CPF sob nº " + cpf : "") + ", compareceu a este escritório de advocacia no dia " + data + ", permanecendo nas dependências no período " + periodo + ", para tratar de assuntos relacionados a " + assunto + ".";
+  const palavras = declaracao.split(" ");
+  let linha = "";
+  const linhasDeclaracao: string[] = [];
+  for (const palavra of palavras) { const teste = linha ? linha + " " + palavra : palavra; if (teste.length > 78) { linhasDeclaracao.push(linha); linha = palavra; } else { linha = teste; } }
+  if (linha) linhasDeclaracao.push(linha);
+  for (const texto of linhasDeclaracao) { page.drawText(texto, { x: margin, y, size: 10.5, font, color: rgb(0.16, 0.18, 0.23) }); y -= 16; }
+  y -= 10;
+  page.drawText("Por ser verdade, firmamos o presente atestado.", { x: margin, y, size: 10.5, font, color: rgb(0.16, 0.18, 0.23) });
+  y -= 48;
+  page.drawText("Cidade, " + new Date().toLocaleDateString("pt-BR") + ".", { x: margin, y, size: 10.5, font, color: rgb(0.16, 0.18, 0.23) });
+  y -= 72;
+  page.drawLine({ start: { x: margin, y }, end: { x: margin + 300, y }, thickness: 0.8, color: rgb(0.2, 0.22, 0.3) });
+  page.drawText("J DIMAS GONÇALVES", { x: margin, y: y - 16, size: 11, font: bold, color: rgb(0.08, 0.09, 0.16) });
+  page.drawText("ESCRITÓRIO DE ADVOCACIA", { x: margin, y: y - 32, size: 9, font, color: rgb(0.35, 0.38, 0.45) });
+  const bytes = await pdf.save();
+  const blob = new Blob([bytes as unknown as BlobPart], { type: "application/pdf" });
+  const url = URL.createObjectURL(blob);
+  const win = window.open("about:blank", "_blank");
+  if (win && !win.closed) { win.location.href = url; setTimeout(() => URL.revokeObjectURL(url), 60000); return true; }
+  const a = document.createElement("a"); a.href = url; a.target = "_blank"; a.rel = "noopener"; a.download = "atestado-comparecimento.pdf"; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 60000); return true;
+}
 /** Abre o recibo em nova guia. O alvo é criado ANTES do await para evitar bloqueio de popup em celulares. */
 export async function printFinancialRecord(rec: RegistroFinanceiro) {
   const win = window.open("about:blank", "_blank");
