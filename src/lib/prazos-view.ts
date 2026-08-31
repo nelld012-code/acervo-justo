@@ -65,7 +65,6 @@ export function situacaoDoPrazo(p: Prazo, hoje = new Date()): Situacao {
   if (p.status === "Crítico") return "critico";
 
   if (!p.data_limite) return "normal";
-  if (!p.data_limite) return false;
   const dias = diasRestantes(p.data_limite, hoje);
   if (dias < 0) return "vencido";
   if (dias === 0) return "hoje";
@@ -85,7 +84,7 @@ export const DIAS_MAX_ALERTA_VENCIDO = 30;
 
 /** Um prazo está em alerta quando o lembrete está ativo e já entrou na janela de antecedência. */
 export function prazoEmAlerta(p: Prazo, hoje = new Date()) {
-  if (!p.lembrete_ativo || p.status === "Concluído") return false;
+  if (!p.lembrete_ativo || p.status === "Concluído" || !p.data_limite) return false;
   const dias = diasRestantes(p.data_limite, hoje);
   if (dias > p.antecedencia_dias) return false;
   if (dias < 0) {
