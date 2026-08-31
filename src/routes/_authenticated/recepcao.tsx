@@ -68,8 +68,49 @@ function RecepcaoPage() {
   const safeImportPage = Math.min(importPage, importTotalPages);
   const pagedImportRows = importRows.slice((safeImportPage - 1) * PAGE_SIZE, safeImportPage * PAGE_SIZE);
   function openNew() { setEditing(null); setForm({ ...emptyForm }); setOpen(true); }
-  function openEdit(r: Reception) { setEditing(r); setForm({ data: r.data, hora: r.hora ?? "", advogado: r.advogado, nome_cliente: r.nome_cliente, cpf: r.cpf ?? "", telefone: r.telefone, atendente: r.atendente }); setOpen(true); }
-  async function save() { if (!form.nome_cliente.trim()) return toast.error("Informe o nome do cliente"); if (!form.telefone.trim()) return toast.error("Informe o telefone"); if (!form.advogado.trim()) return toast.error("Informe o advogado"); if (!form.atendente.trim()) return toast.error("Informe o atendente"); setSaving(true); try { const payload = { data: form.data, hora: form.hora || null, hora_saida: form.hora_saida || null, advogado: form.advogado.trim(), nome_cliente: form.nome_cliente.trim(), cpf: form.cpf.trim() || null, telefone: form.telefone.trim(), atendente: form.atendente.trim(), assunto: form.assunto.trim() || null }; if (editing) { const { error } = await supabase.from("reception_entries").update(payload).eq("id", editing.id); if (error) throw error; toast.success("Registro atualizado"); } else { const { data: auth } = await supabase.auth.getUser(); const { error } = await supabase.from("reception_entries").insert({ ...payload, created_by: auth.user?.id ?? null }); if (error) throw error; toast.success("Atendimento registrado"); } setOpen(false); qc.invalidateQueries({ queryKey: ["reception-entries"] }); } catch (e) { toast.error("Erro ao salvar", { description: e instanceof Error ? e.message : "" }); } finally { setSaving(false); } }
+    function openEdit(r: Reception) { setEditing(r); setForm({ data: r.data, hora: r.hora ?? "", hora_saida: r.hora_saida ?? "", advogado: r.advogado, nome_cliente: r.nome_cliente, cpf: r.cpf ?? "", telefone: r.telefone, atendente: r.atendente, assunto: r.assunto ?? "" }); setOpen(true); }
+  async function save() {
+    if (!form.nome_cliente.trim()) return toast.error("Informe o nome do cliente");
+    if (!form.telefone.trim()) return toast.error("Informe o telefone");
+    if (!form.advogado.trim()) return toast.error("Informe o advogado");
+    if (!form.atendente.trim()) return toast.error("Informe o atendente");
+    setSaving(true);
+    try {
+      const basePayload = {
+        data: form.data,
+        hora: form.hora || null,
+        advogado: form.advogado.trim(),
+        nome_cliente: form.nome_cliente.trim(),
+        cpf: form.cpf.trim() || null,
+        telefone: form.telefone.trim(),
+        atendente: form.atendente.trim(),
+      };
+      const extraPayload = { hora_saida: form.hora_saida || null, assunto: form.assunto.trim() || null };
+
+      if (editing) {
+        const { error } = await supabase.from("reception_entries").update(basePayload).eq("id", editing.id);
+        if (error) throw error;
+        const { error: extraError } = await supabase.from("reception_entries").update(extraPayload).eq("id", editing.id);
+        if (extraError && !/column .* does not exist|schema cache/i.test(extraError.message)) throw extraError;
+        toast.success("Registro atualizado");
+      } else {
+        const { data: auth } = await supabase.auth.getUser();
+        const { data: inserted, error } = await supabase.from("reception_entries").insert({ ...basePayload, created_by: auth.user?.id ?? null }).select("id").single();
+        if (error) throw error;
+        if (inserted?.id) {
+          const { error: extraError } = await supabase.from("reception_entries").update(extraPayload).eq("id", inserted.id);
+          if (extraError && !/column .* does not exist|schema cache/i.test(extraError.message)) throw extraError;
+        }
+        toast.success("Atendimento registrado");
+      }
+      setOpen(false);
+      qc.invalidateQueries({ queryKey: ["reception-entries"] });
+    } catch (e) {
+      toast.error("Erro ao salvar", { description: e instanceof Error ? e.message : "" });
+    } finally {
+      setSaving(false);
+    }
+  }
   async function confirmDelete() { if (!toDelete) return; const { error } = await supabase.from("reception_entries").delete().eq("id", toDelete.id); if (error) toast.error("Erro ao excluir", { description: error.message }); else { toast.success("Registro excluído"); qc.invalidateQueries({ queryKey: ["reception-entries"] }); } setToDelete(null); }
   function printOne(r: Reception) { printReport({ title: "Registro de Recepção", subtitle: r.nome_cliente, sections: [{ heading: "Dados do atendimento", columns: ["Campo", "Informação"], rows: [["Data", br(r.data)], ["Hora de chegada", r.hora || "—"], ["Hora de saída", r.hora_saida || "—"], ["Advogado", r.advogado], ["Nome do cliente", r.nome_cliente], ["CPF", r.cpf || "—"], ["Telefone", r.telefone], ["Atendente", r.atendente], ["Assunto", r.assunto || "—"]] }] }); }
   function printList() { printReport({ title: "Recepção — Registros de Atendimento", subtitle: `${filtered.length} registro(s)`, sections: [{ columns: ["Data", "Hora", "Advogado", "Nome do cliente", "CPF", "Telefone", "Atendente"], rows: filtered.map(r => [br(r.data), r.hora || "—", r.advogado, r.nome_cliente, r.cpf || "—", r.telefone, r.atendente]) }] }); }
