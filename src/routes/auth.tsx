@@ -13,8 +13,8 @@ import { Scale } from "lucide-react";
 export const Route = createFileRoute("/auth")({
   ssr: false,
   beforeLoad: async () => {
-    const { data } = await supabase.auth.getSession();
-    if (data.session) throw redirect({ to: "/recepcao" });
+    const { data, error } = await supabase.auth.getUser();
+    if (!error && data.user) throw redirect({ to: "/recepcao" });
   },
   head: () => ({
     meta: [
