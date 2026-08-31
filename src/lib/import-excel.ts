@@ -119,7 +119,6 @@ export function parsePrazosRows(matrix: ExcelCell[][]): ImportPrazoRow[] {
     indexes.data_limite = indexes.data_fim_manifestacao;
   }
   if (indexes.nome < 0) throw new Error("Coluna obrigatória ausente: Nome.");
-  if (indexes.data_limite < 0) throw new Error("Coluna obrigatória ausente: Data Limite.");
 
   const pick = (row: ExcelCell[], field: string): ExcelCell => {
     const i = indexes[field];
