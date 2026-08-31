@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { addDays, format, startOfWeek, isSameDay, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Bell, CalendarPlus, Check, ChevronLeft, ChevronRight, Printer, Trash2, Undo2 } from "lucide-react";
+import { Bell, CalendarPlus, Check, ChevronLeft, ChevronRight, Printer, Trash2, Undo2, Pencil } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useProfile, CARGO_LABELS, type Cargo } from "@/hooks/use-profile";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -44,9 +44,11 @@ export function WeeklyAgenda() {
   const { profile, perms } = useProfile();
   const [weekOffset, setWeekOffset] = useState(0);
   const [open, setOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState<{ id: string; assigned_to: string | null } | null>(null);
 
   const weekStart = startOfWeek(addDays(new Date(), weekOffset * 7), { weekStartsOn: 1 });
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+  const visibleDays = days.filter((day) => day.getDay() >= 1 && day.getDay() <= 5);
   const from = format(weekStart, "yyyy-MM-dd");
   const to = format(addDays(weekStart, 6), "yyyy-MM-dd");
 
@@ -149,6 +151,29 @@ export function WeeklyAgenda() {
     if (!ok) toast.error("Não foi possível abrir a impressão");
   }
 
+  const editTask = useMutation({
+    mutationFn: async () => {
+      if (!editingTask) throw new Error("Atividade não encontrada");
+      const { error } = await supabase.from("tasks").update({
+        titulo: form.titulo,
+        descricao: form.descricao || null,
+        data_tarefa: form.data_tarefa,
+        hora_tarefa: form.hora_tarefa || null,
+        prioridade: form.prioridade,
+        lembrar_popup: form.lembrar_popup,
+        lembrar_antecedencia_min: form.lembrar_popup ? form.lembrar_antecedencia_min : 0,
+        assigned_to: form.assigned_to || editingTask.assigned_to,
+      }).eq("id", editingTask.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Atividade atualizada");
+      setOpen(false);
+      setEditingTask(null);
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+    },
+    onError: (e: Error) => toast.error("Não foi possível atualizar", { description: e.message }),
+  });
   const createTask = useMutation({
     mutationFn: async () => {
       if (!profile) throw new Error("Perfil não encontrado");
@@ -217,7 +242,7 @@ export function WeeklyAgenda() {
           <Button variant="outline" size="sm" onClick={printWeek}>
             <Printer className="mr-2 h-4 w-4" /> Imprimir semana
           </Button>
-          <Dialog open={open} onOpenChange={setOpen}>
+          <Dialog open={open} onOpenChange={(value) => { setOpen(value); if (!value) setEditingTask(null); }}>
             <DialogTrigger asChild>
               <Button size="sm">
                 <CalendarPlus className="mr-2 h-4 w-4" /> Nova Atividade
@@ -225,7 +250,7 @@ export function WeeklyAgenda() {
             </DialogTrigger>
             <DialogContent className="max-h-[85vh] w-[calc(100vw-2rem)] overflow-y-auto sm:max-w-md">
               <DialogHeader>
-                <DialogTitle>Nova Atividade</DialogTitle>
+                <DialogTitle>{editingTask ? "Editar Atividade" : "Nova Atividade"}</DialogTitle>
               </DialogHeader>
               <div className="space-y-3">
                 <div className="space-y-2">
@@ -302,8 +327,8 @@ export function WeeklyAgenda() {
                 </div>
               </div>
               <DialogFooter>
-                <Button onClick={() => createTask.mutate()} disabled={!form.titulo || createTask.isPending}>
-                  {createTask.isPending ? "Salvando..." : "Salvar"}
+                <Button onClick={() => editingTask ? editTask.mutate() : createTask.mutate()} disabled={!form.titulo || createTask.isPending || editTask.isPending}>
+                  {createTask.isPending || editTask.isPending ? "Salvando..." : editingTask ? "Salvar alterações" : "Salvar"}
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -311,8 +336,8 @@ export function WeeklyAgenda() {
         </div>
       </CardHeader>
       <CardContent>
-        <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 [&>*]:min-w-0">
-          {days.map((day) => {
+        <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 [&>*]:min-w-0">
+          {visibleDays.map((day) => {
             const key = format(day, "yyyy-MM-dd");
             const dayTasks = (tasks ?? []).filter((t) => t.data_tarefa === key);
             const today = isSameDay(day, new Date());
@@ -351,6 +376,32 @@ export function WeeklyAgenda() {
                         </div>
                       )}
                       <div className="mt-2 flex gap-1">
+{(t.created_by === profile?.id || perms.isAdmin) && (
+  <Button
+    variant="ghost"
+    size="icon"
+    className="h-7 w-7"
+    aria-label="Editar atividade"
+    title="Editar"
+    onClick={() => {
+      setEditingTask({ id: t.id, assigned_to: t.assigned_to });
+      setForm({
+        titulo: t.titulo,
+        descricao: t.descricao ?? "",
+        data_tarefa: t.data_tarefa,
+        hora_tarefa: t.hora_tarefa ? String(t.hora_tarefa).slice(0, 5) : "",
+        prioridade: t.prioridade,
+        assigned_to: t.assigned_to ?? "",
+        lembrar_popup: t.lembrar_popup,
+        lembrar_antecedencia_min: t.lembrar_antecedencia_min ?? 0,
+      });
+      setOpen(true);
+    }}
+  >
+    <Pencil className="h-3.5 w-3.5" />
+  </Button>
+)}
+
                         <Button
                           variant="ghost"
                           size="icon"
