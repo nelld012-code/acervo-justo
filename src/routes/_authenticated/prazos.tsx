@@ -228,7 +228,7 @@ function PrazosPage() {
       numero_processo: p.numero_processo ?? "",
       parte: p.parte,
       advogado: p.advogado ?? "",
-      data_limite: p.data_limite,
+      data_limite: p.data_limite ?? "",
       observacao: p.observacao ?? "",
       lembrete_ativo: p.lembrete_ativo,
       antecedencia_dias: p.antecedencia_dias,

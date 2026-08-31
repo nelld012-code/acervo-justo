@@ -429,7 +429,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           data_conclusao: string | null
-          data_limite: string
+          data_limite: string | null
           id: string
           lembrete_ativo: boolean
           nome: string
@@ -446,7 +446,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           data_conclusao?: string | null
-          data_limite: string
+          data_limite?: string | null
           id?: string
           lembrete_ativo?: boolean
           nome: string
@@ -463,7 +463,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           data_conclusao?: string | null
-          data_limite?: string
+          data_limite?: string | null
           id?: string
           lembrete_ativo?: boolean
           nome?: string
@@ -509,12 +509,16 @@ export type Database = {
       reception_entries: {
         Row: {
           advogado: string
+          assunto: string | null
           atendente: string
+          atestado_emitido: boolean
+          atestado_emitido_em: string | null
           cpf: string | null
           created_at: string
           created_by: string | null
           data: string
           hora: string | null
+          hora_saida: string | null
           id: string
           nome_cliente: string
           telefone: string
@@ -522,12 +526,16 @@ export type Database = {
         }
         Insert: {
           advogado: string
+          assunto?: string | null
           atendente: string
+          atestado_emitido?: boolean
+          atestado_emitido_em?: string | null
           cpf?: string | null
           created_at?: string
           created_by?: string | null
           data?: string
           hora?: string | null
+          hora_saida?: string | null
           id?: string
           nome_cliente: string
           telefone: string
@@ -535,12 +543,16 @@ export type Database = {
         }
         Update: {
           advogado?: string
+          assunto?: string | null
           atendente?: string
+          atestado_emitido?: boolean
+          atestado_emitido_em?: string | null
           cpf?: string | null
           created_at?: string
           created_by?: string | null
           data?: string
           hora?: string | null
+          hora_saida?: string | null
           id?: string
           nome_cliente?: string
           telefone?: string

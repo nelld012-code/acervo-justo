@@ -157,7 +157,7 @@ export function PrazoReminders() {
           <p><span className="text-muted-foreground">Número do Processo:</span> {processoOuTraco(atual.numero_processo)}</p>
           <p><span className="text-muted-foreground">Parte:</span> {atual.parte}</p>
           <p><span className="text-muted-foreground">Advogado:</span> {atual.advogado || "—"}</p>
-          <p><span className="text-muted-foreground">Data Limite:</span> {atual.data_limite.split("-").reverse().join("/")}</p>
+          <p><span className="text-muted-foreground">Data Limite:</span> {atual.data_limite ? atual.data_limite.split("-").reverse().join("/") : "—"}</p>
         </div>
         <DialogFooter className="grid grid-cols-1 gap-2 sm:grid-cols-4 sm:space-x-0">
           <Button

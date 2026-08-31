@@ -162,7 +162,7 @@ export function WeeklyAgenda() {
         prioridade: form.prioridade,
         lembrar_popup: form.lembrar_popup,
         lembrar_antecedencia_min: form.lembrar_popup ? form.lembrar_antecedencia_min : 0,
-        assigned_to: form.assigned_to || editingTask.assigned_to,
+        assigned_to: form.assigned_to || editingTask.assigned_to || undefined,
       }).eq("id", editingTask.id);
       if (error) throw error;
     },
