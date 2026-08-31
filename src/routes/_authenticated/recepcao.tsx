@@ -79,7 +79,17 @@ function RecepcaoPage() {
     <div className="grid gap-3 sm:grid-cols-3">
       {[{ label: "Hoje", value: counts.hoje }, { label: "Esta semana", value: counts.semana }, { label: "Total", value: counts.total }].map(c => <Card key={c.label}><CardContent className="p-4"><div className="text-xs uppercase text-muted-foreground">{c.label}</div><div className="text-2xl font-semibold">{c.value}</div></CardContent></Card>)}
     </div>
-    <WeeklyAgenda />
+    <section aria-labelledby="agenda-semanal-titulo" className="min-w-0">
+      <div className="mb-3 flex items-center justify-between gap-3 px-1">
+        <div>
+          <h2 id="agenda-semanal-titulo" className="text-lg font-semibold text-foreground sm:text-xl">Agenda Semanal</h2>
+          <p className="text-sm text-muted-foreground">Atividades e compromissos da equipe.</p>
+        </div>
+      </div>
+      <div className="min-w-0 w-full">
+        <WeeklyAgenda />
+      </div>
+    </section>
     <Card><CardContent className="space-y-3 p-4">
       <Input placeholder="Buscar por cliente, advogado, atendente, CPF ou telefone" value={busca} onChange={e => { setBusca(e.target.value); setPage(1); }} />
       <div className="flex flex-wrap gap-2">
