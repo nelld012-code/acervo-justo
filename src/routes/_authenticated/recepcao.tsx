@@ -76,31 +76,25 @@ function RecepcaoPage() {
     if (!form.atendente.trim()) return toast.error("Informe o atendente");
     setSaving(true);
     try {
-      const basePayload = {
+      const payload = {
         data: form.data,
         hora: form.hora || null,
+        hora_saida: form.hora_saida || null,
         advogado: form.advogado.trim(),
         nome_cliente: form.nome_cliente.trim(),
         cpf: form.cpf.trim() || null,
         telefone: form.telefone.trim(),
         atendente: form.atendente.trim(),
+        assunto: form.assunto.trim() || null,
       };
-      const extraPayload = { hora_saida: form.hora_saida || null, assunto: form.assunto.trim() || null };
-
       if (editing) {
-        const { error } = await supabase.from("reception_entries").update(basePayload).eq("id", editing.id);
+        const { error } = await supabase.from("reception_entries").update(payload).eq("id", editing.id);
         if (error) throw error;
-        const { error: extraError } = await supabase.from("reception_entries").update(extraPayload).eq("id", editing.id);
-        if (extraError && !/column .* does not exist|schema cache/i.test(extraError.message)) throw extraError;
         toast.success("Registro atualizado");
       } else {
         const { data: auth } = await supabase.auth.getUser();
-        const { data: inserted, error } = await supabase.from("reception_entries").insert({ ...basePayload, created_by: auth.user?.id ?? null }).select("id").single();
+        const { error } = await supabase.from("reception_entries").insert({ ...payload, created_by: auth.user?.id ?? null });
         if (error) throw error;
-        if (inserted?.id) {
-          const { error: extraError } = await supabase.from("reception_entries").update(extraPayload).eq("id", inserted.id);
-          if (extraError && !/column .* does not exist|schema cache/i.test(extraError.message)) throw extraError;
-        }
         toast.success("Atendimento registrado");
       }
       setOpen(false);
