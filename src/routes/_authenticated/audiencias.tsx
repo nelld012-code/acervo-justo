@@ -151,11 +151,25 @@ function AudienciasPage() {
   async function confirmImport() {
     if (!importRows.length) return;
     try {
-      const { data: auth } = await supabase.auth.getUser(); if (!auth.user) throw new Error("Sessão expirada");
-      const { error } = await supabase.from("audiencias").insert(importRows.map(r => ({ ...r, created_by: auth.user!.id })));
-      if (error) throw error;
-      toast.success(importRows.length + " audiência(s) importada(s)."); setImportOpen(false); setImportRows([]); setImportErrors([]); qc.invalidateQueries({ queryKey: ["audiencias"] });
-    } catch (e) { toast.error("Não foi possível importar.", { description: e instanceof Error ? e.message : "" }); }
+      const { data: auth } = await supabase.auth.getUser();
+      if (!auth.user) throw new Error("Sessão expirada");
+      const payload = importRows.map((r) => ({
+        nome: r.nome, numero_processo: r.numero_processo, parte: r.parte, advogado: r.advogado,
+        data_audiencia: r.data_audiencia, hora_audiencia: r.hora_audiencia, orgao_julgador: r.orgao_julgador,
+        vara: r.vara, tipo_audiencia: r.tipo_audiencia, modalidade: r.modalidade, local_audiencia: r.local_audiencia,
+        link_virtual: r.link_virtual, observacao: r.observacao, created_by: auth.user.id,
+      }));
+      for (let i = 0; i < payload.length; i += 50) {
+        const chunk = payload.slice(i, i + 50);
+        const { error } = await supabase.from("audiencias").insert(chunk);
+        if (error) throw new Error("Erro ao importar a partir do registro " + (i + 1) + ": " + error.message);
+      }
+      toast.success(importRows.length + " audiência(s) importada(s).");
+      setImportOpen(false); setImportRows([]); setImportErrors([]);
+      qc.invalidateQueries({ queryKey: ["audiencias"] });
+    } catch (e) {
+      toast.error("Não foi possível importar.", { description: e instanceof Error ? e.message : "Erro desconhecido" });
+    }
   }
   return (
     <div className="min-w-0 space-y-4">
