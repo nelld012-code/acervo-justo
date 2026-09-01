@@ -36,10 +36,10 @@ function dateValue(v: unknown) {
   let s = String(v ?? "").trim();
   if (!s) throw new Error("Data da audiência obrigatória");
 
-  s = s.replace(/\\/g, "/").replace(/[\\s]+/g, "");
+  s = s.replace(/\\/g, "/").replace(/\s+/g, "");
 
   // Aceita datas brasileiras, ISO e valores ISO completos vindos do Excel.
-  let m = s.match(/^(\\d{1,2})\\/(\\d{1,2})\\/(\\d{4})(?:T.*)?$/);
+  let m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:T.*)?$/);
   if (m) {
     const day = Number(m[1]); const month = Number(m[2]); const year = Number(m[3]);
     if (day >= 1 && day <= 31 && month >= 1 && month <= 12) {
@@ -47,11 +47,11 @@ function dateValue(v: unknown) {
     }
   }
 
-  m = s.match(/^(\\d{4})-(\\d{1,2})-(\\d{1,2})(?:T.*)?$/);
+  m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:T.*)?$/);
   if (m) return `${m[1]}-${m[2].padStart(2, "0")}-${m[3].padStart(2, "0")}`;
 
   // Excel às vezes retorna a data formatada como texto numérico.
-  if (/^\\d+(?:\\.\\d+)?$/.test(s)) {
+  if (/^\d+(?:\.\d+)?$/.test(s)) {
     const serial = Number(s);
     if (serial > 20000 && serial < 100000) {
       const d = XLSX.SSF.parse_date_code(serial);
