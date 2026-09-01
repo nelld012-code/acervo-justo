@@ -42,20 +42,4 @@ CREATE POLICY "Authenticated can update audiences" ON public.audiencias FOR UPDA
 DROP POLICY IF EXISTS "Authenticated can delete audiences" ON public.audiencias;
 CREATE POLICY "Authenticated can delete audiences" ON public.audiencias FOR DELETE TO authenticated USING (true);
 
-DO $$
-BEGIN
-  IF EXISTS (
-    SELECT 1 FROM pg_proc
-    WHERE proname = 'update_updated_at_column'
-      AND pg_function_is_visible(oid)
-  ) THEN
-    DROP TRIGGER IF EXISTS update_audiencias_updated_at ON public.audiencias;
-    CREATE TRIGGER update_audiencias_updated_at
-      BEFORE UPDATE ON public.audiencias
-      FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
-  END IF;
-EXCEPTION WHEN OTHERS THEN
-  NULL;
-END $$;
-
 NOTIFY pgrst, 'reload schema';
