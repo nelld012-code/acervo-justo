@@ -47,7 +47,3 @@ DROP POLICY IF EXISTS "Authenticated can delete audiences" ON public.audiencias;
 CREATE POLICY "Authenticated can delete audiences"
   ON public.audiencias FOR DELETE TO authenticated USING (true);
 
-DROP TRIGGER IF EXISTS update_audiencias_updated_at ON public.audiencias;
-CREATE TRIGGER update_audiencias_updated_at
-  BEFORE UPDATE ON public.audiencias
-  FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
