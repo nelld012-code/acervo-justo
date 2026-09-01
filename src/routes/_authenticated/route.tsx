@@ -4,6 +4,7 @@ import { createPortal } from "react-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { AppSidebar } from "@/components/app-sidebar";
 import { PrazoReminders } from "@/components/prazo-reminders";
+import { AudienciaReminder } from "@/routes/_authenticated/audiencias";
 import { SidebarProvider, useSidebar } from "@/components/ui/sidebar";
 import { Menu, MessageSquare, X, UserCircle, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -105,5 +106,5 @@ function HeaderActions() {
 }
 
 function AuthenticatedLayout() {
-  return <SidebarProvider><div className="flex min-h-screen w-full overflow-x-hidden bg-background"><AppSidebar /><div className="flex min-h-screen min-w-0 flex-1 flex-col"><header className="flex h-14 items-center gap-2 border-b bg-card px-3 sm:px-4"><MobileMenuTrigger /><div className="min-w-0 flex flex-1 items-center"><div className="min-w-0 leading-tight"><p className="truncate text-sm font-semibold text-foreground sm:text-base">J DIMAS GONÇALVES&nbsp;&nbsp; ESCRITORIO DE ADVOCACIA</p><p className="truncate text-xs text-muted-foreground sm:text-sm">Sistema Gestão Judicial</p></div></div><HeaderActions /></header><main className="min-w-0 flex-1 overflow-x-hidden p-4 sm:p-6"><Outlet /></main><footer className="border-t bg-card px-4 py-3 text-center text-xs text-muted-foreground sm:text-sm">© 2026 Desenvolvido por: Michel Antonio Alvarado</footer></div></div><PrazoReminders /><NewMessagePopup /></SidebarProvider>;
+  return <SidebarProvider><div className="flex min-h-screen w-full overflow-x-hidden bg-background"><AppSidebar /><div className="flex min-h-screen min-w-0 flex-1 flex-col"><header className="flex h-14 items-center gap-2 border-b bg-card px-3 sm:px-4"><MobileMenuTrigger /><div className="min-w-0 flex flex-1 items-center"><div className="min-w-0 leading-tight"><p className="truncate text-sm font-semibold text-foreground sm:text-base">J DIMAS GONÇALVES&nbsp;&nbsp; ESCRITORIO DE ADVOCACIA</p><p className="truncate text-xs text-muted-foreground sm:text-sm">Sistema Gestão Judicial</p></div></div><HeaderActions /></header><main className="min-w-0 flex-1 overflow-x-hidden p-4 sm:p-6"><Outlet /></main><footer className="border-t bg-card px-4 py-3 text-center text-xs text-muted-foreground sm:text-sm">© 2026 Desenvolvido por: Michel Antonio Alvarado</footer></div></div><PrazoReminders /><AudienciaReminder /><NewMessagePopup /></SidebarProvider>;
 }
