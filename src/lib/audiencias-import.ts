@@ -63,7 +63,23 @@ function dateValue(v: unknown) {
   }
 
   throw new Error("Data inválida (use dd/mm/aaaa)");
+}function timeValue(v: unknown) {
+  if (v instanceof Date && !Number.isNaN(v.getTime())) {
+    return `${String(v.getHours()).padStart(2, "0")}:${String(v.getMinutes()).padStart(2, "0")}`;
+  }
+  if (typeof v === "number" && Number.isFinite(v)) {
+    const totalMinutes = Math.round(v * 24 * 60) % (24 * 60);
+    return `${String(Math.floor(totalMinutes / 60)).padStart(2, "0")}:${String(totalMinutes % 60).padStart(2, "0")}`;
+  }
+  let value = String(v ?? "").trim();
+  if (!value) return null;
+  const br = value.match(/^(\d{1,2}):([0-5]\d)(?::\d{2})?/);
+  if (br) return `${br[1].padStart(2, "0")}:${br[2]}`;
+  const parsed = new Date(value);
+  if (!Number.isNaN(parsed.getTime())) return `${String(parsed.getHours()).padStart(2, "0")}:${String(parsed.getMinutes()).padStart(2, "0")}`;
+  return value;
 }
+
 
 export async function parseAudienciasExcel(file: File) {
   const wb = XLSX.read(await file.arrayBuffer(), { type: "array", cellDates: true });
@@ -109,7 +125,7 @@ export async function parseAudienciasExcel(file: File) {
         parte: String(get("parte") ?? "").trim() || null,
         advogado: String(get("advogado") ?? "").trim() || null,
         data_audiencia: dateValue(get("data_audiencia")),
-        hora_audiencia: String(get("hora_audiencia") ?? "").trim() || null,
+        hora_audiencia: timeValue(get("hora_audiencia")),
         orgao_julgador: String(get("orgao_julgador") ?? "").trim() || null,
         vara: String(get("vara") ?? "").trim() || null,
         tipo_audiencia: tipo,
