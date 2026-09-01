@@ -112,7 +112,6 @@ export interface FileRoutesByFullPath {
   '/my-documents': typeof AuthenticatedMyDocumentsRoute
   '/perfil': typeof AuthenticatedPerfilRoute
   '/audiencias': typeof AuthenticatedAudienciasRoute
-  '/audiencias': typeof AuthenticatedAudienciasRoute
   '/prazos': typeof AuthenticatedPrazosRoute
   '/recepcao': typeof AuthenticatedRecepcaoRoute
   '/search': typeof AuthenticatedSearchRoute
@@ -128,6 +127,7 @@ export interface FileRoutesByTo {
   '/mensagens': typeof AuthenticatedMensagensRoute
   '/my-documents': typeof AuthenticatedMyDocumentsRoute
   '/perfil': typeof AuthenticatedPerfilRoute
+  '/audiencias': typeof AuthenticatedAudienciasRoute
   '/prazos': typeof AuthenticatedPrazosRoute
   '/recepcao': typeof AuthenticatedRecepcaoRoute
   '/search': typeof AuthenticatedSearchRoute
@@ -163,6 +163,7 @@ export interface FileRouteTypes {
     | '/mensagens'
     | '/my-documents'
     | '/perfil'
+    | '/audiencias'
     | '/prazos'
     | '/recepcao'
     | '/search'
@@ -178,6 +179,7 @@ export interface FileRouteTypes {
     | '/mensagens'
     | '/my-documents'
     | '/perfil'
+    | '/audiencias'
     | '/prazos'
     | '/recepcao'
     | '/search'
@@ -194,6 +196,7 @@ export interface FileRouteTypes {
     | '/_authenticated/mensagens'
     | '/_authenticated/my-documents'
     | '/_authenticated/perfil'
+    | '/_authenticated/audiencias'
     | '/_authenticated/prazos'
     | '/_authenticated/recepcao'
     | '/_authenticated/search'
@@ -325,6 +328,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedMyDocumentsRoute: typeof AuthenticatedMyDocumentsRoute
   AuthenticatedPerfilRoute: typeof AuthenticatedPerfilRoute
   AuthenticatedAudienciasRoute: typeof AuthenticatedAudienciasRoute
+  AuthenticatedAudienciasRoute: typeof AuthenticatedAudienciasRoute
   AuthenticatedPrazosRoute: typeof AuthenticatedPrazosRoute
   AuthenticatedRecepcaoRoute: typeof AuthenticatedRecepcaoRoute
   AuthenticatedSearchRoute: typeof AuthenticatedSearchRoute
@@ -339,6 +343,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedMensagensRoute: AuthenticatedMensagensRoute,
   AuthenticatedMyDocumentsRoute: AuthenticatedMyDocumentsRoute,
   AuthenticatedPerfilRoute: AuthenticatedPerfilRoute,
+  AuthenticatedAudienciasRoute: AuthenticatedAudienciasRoute,
   AuthenticatedAudienciasRoute: AuthenticatedAudienciasRoute,
   AuthenticatedPrazosRoute: AuthenticatedPrazosRoute,
   AuthenticatedRecepcaoRoute: AuthenticatedRecepcaoRoute,
