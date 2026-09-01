@@ -23,17 +23,48 @@ const normalize = (v: unknown) => String(v ?? "")
   .replace(/[\r\n\t]+/g, " ").trim().toLowerCase().replace(/\s+/g, " ");
 
 function dateValue(v: unknown) {
+  if (v instanceof Date && !Number.isNaN(v.getTime())) {
+    return `${v.getFullYear()}-${String(v.getMonth() + 1).padStart(2, "0")}-${String(v.getDate()).padStart(2, "0")}`;
+  }
+
   if (typeof v === "number") {
     const d = XLSX.SSF.parse_date_code(v);
     if (!d) throw new Error("Data inválida");
     return `${String(d.y).padStart(4, "0")}-${String(d.m).padStart(2, "0")}-${String(d.d).padStart(2, "0")}`;
   }
-  const s = String(v ?? "").trim().replace(/\\/g, "/").replace(/\s+/g, "");
+
+  let s = String(v ?? "").trim();
   if (!s) throw new Error("Data da audiência obrigatória");
-  let m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-  if (m) return `${m[3]}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`;
-  m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+
+  s = s.replace(/\\/g, "/").replace(/[\\s]+/g, "");
+
+  // Aceita datas brasileiras, ISO e valores ISO completos vindos do Excel.
+  let m = s.match(/^(\\d{1,2})\\/(\\d{1,2})\\/(\\d{4})(?:T.*)?$/);
+  if (m) {
+    const day = Number(m[1]); const month = Number(m[2]); const year = Number(m[3]);
+    if (day >= 1 && day <= 31 && month >= 1 && month <= 12) {
+      return `${m[3]}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    }
+  }
+
+  m = s.match(/^(\\d{4})-(\\d{1,2})-(\\d{1,2})(?:T.*)?$/);
   if (m) return `${m[1]}-${m[2].padStart(2, "0")}-${m[3].padStart(2, "0")}`;
+
+  // Excel às vezes retorna a data formatada como texto numérico.
+  if (/^\\d+(?:\\.\\d+)?$/.test(s)) {
+    const serial = Number(s);
+    if (serial > 20000 && serial < 100000) {
+      const d = XLSX.SSF.parse_date_code(serial);
+      if (d) return `${String(d.y).padStart(4, "0")}-${String(d.m).padStart(2, "0")}-${String(d.d).padStart(2, "0")}`;
+    }
+  }
+
+  // Último recurso para formatos reconhecidos pelo JavaScript.
+  const parsed = new Date(s);
+  if (!Number.isNaN(parsed.getTime())) {
+    return `${parsed.getFullYear()}-${String(parsed.getMonth() + 1).padStart(2, "0")}-${String(parsed.getDate()).padStart(2, "0")}`;
+  }
+
   throw new Error("Data inválida (use dd/mm/aaaa)");
 }
 
