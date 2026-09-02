@@ -14,6 +14,78 @@ export type Database = {
   }
   public: {
     Tables: {
+      audiencias: {
+        Row: {
+          advogado: string | null
+          created_at: string
+          created_by: string | null
+          data_audiencia: string
+          hora_audiencia: string | null
+          id: string
+          lembrete_1_dia: boolean
+          lembrete_3_dias: boolean
+          lembrete_5_dias: boolean
+          link_virtual: string | null
+          local_audiencia: string | null
+          modalidade: string | null
+          nome: string
+          numero_processo: string | null
+          observacao: string | null
+          orgao_julgador: string | null
+          parte: string | null
+          status: string | null
+          tipo_audiencia: string | null
+          updated_at: string
+          vara: string | null
+        }
+        Insert: {
+          advogado?: string | null
+          created_at?: string
+          created_by?: string | null
+          data_audiencia: string
+          hora_audiencia?: string | null
+          id?: string
+          lembrete_1_dia?: boolean
+          lembrete_3_dias?: boolean
+          lembrete_5_dias?: boolean
+          link_virtual?: string | null
+          local_audiencia?: string | null
+          modalidade?: string | null
+          nome: string
+          numero_processo?: string | null
+          observacao?: string | null
+          orgao_julgador?: string | null
+          parte?: string | null
+          status?: string | null
+          tipo_audiencia?: string | null
+          updated_at?: string
+          vara?: string | null
+        }
+        Update: {
+          advogado?: string | null
+          created_at?: string
+          created_by?: string | null
+          data_audiencia?: string
+          hora_audiencia?: string | null
+          id?: string
+          lembrete_1_dia?: boolean
+          lembrete_3_dias?: boolean
+          lembrete_5_dias?: boolean
+          link_virtual?: string | null
+          local_audiencia?: string | null
+          modalidade?: string | null
+          nome?: string
+          numero_processo?: string | null
+          observacao?: string | null
+          orgao_julgador?: string | null
+          parte?: string | null
+          status?: string | null
+          tipo_audiencia?: string | null
+          updated_at?: string
+          vara?: string | null
+        }
+        Relationships: []
+      }
       audit_logs: {
         Row: {
           action: string
