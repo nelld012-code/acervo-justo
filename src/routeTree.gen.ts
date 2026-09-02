@@ -16,7 +16,6 @@ import { Route as AuthenticatedUploadRouteImport } from './routes/_authenticated
 import { Route as AuthenticatedSearchRouteImport } from './routes/_authenticated/search'
 import { Route as AuthenticatedRecepcaoRouteImport } from './routes/_authenticated/recepcao'
 import { Route as AuthenticatedPrazosRouteImport } from './routes/_authenticated/prazos'
-import { Route as AuthenticatedAudienciasRouteImport } from './routes/_authenticated/audiencias'
 import { Route as AuthenticatedPerfilRouteImport } from './routes/_authenticated/perfil'
 import { Route as AuthenticatedMyDocumentsRouteImport } from './routes/_authenticated/my-documents'
 import { Route as AuthenticatedMensagensRouteImport } from './routes/_authenticated/mensagens'
@@ -24,6 +23,7 @@ import { Route as AuthenticatedFinanceiroRouteImport } from './routes/_authentic
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedClientesRouteImport } from './routes/_authenticated/clientes'
 import { Route as AuthenticatedAuditRouteImport } from './routes/_authenticated/audit'
+import { Route as AuthenticatedAudienciasRouteImport } from './routes/_authenticated/audiencias'
 
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
@@ -52,11 +52,6 @@ const AuthenticatedSearchRoute = AuthenticatedSearchRouteImport.update({
 const AuthenticatedRecepcaoRoute = AuthenticatedRecepcaoRouteImport.update({
   id: '/recepcao',
   path: '/recepcao',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
-const AuthenticatedAudienciasRoute = AuthenticatedAudienciasRouteImport.update({
-  id: '/audiencias',
-  path: '/audiencias',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedPrazosRoute = AuthenticatedPrazosRouteImport.update({
@@ -100,10 +95,16 @@ const AuthenticatedAuditRoute = AuthenticatedAuditRouteImport.update({
   path: '/audit',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedAudienciasRoute = AuthenticatedAudienciasRouteImport.update({
+  id: '/audiencias',
+  path: '/audiencias',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/audiencias': typeof AuthenticatedAudienciasRoute
   '/audit': typeof AuthenticatedAuditRoute
   '/clientes': typeof AuthenticatedClientesRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
@@ -111,7 +112,6 @@ export interface FileRoutesByFullPath {
   '/mensagens': typeof AuthenticatedMensagensRoute
   '/my-documents': typeof AuthenticatedMyDocumentsRoute
   '/perfil': typeof AuthenticatedPerfilRoute
-  '/audiencias': typeof AuthenticatedAudienciasRoute
   '/prazos': typeof AuthenticatedPrazosRoute
   '/recepcao': typeof AuthenticatedRecepcaoRoute
   '/search': typeof AuthenticatedSearchRoute
@@ -120,6 +120,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/audiencias': typeof AuthenticatedAudienciasRoute
   '/audit': typeof AuthenticatedAuditRoute
   '/clientes': typeof AuthenticatedClientesRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
@@ -127,7 +128,6 @@ export interface FileRoutesByTo {
   '/mensagens': typeof AuthenticatedMensagensRoute
   '/my-documents': typeof AuthenticatedMyDocumentsRoute
   '/perfil': typeof AuthenticatedPerfilRoute
-  '/audiencias': typeof AuthenticatedAudienciasRoute
   '/prazos': typeof AuthenticatedPrazosRoute
   '/recepcao': typeof AuthenticatedRecepcaoRoute
   '/search': typeof AuthenticatedSearchRoute
@@ -138,6 +138,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
+  '/_authenticated/audiencias': typeof AuthenticatedAudienciasRoute
   '/_authenticated/audit': typeof AuthenticatedAuditRoute
   '/_authenticated/clientes': typeof AuthenticatedClientesRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
@@ -145,7 +146,6 @@ export interface FileRoutesById {
   '/_authenticated/mensagens': typeof AuthenticatedMensagensRoute
   '/_authenticated/my-documents': typeof AuthenticatedMyDocumentsRoute
   '/_authenticated/perfil': typeof AuthenticatedPerfilRoute
-  '/_authenticated/audiencias': typeof AuthenticatedAudienciasRoute
   '/_authenticated/prazos': typeof AuthenticatedPrazosRoute
   '/_authenticated/recepcao': typeof AuthenticatedRecepcaoRoute
   '/_authenticated/search': typeof AuthenticatedSearchRoute
@@ -156,6 +156,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
+    | '/audiencias'
     | '/audit'
     | '/clientes'
     | '/dashboard'
@@ -163,7 +164,6 @@ export interface FileRouteTypes {
     | '/mensagens'
     | '/my-documents'
     | '/perfil'
-    | '/audiencias'
     | '/prazos'
     | '/recepcao'
     | '/search'
@@ -172,6 +172,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/auth'
+    | '/audiencias'
     | '/audit'
     | '/clientes'
     | '/dashboard'
@@ -179,7 +180,6 @@ export interface FileRouteTypes {
     | '/mensagens'
     | '/my-documents'
     | '/perfil'
-    | '/audiencias'
     | '/prazos'
     | '/recepcao'
     | '/search'
@@ -189,6 +189,7 @@ export interface FileRouteTypes {
     | '/'
     | '/_authenticated'
     | '/auth'
+    | '/_authenticated/audiencias'
     | '/_authenticated/audit'
     | '/_authenticated/clientes'
     | '/_authenticated/dashboard'
@@ -196,7 +197,6 @@ export interface FileRouteTypes {
     | '/_authenticated/mensagens'
     | '/_authenticated/my-documents'
     | '/_authenticated/perfil'
-    | '/_authenticated/audiencias'
     | '/_authenticated/prazos'
     | '/_authenticated/recepcao'
     | '/_authenticated/search'
@@ -251,13 +251,6 @@ declare module '@tanstack/react-router' {
       path: '/recepcao'
       fullPath: '/recepcao'
       preLoaderRoute: typeof AuthenticatedRecepcaoRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/audiencias': {
-      id: '/_authenticated/audiencias'
-      path: '/audiencias'
-      fullPath: '/audiencias'
-      preLoaderRoute: typeof AuthenticatedAudienciasRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/prazos': {
@@ -316,10 +309,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAuditRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/audiencias': {
+      id: '/_authenticated/audiencias'
+      path: '/audiencias'
+      fullPath: '/audiencias'
+      preLoaderRoute: typeof AuthenticatedAudienciasRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedAudienciasRoute: typeof AuthenticatedAudienciasRoute
   AuthenticatedAuditRoute: typeof AuthenticatedAuditRoute
   AuthenticatedClientesRoute: typeof AuthenticatedClientesRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
@@ -327,8 +328,6 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedMensagensRoute: typeof AuthenticatedMensagensRoute
   AuthenticatedMyDocumentsRoute: typeof AuthenticatedMyDocumentsRoute
   AuthenticatedPerfilRoute: typeof AuthenticatedPerfilRoute
-  AuthenticatedAudienciasRoute: typeof AuthenticatedAudienciasRoute
-  AuthenticatedAudienciasRoute: typeof AuthenticatedAudienciasRoute
   AuthenticatedPrazosRoute: typeof AuthenticatedPrazosRoute
   AuthenticatedRecepcaoRoute: typeof AuthenticatedRecepcaoRoute
   AuthenticatedSearchRoute: typeof AuthenticatedSearchRoute
@@ -336,6 +335,7 @@ interface AuthenticatedRouteRouteChildren {
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedAudienciasRoute: AuthenticatedAudienciasRoute,
   AuthenticatedAuditRoute: AuthenticatedAuditRoute,
   AuthenticatedClientesRoute: AuthenticatedClientesRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
@@ -343,8 +343,6 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedMensagensRoute: AuthenticatedMensagensRoute,
   AuthenticatedMyDocumentsRoute: AuthenticatedMyDocumentsRoute,
   AuthenticatedPerfilRoute: AuthenticatedPerfilRoute,
-  AuthenticatedAudienciasRoute: AuthenticatedAudienciasRoute,
-  AuthenticatedAudienciasRoute: AuthenticatedAudienciasRoute,
   AuthenticatedPrazosRoute: AuthenticatedPrazosRoute,
   AuthenticatedRecepcaoRoute: AuthenticatedRecepcaoRoute,
   AuthenticatedSearchRoute: AuthenticatedSearchRoute,
