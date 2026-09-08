@@ -11,6 +11,7 @@ export type ImportAudienciaRow = {
   vara: string | null;
   tipo_audiencia: "Civil" | "Criminal" | "Administrativo";
   modalidade: "Presencial" | "Virtual";
+  cidade_lugar: string | null;
   local_audiencia: string | null;
   link_virtual: string | null;
   observacao: string | null;
@@ -63,7 +64,9 @@ function dateValue(v: unknown) {
   }
 
   throw new Error("Data inválida (use dd/mm/aaaa)");
-}function timeValue(v: unknown) {
+}
+
+function timeValue(v: unknown) {
   if (v instanceof Date && !Number.isNaN(v.getTime())) {
     return `${String(v.getHours()).padStart(2, "0")}:${String(v.getMinutes()).padStart(2, "0")}`;
   }
@@ -79,7 +82,6 @@ function dateValue(v: unknown) {
   if (!Number.isNaN(parsed.getTime())) return `${String(parsed.getHours()).padStart(2, "0")}:${String(parsed.getMinutes()).padStart(2, "0")}`;
   return value;
 }
-
 
 export async function parseAudienciasExcel(file: File) {
   const wb = XLSX.read(await file.arrayBuffer(), { type: "array", cellDates: true });
@@ -97,6 +99,7 @@ export async function parseAudienciasExcel(file: File) {
     vara: ["vara", "unidade", "foro"],
     tipo_audiencia: ["tipo", "tipo de audiencia", "tipo de audiência"],
     modalidade: ["modalidade", "virtual ou presencial", "presencial ou virtual"],
+    cidade_lugar: ["cidade", "lugar", "lugar ou cidade", "cidade da audiencia", "cidade da audiência", "local ou cidade"],
     local_audiencia: ["local", "local da audiencia", "local da audiência"],
     link_virtual: ["link", "link virtual", "sala virtual"],
     observacao: ["observacao", "observação", "obs"],
@@ -130,6 +133,7 @@ export async function parseAudienciasExcel(file: File) {
         vara: String(get("vara") ?? "").trim() || null,
         tipo_audiencia: tipo,
         modalidade,
+        cidade_lugar: String(get("cidade_lugar") ?? "").trim() || null,
         local_audiencia: String(get("local_audiencia") ?? "").trim() || null,
         link_virtual: String(get("link_virtual") ?? "").trim() || null,
         observacao: String(get("observacao") ?? "").trim() || null,
