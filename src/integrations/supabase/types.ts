@@ -17,6 +17,7 @@ export type Database = {
       audiencias: {
         Row: {
           advogado: string | null
+          cidade_lugar: string | null
           created_at: string
           created_by: string | null
           data_audiencia: string
@@ -40,6 +41,7 @@ export type Database = {
         }
         Insert: {
           advogado?: string | null
+          cidade_lugar?: string | null
           created_at?: string
           created_by?: string | null
           data_audiencia: string
@@ -63,6 +65,7 @@ export type Database = {
         }
         Update: {
           advogado?: string | null
+          cidade_lugar?: string | null
           created_at?: string
           created_by?: string | null
           data_audiencia?: string
@@ -227,7 +230,7 @@ export type Database = {
           change_notes?: string | null
           document_id: string
           file_name: string
-          file_size?: number | null
+          file_size: string | null
           file_url: string
           id?: string
           uploaded_at?: string
@@ -238,7 +241,7 @@ export type Database = {
           change_notes?: string | null
           document_id?: string
           file_name?: string
-          file_size?: number | null
+          file_size?: string | null
           file_url?: string
           id?: string
           uploaded_at?: string
@@ -373,7 +376,6 @@ export type Database = {
           id?: string
           recebedor_salario?: string | null
           responsavel_pagamento?: string | null
-          updated_at?: string
           user_id?: string | null
           valor: number
         }
@@ -386,7 +388,6 @@ export type Database = {
           id?: string
           recebedor_salario?: string | null
           responsavel_pagamento?: string | null
-          updated_at?: string
           user_id?: string | null
           valor?: number
         }
@@ -423,7 +424,6 @@ export type Database = {
           attachment_name?: string | null
           attachment_path?: string | null
           attachment_size?: number | null
-          attachment_type?: string | null
           body?: string
           created_at?: string
           expires_at?: string
@@ -535,7 +535,6 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           data_conclusao?: string | null
-          data_limite?: string | null
           id?: string
           lembrete_ativo?: boolean
           nome?: string
@@ -562,7 +561,7 @@ export type Database = {
           cargo?: string
           created_at?: string
           email?: string | null
-          id: string
+          id?: string
           nome?: string
           telefone?: string | null
           updated_at?: string
@@ -827,12 +826,12 @@ export type Enums<
   EnumName extends DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Enums"]
     : never = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
-  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Enums"][EnumName]
   : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
     ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
     : never
