@@ -106,13 +106,13 @@ WITH ranked AS (
     (array_agg(nullif(trim(parte), '') ORDER BY length(trim(coalesce(parte, ''))) DESC, rn)
       FILTER (WHERE nullif(trim(parte), '') IS NOT NULL))[1] AS best_parte,
     (array_agg(nullif(trim(advogado), '') ORDER BY length(trim(coalesce(advogado, ''))) DESC, rn)
-      FILTER (WHERE nullif(trim(advogado), '') IS NOT NULL))[1] AS best_advogado,
+      FILTER (WHERE nullif(trim(advogado, '')) IS NOT NULL))[1] AS best_advogado,
     (array_agg(nullif(trim(orgao_julgador), '') ORDER BY length(trim(coalesce(orgao_julgador, ''))) DESC, rn)
-      FILTER (WHERE nullif(trim(orgao_julgador), '') IS NOT NULL))[1] AS best_orgao,
+      FILTER (WHERE nullif(trim(orgao_julgador, '')) IS NOT NULL))[1] AS best_orgao,
     (array_agg(nullif(trim(vara), '') ORDER BY length(trim(coalesce(vara, ''))) DESC, rn)
-      FILTER (WHERE nullif(trim(vara), '') IS NOT NULL))[1] AS best_vara,
+      FILTER (WHERE nullif(trim(vara, '')) IS NOT NULL))[1] AS best_vara,
     (array_agg(nullif(trim(cidade_lugar), '') ORDER BY length(trim(coalesce(cidade_lugar, ''))) DESC, rn)
-      FILTER (WHERE nullif(trim(cidade_lugar), '') IS NOT NULL))[1] AS best_cidade,
+      FILTER (WHERE nullif(trim(cidade_lugar, '')) IS NOT NULL))[1] AS best_cidade,
     (array_agg(nullif(trim(local_audiencia), '') ORDER BY length(trim(coalesce(local_audiencia, ''))) DESC, rn)
       FILTER (WHERE nullif(trim(local_audiencia, '')) IS NOT NULL))[1] AS best_local,
     (array_agg(nullif(trim(link_virtual), '') ORDER BY length(trim(coalesce(link_virtual, ''))) DESC, rn)
@@ -156,16 +156,27 @@ DROP INDEX IF EXISTS audiencias_audiencia_key_unique;
 CREATE UNIQUE INDEX audiencias_audiencia_key_unique
   ON public.audiencias (audiencia_key);
 
--- INSERT duplicado: não cria nova linha e não quebra a importação em lote.
+-- INSERT duplicado: calcula a chave de forma independente para funcionar mesmo
+-- quando este trigger for executado antes do trigger de sincronização.
 CREATE OR REPLACE FUNCTION public.audiencia_prevent_duplicate_insert()
 RETURNS trigger
 LANGUAGE plpgsql
 SET search_path = public
 AS $$
+DECLARE
+  candidate_key text;
 BEGIN
+  candidate_key := public.audiencia_build_key(
+    NEW.nome,
+    NEW.numero_processo,
+    NEW.data_audiencia,
+    NEW.hora_audiencia
+  );
+  NEW.audiencia_key := candidate_key;
+
   IF EXISTS (
     SELECT 1 FROM public.audiencias
-    WHERE audiencia_key = NEW.audiencia_key
+    WHERE audiencia_key = candidate_key
   ) THEN
     RETURN NULL;
   END IF;
@@ -185,11 +196,21 @@ RETURNS trigger
 LANGUAGE plpgsql
 SET search_path = public
 AS $$
+DECLARE
+  candidate_key text;
 BEGIN
+  candidate_key := public.audiencia_build_key(
+    NEW.nome,
+    NEW.numero_processo,
+    NEW.data_audiencia,
+    NEW.hora_audiencia
+  );
+  NEW.audiencia_key := candidate_key;
+
   IF NEW.audiencia_key IS DISTINCT FROM OLD.audiencia_key
      AND EXISTS (
        SELECT 1 FROM public.audiencias
-       WHERE audiencia_key = NEW.audiencia_key
+       WHERE audiencia_key = candidate_key
          AND id <> OLD.id
      )
   THEN
