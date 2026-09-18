@@ -86,49 +86,6 @@ function chaveDedupePrazo(
   return [normalizarPrazoIdentidade(nome), normalizarPrazoIdentidade(processo), data ?? "<null>"].join("|");
 }
 
-function assinaturaObservacao(valor: string | null | undefined) {
-  return normalizarPrazoIdentidade((valor ?? "").replace(/[^\p{L}\p{N}\s]+/gu, " "));
-}
-
-function mesclarObservacoes(valores: Array<string | null | undefined>) {
-  const selecionadas: Array<{ texto: string; assinatura: string }> = [];
-  const candidatas = valores
-    .map((valor) => (valor ?? "").trim())
-    .filter(Boolean)
-    .sort((a, b) => b.length - a.length || a.localeCompare(b, "pt-BR"));
-
-  for (const texto of candidatas) {
-    const assinatura = assinaturaObservacao(texto);
-    if (!assinatura) continue;
-    const redundante = selecionadas.some(
-      (item) => item.assinatura === assinatura
-        || item.assinatura.includes(assinatura)
-        || assinatura.includes(item.assinatura),
-    );
-    if (!redundante) selecionadas.push({ texto, assinatura });
-  }
-
-  return selecionadas.map((item) => item.texto).join(" • ") || null;
-}
-
-function mesclarLinhasImportadas(atual: ImportPrazoRow, entrada: ImportPrazoRow): ImportPrazoRow {
-  const textoMaisCompleto = (a: string | null, b: string | null) =>
-    (b ?? "").trim().length > (a ?? "").trim().length ? b : a;
-
-  return {
-    ...atual,
-    parte: textoMaisCompleto(atual.parte, entrada.parte) ?? atual.parte,
-    advogado: textoMaisCompleto(atual.advogado, entrada.advogado),
-    status: entrada.status === "Concluído" ? "Concluído" : atual.status,
-    observacao: mesclarObservacoes([atual.observacao, entrada.observacao]),
-    data_conclusao: atual.data_conclusao ?? entrada.data_conclusao,
-    data_publicacao: atual.data_publicacao ?? entrada.data_publicacao,
-    data_inicio_manifestacao: atual.data_inicio_manifestacao ?? entrada.data_inicio_manifestacao,
-    data_fim_manifestacao: atual.data_fim_manifestacao ?? entrada.data_fim_manifestacao,
-    cumprido: atual.cumprido ?? entrada.cumprido,
-  };
-}
-
 const ADVOGADOS = ["Dr. Dimas", "Dra Cassia", "Dr. Wesley"] as const;
 
 const emptyForm = {
@@ -470,48 +427,65 @@ function PrazosPage() {
     setImportFileName(file.name);
     setImportRows([]);
     setImportErrors([]);
+
     try {
       const rows = await parsePrazosExcel(file);
-      const erros: string[] = [];
-      const porIdentidade = new Map<string, Prazo>();
+      const avisos: string[] = [];
+      const existentes = new Set<string>();
+      const vistosNaPlanilha = new Set<string>();
+      const novos: ImportPrazoRow[] = [];
+      let existentesIgnorados = 0;
+      let duplicadosNaPlanilha = 0;
 
       for (const p of data ?? []) {
-        const identidade = chaveDedupePrazo(p.nome, p.numero_processo, p.data_limite);
-        if (!porIdentidade.has(identidade)) porIdentidade.set(identidade, p);
+        existentes.add(chaveDedupePrazo(p.nome, p.numero_processo, p.data_limite));
       }
-
-      const consolidados = new Map<string, ImportPrazoRow>();
 
       rows.forEach((row, index) => {
         const linha = index + 2;
+
         if (!row.nome) {
-          erros.push(`Linha ${linha}: Nome não informado.`);
+          avisos.push(`Linha ${linha}: Nome não informado.`);
           return;
         }
 
         const chave = chaveDedupePrazo(row.nome, row.numero_processo, row.data_limite);
 
-        const anterior = consolidados.get(chave);
-        if (anterior) {
-          erros.push(
-            `Linha ${linha}: duplicidade na própria planilha consolidada com ${row.nome} · ${brDate(row.data_limite)}.`
-          );
-          consolidados.set(chave, mesclarLinhasImportadas(anterior, row));
+        if (existentes.has(chave)) {
+          existentesIgnorados += 1;
           return;
         }
-        consolidados.set(chave, row);
+
+        if (vistosNaPlanilha.has(chave)) {
+          duplicadosNaPlanilha += 1;
+          return;
+        }
+
+        vistosNaPlanilha.add(chave);
+        novos.push(row);
       });
 
-      const linhasConsolidadas = Array.from(consolidados.values());
-      setImportRows(linhasConsolidadas);
-      setImportErrors(erros);
-      const existentes = linhasConsolidadas.filter((row) =>
-        porIdentidade.has(chaveDedupePrazo(row.nome, row.numero_processo, row.data_limite)),
-      ).length;
-      if (!linhasConsolidadas.length) {
-        toast.error("O Excel não contém prazos válidos para importar.");
-      } else if (existentes) {
-        toast.info(`${existentes} prazo(s) existente(s) terão as informações úteis consolidadas.`);
+      if (existentesIgnorados > 0) {
+        avisos.push(`${existentesIgnorados} registro(s) já existente(s) foram ignorados.`);
+      }
+
+      if (duplicadosNaPlanilha > 0) {
+        avisos.push(`${duplicadosNaPlanilha} duplicidade(s) dentro da própria planilha foram ignoradas.`);
+      }
+
+      setImportRows(novos);
+      setImportErrors(avisos);
+
+      if (!novos.length) {
+        toast.info("Nenhum prazo novo para importar.", {
+          description: existentesIgnorados || duplicadosNaPlanilha
+            ? `${existentesIgnorados} já existente(s) e ${duplicadosNaPlanilha} duplicado(s) na planilha foram ignorado(s).`
+            : "O Excel não contém prazos válidos.",
+        });
+      } else {
+        toast.success(`${novos.length} prazo(s) novo(s) encontrado(s).`, {
+          description: `${existentesIgnorados} já existente(s) e ${duplicadosNaPlanilha} duplicado(s) na planilha serão ignorado(s).`,
+        });
       }
     } catch (err) {
       toast.error("Não foi possível ler o Excel.", {
@@ -519,9 +493,11 @@ function PrazosPage() {
       });
     }
   }
+
   async function importarPrazos() {
     if (!importRows.length) return;
     setImportando(true);
+
     try {
       const { data: auth } = await supabase.auth.getUser();
       if (!auth.user) throw new Error("Sessão expirada");
@@ -541,28 +517,35 @@ function PrazosPage() {
         created_by: auth.user.id,
       }));
 
-       let conflitosReprocessados = 0;
+      let importados = 0;
+      let jaExistentesDuranteImportacao = 0;
+
       for (let i = 0; i < payload.length; i += 50) {
         const chunk = payload.slice(i, i + 50);
         const { error } = await supabase.from("prazos").insert(chunk);
 
-        if (!error) continue;
+        if (!error) {
+          importados += chunk.length;
+          continue;
+        }
+
         if (error.code !== "23505") throw error;
 
-         // Em uma disputa concorrente pelo mesmo prazo, o reenvio individual
-         // permite que o gatilho consolide a observação no registro vencedor.
+        // Concorrência rara: tenta individualmente e simplesmente ignora
+        // qualquer prazo que já tenha sido criado entre a prévia e o INSERT.
         for (const row of chunk) {
           const { error: rowError } = await supabase.from("prazos").insert(row);
-          if (!rowError) continue;
-          if (rowError.code === "23505") {
-             const { error: retryError } = await supabase.from("prazos").insert(row);
-             if (!retryError) {
-               conflitosReprocessados += 1;
-               continue;
-             }
-             if (retryError.code === "23505") throw retryError;
+
+          if (!rowError) {
+            importados += 1;
             continue;
           }
+
+          if (rowError.code === "23505") {
+            jaExistentesDuranteImportacao += 1;
+            continue;
+          }
+
           throw rowError;
         }
       }
@@ -571,13 +554,14 @@ function PrazosPage() {
         entidade: "prazo",
         acao: "importacao_excel",
         arquivo: importFileName,
-        quantidade: payload.length,
-         consolidados: payload.length,
+        quantidade: importados,
+        ignorados_existentes: jaExistentesDuranteImportacao,
       });
 
       toast.success("Importação concluída.", {
-         description: `${payload.length} prazo(s) processado(s). Registros repetidos foram consolidados sem substituir observações mais completas.${conflitosReprocessados ? ` ${conflitosReprocessados} conflito(s) concorrente(s) reprocessado(s).` : ""}`,
+        description: `${importados} prazo(s) novo(s) adicionado(s). ${jaExistentesDuranteImportacao} já existente(s) foram ignorado(s). Nenhum prazo existente foi atualizado, substituído ou excluído.`,
       });
+
       setImportOpen(false);
       setImportRows([]);
       setImportErrors([]);
@@ -594,6 +578,7 @@ function PrazosPage() {
               .filter(Boolean)
               .join(" · ")
           : String(err);
+
       toast.error("Não foi possível importar os prazos.", { description: detalhe || undefined });
       console.error("Erro ao importar prazos:", err);
     } finally {
@@ -885,7 +870,7 @@ function PrazosPage() {
 
             {importRows.length > 0 && (
               <div className="space-y-2">
-                 <p className="text-sm font-medium">Prazos que serão adicionados ou consolidados ({importRows.length})</p>
+                 <p className="text-sm font-medium">Prazos novos que serão adicionados ({importRows.length})</p>
                 <div className="max-h-64 overflow-auto rounded-lg border">
                   <Table>
                     <TableHeader>
@@ -916,7 +901,7 @@ function PrazosPage() {
 
             {importErrors.length > 0 && (
               <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3">
-                 <p className="mb-2 text-sm font-medium text-destructive">Avisos da consolidação</p>
+                 <p className="mb-2 text-sm font-medium text-destructive">Avisos da importação</p>
                 <ul className="max-h-32 space-y-1 overflow-auto text-xs text-muted-foreground">
                   {importErrors.map((error, index) => <li key={`${error}-${index}`}>{error}</li>)}
                 </ul>
