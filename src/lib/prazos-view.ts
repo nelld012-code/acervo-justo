@@ -5,6 +5,7 @@ export type Prazo = {
   parte: string;
   advogado: string | null;
   data_limite: string | null;
+  dedupe_key: string | null;
   observacao: string | null;
   lembrete_ativo: boolean;
   antecedencia_dias: number;
