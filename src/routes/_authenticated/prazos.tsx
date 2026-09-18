@@ -88,6 +88,23 @@ function chaveProcesso(valor: string | null | undefined) {
   return (valor ?? "").replace(/\D/g, "") || (valor ?? "").trim().toLowerCase();
 }
 
+function normalizarPrazoIdentidade(valor: string | null | undefined) {
+  return (valor ?? "")
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLowerCase();
+}
+
+function chaveDedupePrazo(nome: string | null | undefined, processo: string | null | undefined, data: string | null | undefined) {
+  return [
+    normalizarPrazoIdentidade(nome),
+    normalizarPrazoIdentidade(processo),
+    data ?? "<null>",
+  ].join("|");
+}
+
 const ADVOGADOS = ["Dr. Dimas", "Dra Cassia", "Dr. Wesley"] as const;
 
 const emptyForm = {
@@ -422,9 +439,12 @@ function PrazosPage() {
       const rows = await parsePrazosExcel(file);
       const erros: string[] = [];
       const porProcesso = new Map<string, Prazo>();
+      const porIdentidade = new Map<string, Prazo>();
       for (const p of data ?? []) {
         const chave = chaveProcesso(p.numero_processo);
         if (chave && !porProcesso.has(chave)) porProcesso.set(chave, p);
+        const identidade = chaveDedupePrazo(p.nome, p.numero_processo, p.data_limite);
+        if (!porIdentidade.has(identidade)) porIdentidade.set(identidade, p);
       }
 
       const novos: ImportPrazoRow[] = [];
@@ -435,7 +455,16 @@ function PrazosPage() {
       rows.forEach((row, index) => {
         const linha = index + 2;
         const chaveProc = chaveProcesso(row.numero_processo);
+        const chaveIdentidade = chaveDedupePrazo(row.nome, row.numero_processo, row.data_limite);
         const existente = chaveProc ? porProcesso.get(chaveProc) : undefined;
+        const existenteMesmaIdentidade = porIdentidade.get(chaveIdentidade);
+
+        if (existente && existenteMesmaIdentidade && existenteMesmaIdentidade.id !== existente.id) {
+          erros.push(
+            `Linha ${linha}: este prazo já existe com o mesmo nome, processo e data limite. O registro foi ignorado para evitar duplicidade.`
+          );
+          return;
+        }
 
         if (existente) {
           if (vistosProcesso.has(chaveProc)) {
@@ -478,7 +507,7 @@ function PrazosPage() {
           erros.push(`Linha ${linha}: Nome não informado.`);
           return;
         }
-        const chave = `${row.nome.trim().toLowerCase()}|${chaveProc}|${row.data_limite ?? ""}`;
+        const chave = chaveDedupePrazo(row.nome, row.numero_processo, row.data_limite);
         if (vistosNovos.has(chave)) {
           erros.push(`Linha ${linha}: possível registro duplicado (${row.nome} · ${brDate(row.data_limite)}).`);
           return;
@@ -522,16 +551,41 @@ function PrazosPage() {
         created_by: auth.user.id,
       }));
 
+      let duplicadosIgnorados = 0;
+
       if (payload.length) {
-        const { error } = await supabase.from("prazos").insert(payload);
-        if (error) throw error;
+        for (let i = 0; i < payload.length; i += 50) {
+          const chunk = payload.slice(i, i + 50);
+          const { error } = await supabase.from("prazos").insert(chunk);
+
+          if (!error) continue;
+          if (error.code !== "23505") throw error;
+
+          // Fallback seguro: uma linha por vez. Se um registro conflitar
+          // com a chave única, somente ele é ignorado e a importação continua.
+          for (const row of chunk) {
+            const { error: rowError } = await supabase.from("prazos").insert(row);
+            if (!rowError) continue;
+            if (rowError.code === "23505") {
+              duplicadosIgnorados += 1;
+              continue;
+            }
+            throw rowError;
+          }
+        }
       }
 
       for (const item of importAtualizacoes) {
         const patch = { ...item.patch };
         if (patch.status && patch.status !== "Concluído") patch.status = "Em andamento";
         const { error } = await supabase.from("prazos").update(patch).eq("id", item.prazo.id);
-        if (error) throw error;
+        if (error) {
+          if (error.code === "23505") {
+            duplicadosIgnorados += 1;
+            continue;
+          }
+          throw error;
+        }
       }
 
       await logAudit(null, "uploaded", {
@@ -543,7 +597,7 @@ function PrazosPage() {
       });
 
       toast.success("Importação concluída.", {
-        description: `${payload.length} novo(s) prazo(s) criado(s), ${importAtualizacoes.length} prazo(s) atualizado(s), ${importErrors.length} erro(s).`,
+        description: `${payload.length} novo(s) prazo(s) criado(s), ${importAtualizacoes.length} prazo(s) atualizado(s), ${importErrors.length} registro(s) sinalizado(s), ${duplicadosIgnorados} duplicado(s) ignorado(s).`,
       });
       setImportOpen(false);
       setImportRows([]);
