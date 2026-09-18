@@ -84,10 +84,6 @@ const CAMPOS_LABEL: Record<CampoAtualizavel, string> = {
   data_conclusao: "Data de conclusão",
 };
 
-function chaveProcesso(valor: string | null | undefined) {
-  return (valor ?? "").replace(/\D/g, "") || (valor ?? "").trim().toLowerCase();
-}
-
 function normalizarPrazoIdentidade(valor: string | null | undefined) {
   return (valor ?? "")
     .normalize("NFD")
