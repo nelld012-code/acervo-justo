@@ -508,6 +508,7 @@ export type Database = {
           created_by: string | null
           data_conclusao: string | null
           data_limite: string | null
+          dedupe_key: string | null
           id: string
           lembrete_ativo: boolean
           nome: string
@@ -525,6 +526,7 @@ export type Database = {
           created_by?: string | null
           data_conclusao?: string | null
           data_limite?: string | null
+          dedupe_key?: string | null
           id?: string
           lembrete_ativo?: boolean
           nome: string
@@ -542,6 +544,7 @@ export type Database = {
           created_by?: string | null
           data_conclusao?: string | null
           data_limite?: string | null
+          dedupe_key?: string | null
           id?: string
           lembrete_ativo?: boolean
           nome?: string
@@ -732,6 +735,12 @@ export type Database = {
         }[]
       }
       only_digits: { Args: { v: string }; Returns: string }
+      prazo_merge_observations: {
+        Args: { values_to_merge: string[] }
+        Returns: string
+      }
+      prazo_normalize_identity: { Args: { value: string }; Returns: string }
+      prazo_observation_signature: { Args: { value: string }; Returns: string }
       purge_expired_messages: { Args: never; Returns: undefined }
     }
     Enums: {
