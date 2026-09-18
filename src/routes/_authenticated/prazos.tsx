@@ -850,8 +850,8 @@ function PrazosPage() {
           <DialogHeader>
             <DialogTitle>Importar Prazos do Excel</DialogTitle>
             <DialogDescription>
-              A identidade é Nome + Número do Processo + Data Limite. Repetições são consolidadas,
-              preservando a observação mais completa e as informações úteis.
+              A identidade é Nome + Número do Processo + Data Limite. Apenas prazos novos serão adicionados.
+              Prazos que já existem e duplicidades dentro da própria planilha serão ignorados, sem atualizar registros existentes.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -863,7 +863,7 @@ function PrazosPage() {
 
             {(importRows.length > 0 || importErrors.length > 0) && (
               <div className="flex flex-wrap gap-2">
-                <Badge variant="outline">{importRows.length} prazo(s) para processar</Badge>
+                <Badge variant="outline">{importRows.length} prazo(s) novo(s) para adicionar</Badge>
                 <Badge variant="outline">{importErrors.length} aviso(s)</Badge>
               </div>
             )}
