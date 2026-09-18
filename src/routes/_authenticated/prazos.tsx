@@ -441,7 +441,6 @@ function PrazosPage() {
       }
 
       const novos: ImportPrazoRow[] = [];
-      const atualizacoes: ImportUpdate[] = [];
       const vistosIdentidade = new Set<string>();
 
       rows.forEach((row, index) => {
@@ -453,51 +452,25 @@ function PrazosPage() {
 
         const chave = chaveDedupePrazo(row.nome, row.numero_processo, row.data_limite);
 
-        // A identidade completa inclui nome + expediente + data limite.
-        // Assim, o mesmo expediente pode ter vários prazos diferentes.
-        // Cada data limite diferente permanece como registro separado.
+        // IMPORTAÇÃO SOMENTE ADITIVA:
+        // - identidade já existente: ignora sem alterar o registro;
+        // - mesmo expediente com outra data: cria um novo prazo;
+        // - duplicado dentro do próprio Excel: ignora a repetição.
+        if (porIdentidade.has(chave)) {
+          erros.push(
+            `Linha ${linha}: prazo já existente (${row.nome} · ${brDate(row.data_limite)}). Ignorado sem alterar o registro existente.`
+          );
+          return;
+        }
+
         if (vistosIdentidade.has(chave)) {
-          erros.push(`Linha ${linha}: possível registro duplicado (${row.nome} · ${brDate(row.data_limite)}).`);
+          erros.push(`Linha ${linha}: possível registro duplicado na própria planilha (${row.nome} · ${brDate(row.data_limite)}).`);
           return;
         }
+
         vistosIdentidade.add(chave);
-
-        const existente = porIdentidade.get(chave);
-        if (existente) {
-          const valores: Partial<Record<CampoAtualizavel, string | null>> = {
-            nome: row.nome || null,
-            parte: row.parte || null,
-            advogado: row.advogado,
-            data_limite: row.data_limite || null,
-            status: row.status || null,
-            observacao: row.observacao,
-            data_conclusao: row.data_conclusao,
-          };
-
-          const patch: Partial<Record<CampoAtualizavel, string>> = {};
-          const mudancas: ImportUpdate["mudancas"] = [];
-          (Object.keys(valores) as CampoAtualizavel[]).forEach((campo) => {
-            const novo = valores[campo];
-            if (novo === null || novo === undefined || novo === "") return;
-            const atual = existente[campo] ?? null;
-            if ((atual ?? "") === novo) return;
-            patch[campo] = novo;
-            const isData = campo === "data_limite" || campo === "data_conclusao";
-            mudancas.push({
-              rotulo: CAMPOS_LABEL[campo],
-              de: isData ? brDate(atual) : (atual || "—"),
-              para: isData ? brDate(novo) : novo,
-            });
-          });
-
-          if (mudancas.length) atualizacoes.push({ prazo: existente, patch, mudancas });
-          return;
-        }
-
-        // Mesmo expediente com outra data limite: sempre permanece como novo.
         novos.push(row);
       });
-
       setImportRows(novos);
       setImportAtualizacoes(atualizacoes);
       setImportErrors(erros);
@@ -512,7 +485,7 @@ function PrazosPage() {
   }
 
   async function importarPrazos() {
-    if (!importRows.length && !importAtualizacoes.length) return;
+    if (!importRows.length) return;
     setImportando(true);
     try {
       const { data: auth } = await supabase.auth.getUser();
@@ -535,38 +508,23 @@ function PrazosPage() {
 
       let duplicadosIgnorados = 0;
 
-      if (payload.length) {
-        for (let i = 0; i < payload.length; i += 50) {
-          const chunk = payload.slice(i, i + 50);
-          const { error } = await supabase.from("prazos").insert(chunk);
+      for (let i = 0; i < payload.length; i += 50) {
+        const chunk = payload.slice(i, i + 50);
+        const { error } = await supabase.from("prazos").insert(chunk);
 
-          if (!error) continue;
-          if (error.code !== "23505") throw error;
+        if (!error) continue;
+        if (error.code !== "23505") throw error;
 
-          // Fallback seguro: uma linha por vez. Se um registro conflitar
-          // com a chave única, somente ele é ignorado e a importação continua.
-          for (const row of chunk) {
-            const { error: rowError } = await supabase.from("prazos").insert(row);
-            if (!rowError) continue;
-            if (rowError.code === "23505") {
-              duplicadosIgnorados += 1;
-              continue;
-            }
-            throw rowError;
-          }
-        }
-      }
-
-      for (const item of importAtualizacoes) {
-        const patch = { ...item.patch };
-        if (patch.status && patch.status !== "Concluído") patch.status = "Em andamento";
-        const { error } = await supabase.from("prazos").update(patch).eq("id", item.prazo.id);
-        if (error) {
-          if (error.code === "23505") {
+        // Mesmo que o banco encontre um conflito inesperado, somente o
+        // registro conflitante é ignorado e os demais continuam.
+        for (const row of chunk) {
+          const { error: rowError } = await supabase.from("prazos").insert(row);
+          if (!rowError) continue;
+          if (rowError.code === "23505") {
             duplicadosIgnorados += 1;
             continue;
           }
-          throw error;
+          throw rowError;
         }
       }
 
@@ -575,12 +533,13 @@ function PrazosPage() {
         acao: "importacao_excel",
         arquivo: importFileName,
         quantidade: payload.length,
-        atualizados: importAtualizacoes.length,
+        atualizados: 0,
       });
 
       toast.success("Importação concluída.", {
-        description: `${payload.length} novo(s) prazo(s) criado(s), ${importAtualizacoes.length} prazo(s) atualizado(s), ${importErrors.length} alerta(s) da planilha, ${duplicadosIgnorados} duplicado(s) ignorado(s).`,
+        description: `${payload.length} novo(s) prazo(s) adicionado(s). Nenhum prazo existente foi atualizado ou substituído. ${duplicadosIgnorados} duplicado(s) ignorado(s).`,
       });
+
       setImportOpen(false);
       setImportRows([]);
       setImportAtualizacoes([]);
@@ -599,59 +558,10 @@ function PrazosPage() {
               .join(" · ")
           : String(err);
       toast.error("Não foi possível importar os prazos.", { description: detalhe || undefined });
-      console.error("Erro ao importar prazos:", err);
     } finally {
       setImportando(false);
     }
   }
-
-  function exportarExcel() {
-    if (!lista.length) {
-      toast.error("Não há prazos para exportar.");
-      return;
-    }
-
-    const headers = [
-      "Nome", "Número do Processo", "Parte", "Advogado", "Data Limite", "Dias Restantes",
-      "Status", "Situação", "Lembrete", "Antecedência", "Repetição diária", "Observação", "Data de Conclusão",
-    ];
-
-    const rows = lista.map((p) => [
-      p.nome,
-      processoOuTraco(p.numero_processo),
-      p.parte,
-      p.advogado || "—",
-      brDate(p.data_limite),
-      p.status === "Concluído" ? "—" : (p.data_limite ? diasRestantes(p.data_limite) : "—"),
-      p.status,
-      SITUACAO_LABEL[situacaoDoPrazo(p)],
-      p.lembrete_ativo ? "Ativo" : "Desativado",
-      p.lembrete_ativo ? `${p.antecedencia_dias} dia(s) antes` : "—",
-      p.repetir_alerta_diariamente ? "Sim" : "Não",
-      p.observacao || "—",
-      brDate(p.data_conclusao),
-    ]);
-
-    try {
-      exportToExcel("prazos_gestao_judicial.xlsx", headers, rows);
-      toast.success("Prazos exportados para Excel com sucesso.", {
-        description: `${lista.length} registro(s) exportado(s), respeitando os filtros e a ordenação atuais.`,
-      });
-    } catch (err) {
-      toast.error("Não foi possível exportar os prazos para Excel.", {
-        description: err instanceof Error ? err.message : undefined,
-      });
-    }
-  }
-
-  useEffect(() => {
-    setPagina(1);
-  }, [busca, filtro, advogadoFiltro, dataDesde, dataAte, ordem]);
-
-  const totalPaginas = Math.max(1, Math.ceil(lista.length / ITENS_POR_PAGINA));
-  const paginaAtual = Math.min(pagina, totalPaginas);
-  const listaPaginada = lista.slice((paginaAtual - 1) * ITENS_POR_PAGINA, paginaAtual * ITENS_POR_PAGINA);
-
   return (
     <div className="min-w-0 space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -869,7 +779,7 @@ function PrazosPage() {
         <DialogContent className="max-h-[85vh] w-[calc(100vw-2rem)] max-w-3xl overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Importar Prazos do Excel</DialogTitle>
-            <DialogDescription>Selecione sua planilha .xlsx. As colunas Dias Restantes e Situação são recalculadas automaticamente pelo sistema.</DialogDescription>
+            <DialogDescription>Importação somente de novos prazos. Registros já existentes nunca serão atualizados, substituídos ou apagados. A identidade é Nome + Número do Processo + Data Limite.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="rounded-lg border border-dashed border-border bg-muted/20 p-5 text-center">
@@ -877,16 +787,15 @@ function PrazosPage() {
               {importFileName && <p className="mt-2 text-xs text-muted-foreground">{importFileName}</p>}
               <p className="mt-2 text-xs text-muted-foreground">Colunas: Nome, Número do Processo, Parte, Advogado, Data Limite, Status, Observação e Data de Conclusão.</p>
             </div>
-            {(importRows.length > 0 || importAtualizacoes.length > 0 || importErrors.length > 0) && (
+            {(importRows.length > 0 || importErrors.length > 0) && (
               <div className="flex flex-wrap gap-2">
                 <Badge variant="outline">{importRows.length} novo(s)</Badge>
-                <Badge variant="outline">{importAtualizacoes.length} atualização(ões)</Badge>
-                <Badge variant="outline">{importErrors.length} erro(s)</Badge>
+                <Badge variant="outline">{importErrors.length} aviso(s)</Badge>
               </div>
             )}
             {importRows.length > 0 && (
               <div className="space-y-2">
-                <p className="text-sm font-medium">Novos prazos ({importRows.length})</p>
+                <p className="text-sm font-medium">Novos prazos que serão adicionados ({importRows.length})</p>
                 <div className="max-h-64 overflow-auto rounded-lg border">
                   <Table><TableHeader><TableRow><TableHead>Nome</TableHead><TableHead>Processo</TableHead><TableHead>Parte</TableHead><TableHead>Data Limite</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
                     <TableBody>{importRows.slice(0, 50).map((row, index) => <TableRow key={`${row.nome}-${row.data_limite}-${index}`}><TableCell>{row.nome}</TableCell><TableCell>{row.numero_processo || "—"}</TableCell><TableCell>{row.parte}</TableCell><TableCell>{brDate(row.data_limite)}</TableCell><TableCell>{row.status}</TableCell></TableRow>)}</TableBody>
@@ -895,27 +804,11 @@ function PrazosPage() {
                 {importRows.length > 50 && <p className="text-xs text-muted-foreground">Mostrando os primeiros 50 registros da pré-visualização.</p>}
               </div>
             )}
-            {importAtualizacoes.length > 0 && (
-              <div className="space-y-2">
-                <p className="text-sm font-medium">Prazos que serão atualizados ({importAtualizacoes.length})</p>
-                <div className="max-h-64 space-y-2 overflow-auto rounded-lg border p-3">
-                  {importAtualizacoes.slice(0, 50).map((item) => (
-                    <div key={item.prazo.id} className="rounded-md border border-border/60 p-2">
-                      <p className="text-sm font-medium">{item.prazo.nome} · {processoOuTraco(item.prazo.numero_processo)}</p>
-                      <ul className="mt-1 space-y-0.5 text-xs text-muted-foreground">
-                        {item.mudancas.map((m) => <li key={m.rotulo}>{m.rotulo}: {m.de} → {m.para}</li>)}
-                      </ul>
-                    </div>
-                  ))}
-                </div>
-                {importAtualizacoes.length > 50 && <p className="text-xs text-muted-foreground">Mostrando as primeiras 50 atualizações.</p>}
-              </div>
-            )}
-            {importErrors.length > 0 && <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3"><p className="mb-2 text-sm font-medium text-destructive">Registros que não serão importados</p><ul className="max-h-32 space-y-1 overflow-auto text-xs text-muted-foreground">{importErrors.map((error, index) => <li key={`${error}-${index}`}>{error}</li>)}</ul></div>}
+            {importErrors.length > 0 && <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3"><p className="mb-2 text-sm font-medium text-destructive">Avisos — estes registros não serão alterados</p><ul className="max-h-32 space-y-1 overflow-auto text-xs text-muted-foreground">{importErrors.map((error, index) => <li key={`${error}-${index}`}>{error}</li>)}</ul></div>}
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setImportOpen(false)}>Cancelar</Button>
-            <Button type="button" onClick={() => void importarPrazos()} disabled={(!importRows.length && !importAtualizacoes.length) || importando}>{importando ? "Importando..." : `Confirmar importação (${importRows.length} novo(s) · ${importAtualizacoes.length} atualização(ões))`}</Button>
+            <Button type="button" onClick={() => void importarPrazos()} disabled={!importRows.length || importando}>{importando ? "Importando..." : `Adicionar ${importRows.length} novo(s) prazo(s)`}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
