@@ -597,7 +597,7 @@ function PrazosPage() {
       });
 
       toast.success("Importação concluída.", {
-        description: `${payload.length} novo(s) prazo(s) criado(s), ${importAtualizacoes.length} prazo(s) atualizado(s), ${importErrors.length} registro(s) sinalizado(s), ${duplicadosIgnorados} duplicado(s) ignorado(s).`,
+        description: `${payload.length} novo(s) prazo(s) criado(s), ${importAtualizacoes.length} prazo(s) atualizado(s), ${importErrors.length} alerta(s) da planilha, ${duplicadosIgnorados} duplicado(s) ignorado(s).`,
       });
       setImportOpen(false);
       setImportRows([]);
