@@ -305,6 +305,13 @@ function PrazosPage() {
         data_conclusao: dataConclusao,
       };
       if (editando) {
+        const identidade = chaveDedupePrazo(payload.nome, payload.numero_processo, payload.data_limite);
+        const conflito = (data ?? []).find(
+          (prazo) => prazo.id !== editando.id && prazo.dedupe_key === identidade,
+        );
+        if (conflito) {
+          throw new Error("Já existe outro prazo com o mesmo nome, número do processo e data limite.");
+        }
         const { error } = await supabase.from("prazos").update(payload).eq("id", editando.id);
         if (error) throw error;
         await logAudit(null, "edited", { entidade: "prazo", prazo_id: editando.id, ...payload });
