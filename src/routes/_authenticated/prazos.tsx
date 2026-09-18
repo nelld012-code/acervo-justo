@@ -438,41 +438,36 @@ function PrazosPage() {
     try {
       const rows = await parsePrazosExcel(file);
       const erros: string[] = [];
-      const porProcesso = new Map<string, Prazo>();
       const porIdentidade = new Map<string, Prazo>();
       for (const p of data ?? []) {
-        const chave = chaveProcesso(p.numero_processo);
-        if (chave && !porProcesso.has(chave)) porProcesso.set(chave, p);
         const identidade = chaveDedupePrazo(p.nome, p.numero_processo, p.data_limite);
         if (!porIdentidade.has(identidade)) porIdentidade.set(identidade, p);
       }
 
       const novos: ImportPrazoRow[] = [];
       const atualizacoes: ImportUpdate[] = [];
-      const vistosNovos = new Set<string>();
-      const vistosProcesso = new Set<string>();
+      const vistosIdentidade = new Set<string>();
 
       rows.forEach((row, index) => {
         const linha = index + 2;
-        const chaveProc = chaveProcesso(row.numero_processo);
-        const chaveIdentidade = chaveDedupePrazo(row.nome, row.numero_processo, row.data_limite);
-        const existente = chaveProc ? porProcesso.get(chaveProc) : undefined;
-        const existenteMesmaIdentidade = porIdentidade.get(chaveIdentidade);
-
-        if (existente && existenteMesmaIdentidade && existenteMesmaIdentidade.id !== existente.id) {
-          erros.push(
-            `Linha ${linha}: este prazo já existe com o mesmo nome, processo e data limite. O registro foi ignorado para evitar duplicidade.`
-          );
+        if (!row.nome) {
+          erros.push(`Linha ${linha}: Nome não informado.`);
           return;
         }
 
-        if (existente) {
-          if (vistosProcesso.has(chaveProc)) {
-            erros.push(`Linha ${linha}: expediente ${row.numero_processo} repetido na planilha.`);
-            return;
-          }
-          vistosProcesso.add(chaveProc);
+        const chave = chaveDedupePrazo(row.nome, row.numero_processo, row.data_limite);
 
+        // A identidade completa inclui nome + expediente + data limite.
+        // Assim, o mesmo expediente pode ter vários prazos diferentes.
+        // Cada data limite diferente permanece como registro separado.
+        if (vistosIdentidade.has(chave)) {
+          erros.push(`Linha ${linha}: possível registro duplicado (${row.nome} · ${brDate(row.data_limite)}).`);
+          return;
+        }
+        vistosIdentidade.add(chave);
+
+        const existente = porIdentidade.get(chave);
+        if (existente) {
           const valores: Partial<Record<CampoAtualizavel, string | null>> = {
             nome: row.nome || null,
             parte: row.parte || null,
@@ -503,16 +498,7 @@ function PrazosPage() {
           return;
         }
 
-        if (!row.nome) {
-          erros.push(`Linha ${linha}: Nome não informado.`);
-          return;
-        }
-        const chave = chaveDedupePrazo(row.nome, row.numero_processo, row.data_limite);
-        if (vistosNovos.has(chave)) {
-          erros.push(`Linha ${linha}: possível registro duplicado (${row.nome} · ${brDate(row.data_limite)}).`);
-          return;
-        }
-        vistosNovos.add(chave);
+        // Mesmo expediente com outra data limite: sempre permanece como novo.
         novos.push(row);
       });
 
