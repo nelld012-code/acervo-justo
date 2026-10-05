@@ -31,11 +31,7 @@ const PAGE_SIZE = 8;
 const TIPO = ["Civil", "Criminal", "Administrativo"] as const;
 const MODALIDADE = ["Presencial", "Virtual"] as const;
 const STATUS = ["Agendada", "Realizada", "Cancelada"] as const;
-const MESES = [
-  ["01", "Janeiro"], ["02", "Fevereiro"], ["03", "Março"], ["04", "Abril"],
-  ["05", "Maio"], ["06", "Junho"], ["07", "Julho"], ["08", "Agosto"],
-  ["09", "Setembro"], ["10", "Outubro"], ["11", "Novembro"], ["12", "Dezembro"],
-] as const;
+
 const EMPTY_FORM = {
   nome: "", numero_processo: "", parte: "", advogado: "", data_audiencia: format(new Date(), "yyyy-MM-dd"), hora_audiencia: "",
   orgao_julgador: "", vara: "", tipo_audiencia: "Civil" as (typeof TIPO)[number], modalidade: "Presencial" as (typeof MODALIDADE)[number],
@@ -73,7 +69,6 @@ function AudienciasPage() {
   const [tipoFiltro, setTipoFiltro] = useState("Todos");
   const [modalidadeFiltro, setModalidadeFiltro] = useState("Todas");
   const [statusFiltro, setStatusFiltro] = useState("Todos");
-  const [mesFiltro, setMesFiltro] = useState("Todos");
   const [dataDesde, setDataDesde] = useState("");
   const [dataAte, setDataAte] = useState("");
   const [page, setPage] = useState(1);
@@ -99,12 +94,11 @@ function AudienciasPage() {
       if (modalidadeFiltro !== "Todas" && a.modalidade !== modalidadeFiltro) return false;
       const statusAtual = a.status ?? "Agendada";
       if (statusFiltro !== "Todos" && statusAtual !== statusFiltro) return false;
-      if (mesFiltro !== "Todos" && a.data_audiencia.slice(5, 7) !== mesFiltro) return false;
       if (dataDesde && a.data_audiencia < dataDesde) return false;
       if (dataAte && a.data_audiencia > dataAte) return false;
       return true;
     });
-  }, [audiencias, busca, tipoFiltro, modalidadeFiltro, statusFiltro, mesFiltro, dataDesde, dataAte]);
+  }, [audiencias, busca, tipoFiltro, modalidadeFiltro, statusFiltro, dataDesde, dataAte]);
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
   const paged = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
@@ -215,16 +209,7 @@ function AudienciasPage() {
           {["Todos", ...TIPO].map(v => <Button key={v} size="sm" variant={tipoFiltro === v ? "default" : "outline"} onClick={() => { setTipoFiltro(v); setPage(1); }}>{v}</Button>)}
           {["Todas", ...MODALIDADE].map(v => <Button key={v} size="sm" variant={modalidadeFiltro === v ? "default" : "outline"} onClick={() => { setModalidadeFiltro(v); setPage(1); }}>{v}</Button>)}
           {["Todos", ...STATUS].map(v => <Button key={v} size="sm" variant={statusFiltro === v ? "default" : "outline"} onClick={() => { setStatusFiltro(v); setPage(1); }}>{v}</Button>)}
-          <Select value={mesFiltro} onValueChange={(v) => { setMesFiltro(v); setPage(1); }}>
-            <SelectTrigger className="h-9 w-full sm:w-[170px]">
-              <SelectValue placeholder="Filtrar por mês" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="Todos">Todos os meses</SelectItem>
-              {MESES.map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}
-            </SelectContent>
-          </Select>
-          <div className="space-y-1">
+        <div className="space-y-1">
             <Label htmlFor="audiencia-data-desde" className="text-xs text-muted-foreground">Data desde</Label>
             <Input id="audiencia-data-desde" type="date" value={dataDesde} onChange={e => { setDataDesde(e.target.value); setPage(1); }} className="h-9 w-full sm:w-[150px]" />
           </div>
@@ -232,7 +217,7 @@ function AudienciasPage() {
             <Label htmlFor="audiencia-data-ate" className="text-xs text-muted-foreground">Data até</Label>
             <Input id="audiencia-data-ate" type="date" value={dataAte} onChange={e => { setDataAte(e.target.value); setPage(1); }} className="h-9 w-full sm:w-[150px]" />
           </div>
-          <Button variant="ghost" size="sm" onClick={() => { setBusca(""); setTipoFiltro("Todos"); setModalidadeFiltro("Todas"); setStatusFiltro("Todos"); setMesFiltro("Todos"); setDataDesde(""); setDataAte(""); setPage(1); }}><X className="mr-1 h-4 w-4" />Limpar filtros</Button>
+          <Button variant="ghost" size="sm" onClick={() => { setBusca(""); setTipoFiltro("Todos"); setModalidadeFiltro("Todas"); setStatusFiltro("Todos"); setDataDesde(""); setDataAte(""); setPage(1); }}><X className="mr-1 h-4 w-4" />Limpar filtros</Button>
         </div>
       </CardContent></Card>
       <Card><CardHeader className="pb-2"><CardTitle className="text-base">Audiências ({filtered.length})</CardTitle></CardHeader><CardContent className="p-0 sm:p-6 sm:pt-0">{isLoading ? <p className="p-4 text-sm text-muted-foreground">Carregando...</p> : filtered.length === 0 ? <p className="p-4 text-sm text-muted-foreground">Nenhuma audiência encontrada.</p> : <><div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b text-left text-xs uppercase text-muted-foreground"><th className="p-2">Data</th><th className="p-2">Hora</th><th className="p-2">Nome</th><th className="p-2">Processo</th><th className="p-2">Tipo</th><th className="p-2">Modalidade</th><th className="p-2">Advogado</th><th className="p-2">Status</th><th className="p-2 text-right">Ações</th></tr></thead><tbody>{paged.map(a => <tr key={a.id} className="border-b last:border-0"><td className="p-2 whitespace-nowrap">{brDate(a.data_audiencia)}</td><td className="p-2 whitespace-nowrap">{a.hora_audiencia || "—"}</td><td className="p-2 font-medium">{a.nome}</td><td className="p-2">{a.numero_processo || "—"}</td><td className="p-2"><Badge variant="outline" className={tipoClass[a.tipo_audiencia]}>{a.tipo_audiencia}</Badge></td><td className="p-2">{a.modalidade}</td><td className="p-2">{a.advogado || "—"}</td><td className="p-2">{a.status ?? "Agendada"}</td><td className="p-2"><div className="flex justify-end gap-1">
