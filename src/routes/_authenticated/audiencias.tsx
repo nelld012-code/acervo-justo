@@ -186,7 +186,8 @@ function AudienciasPage() {
         nome: r.nome, numero_processo: r.numero_processo, parte: r.parte, advogado: r.advogado,
         data_audiencia: r.data_audiencia, hora_audiencia: r.hora_audiencia, orgao_julgador: r.orgao_julgador,
         vara: r.vara, tipo_audiencia: r.tipo_audiencia, modalidade: r.modalidade, cidade_lugar: r.cidade_lugar,
-        local_audiencia: r.local_audiencia, link_virtual: r.link_virtual, observacao: r.observacao, created_by: auth.user.id,
+        local_audiencia: r.local_audiencia, link_virtual: r.link_virtual, observacao: r.observacao,
+        status: "Agendada", lembrete_5_dias: false, lembrete_3_dias: true, lembrete_1_dia: true, created_by: auth.user.id,
       }));
       for (let i = 0; i < payload.length; i += 50) {
         const chunk = payload.slice(i, i + 50);
