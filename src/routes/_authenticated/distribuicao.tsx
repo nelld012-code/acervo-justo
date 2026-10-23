@@ -105,12 +105,6 @@ function DistribuicaoPage() {
     }
   }, [profileLoading, perms.isAdmin, navigate]);
 
-  if (profileLoading) {
-    return <div className="p-6 text-sm text-muted-foreground">Verificando permissões...</div>;
-  }
-  if (!perms.isAdmin) {
-    return <div className="p-6 text-sm text-muted-foreground">Acesso restrito ao administrador. Redirecionando...</div>;
-  }
   const [form, setForm] = useState<DistribuicaoForm>(emptyForm);
   const [editing, setEditing] = useState<DistribuicaoAcao | null>(null);
   const [saving, setSaving] = useState(false);
@@ -308,6 +302,13 @@ function DistribuicaoPage() {
         description: error instanceof Error ? error.message : "Erro desconhecido.",
       });
     }
+  }
+
+  if (profileLoading) {
+    return <div className="p-6 text-sm text-muted-foreground">Verificando permissões...</div>;
+  }
+  if (!perms.isAdmin) {
+    return <div className="p-6 text-sm text-muted-foreground">Acesso restrito ao administrador. Redirecionando...</div>;
   }
 
   return (
