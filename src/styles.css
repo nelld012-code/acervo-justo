@@ -172,3 +172,12 @@ body:not(:has([data-state="open"][role="dialog"])):not(:has([data-state="open"][
     flex-wrap: wrap;
   }
 }
+
+
+/* Oculta a insígnia flutuante "Edit with Lovable" quando ela é injetada na página publicada. */
+#lovable-badge {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
