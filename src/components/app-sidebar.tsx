@@ -16,11 +16,13 @@ const groups = [
     { title: "Mensagens", url: "/mensagens", icon: MessagesSquare, need: "all" },
   ] },
   { title: "Gestão", items: [
-    { title: "Clientes", url: "/clientes", icon: Users, need: "all" },
     { title: "Audiências", url: "/audiencias", icon: Gavel, need: "all" },
     { title: "Prazos", url: "/prazos", icon: CalendarClock, need: "all" },
-    { title: "Distribuição", url: "/distribuicao", icon: FileText, need: "admin" },
     { title: "Financeiro", url: "/financeiro", icon: Wallet, need: "finance" },
+  ] },
+  { title: "Clientes", items: [
+    { title: "Clientes", url: "/clientes", icon: Users, need: "all" },
+    { title: "Distribuição", url: "/distribuicao", icon: FileText, need: "admin" },
   ] },
   { title: "Documentos", items: [
     { title: "Enviar Documento", url: "/upload", icon: Upload, need: "documents" },
@@ -43,7 +45,7 @@ export function AppSidebar() {
   const queryClient = useQueryClient();
   const { profile, perms } = useProfile();
   const { isMobile, setOpenMobile } = useSidebar();
-  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({ Principal: true, Gestão: true, Documentos: true, Relatórios: true });
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({ Principal: true, Gestão: true, Clientes: true, Documentos: true, Relatórios: true });
 
   const naoLidasQuery = useQuery({
     queryKey: ["messages-unread-count"],
