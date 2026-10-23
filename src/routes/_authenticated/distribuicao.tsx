@@ -1,5 +1,5 @@
-import { createFileRoute, redirect } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { createFileRoute, useNavigate, redirect } from "@tanstack/react-router";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,7 @@ import { FileText, Pencil, Plus, Printer, Save, Search, Trash2, X } from "lucide
 import { toast } from "sonner";
 import { StandardPagination } from "@/components/standard-pagination";
 import { printReport } from "@/lib/print-report";
+import { useProfile } from "@/hooks/use-profile";
 
 type DistribuicaoAcao = {
   id: string;
@@ -75,20 +76,7 @@ function formatDate(value: string | null | undefined) {
 }
 
 export const Route = createFileRoute("/_authenticated/distribuicao")({
-  beforeLoad: async () => {
-    const { data: auth, error: authError } = await supabase.auth.getUser();
-    if (authError || !auth.user) throw redirect({ to: "/auth" });
-
-    const { data: profile, error } = await supabase
-      .from("profiles")
-      .select("cargo")
-      .eq("id", auth.user.id)
-      .maybeSingle();
-
-    if (error || profile?.cargo !== "administrador") {
-      throw redirect({ to: "/dashboard" });
-    }
-  },
+  ssr: false,
   head: () => ({
     meta: [
       { title: "Distribuição — Gestão Judicial" },
@@ -96,10 +84,33 @@ export const Route = createFileRoute("/_authenticated/distribuicao")({
     ],
   }),
   component: DistribuicaoPage,
+  errorComponent: ({ error, reset }) => (
+    <div className="mx-auto max-w-xl space-y-3 rounded-lg border border-destructive/30 p-6">
+      <h2 className="text-lg font-semibold">Não foi possível abrir Distribuição</h2>
+      <p className="text-sm text-muted-foreground">Tente novamente. Se o erro persistir, esta mensagem mostra a causa para facilitar o diagnóstico.</p>
+      <pre className="overflow-auto whitespace-pre-wrap break-words rounded bg-muted p-3 text-xs">{error instanceof Error ? error.message : String(error)}</pre>
+      <Button type="button" onClick={reset}>Tentar novamente</Button>
+    </div>
+  ),
 });
 
 function DistribuicaoPage() {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  const { isLoading: profileLoading, perms } = useProfile();
+
+  useEffect(() => {
+    if (!profileLoading && !perms.isAdmin) {
+      void navigate({ to: "/dashboard", replace: true });
+    }
+  }, [profileLoading, perms.isAdmin, navigate]);
+
+  if (profileLoading) {
+    return <div className="p-6 text-sm text-muted-foreground">Verificando permissões...</div>;
+  }
+  if (!perms.isAdmin) {
+    return <div className="p-6 text-sm text-muted-foreground">Acesso restrito ao administrador. Redirecionando...</div>;
+  }
   const [form, setForm] = useState<DistribuicaoForm>(emptyForm);
   const [editing, setEditing] = useState<DistribuicaoAcao | null>(null);
   const [saving, setSaving] = useState(false);
