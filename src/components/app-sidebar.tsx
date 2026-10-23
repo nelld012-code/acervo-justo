@@ -15,14 +15,14 @@ const groups = [
     { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard, need: "all" },
     { title: "Mensagens", url: "/mensagens", icon: MessagesSquare, need: "all" },
   ] },
+  { title: "Clientes", items: [
+    { title: "Clientes", url: "/clientes", icon: Users, need: "all" },
+    { title: "Distribuição", url: "/distribuicao", icon: FileText, need: "admin" },
+  ] },
   { title: "Gestão", items: [
     { title: "Audiências", url: "/audiencias", icon: Gavel, need: "all" },
     { title: "Prazos", url: "/prazos", icon: CalendarClock, need: "all" },
     { title: "Financeiro", url: "/financeiro", icon: Wallet, need: "finance" },
-  ] },
-  { title: "Clientes", items: [
-    { title: "Clientes", url: "/clientes", icon: Users, need: "all" },
-    { title: "Distribuição", url: "/distribuicao", icon: FileText, need: "admin" },
   ] },
   { title: "Documentos", items: [
     { title: "Enviar Documento", url: "/upload", icon: Upload, need: "documents" },
