@@ -1,5 +1,5 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { createFileRoute } from "@tanstack/react-router";
+import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -95,16 +95,20 @@ export const Route = createFileRoute("/_authenticated/distribuicao")({
 });
 
 function DistribuicaoPage() {
-  const queryClient = useQueryClient();
-  const navigate = useNavigate();
   const { isLoading: profileLoading, perms } = useProfile();
 
-  useEffect(() => {
-    if (!profileLoading && !perms.isAdmin) {
-      void navigate({ to: "/dashboard", replace: true });
-    }
-  }, [profileLoading, perms.isAdmin, navigate]);
+  if (profileLoading) {
+    return <div className="p-6 text-sm text-muted-foreground">Verificando permissões...</div>;
+  }
+  if (!perms.isAdmin) {
+    return <div className="p-6 text-sm text-muted-foreground">Acesso restrito ao administrador.</div>;
+  }
 
+  return <DistribuicaoContent />;
+}
+
+function DistribuicaoContent() {
+  const queryClient = useQueryClient();
   const [form, setForm] = useState<DistribuicaoForm>(emptyForm);
   const [editing, setEditing] = useState<DistribuicaoAcao | null>(null);
   const [saving, setSaving] = useState(false);
@@ -302,13 +306,6 @@ function DistribuicaoPage() {
         description: error instanceof Error ? error.message : "Erro desconhecido.",
       });
     }
-  }
-
-  if (profileLoading) {
-    return <div className="p-6 text-sm text-muted-foreground">Verificando permissões...</div>;
-  }
-  if (!perms.isAdmin) {
-    return <div className="p-6 text-sm text-muted-foreground">Acesso restrito ao administrador. Redirecionando...</div>;
   }
 
   return (
