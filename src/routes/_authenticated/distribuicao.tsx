@@ -1,5 +1,5 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -11,8 +11,10 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { FileText, Pencil, Plus, Save, Trash2, X } from "lucide-react";
+import { FileText, Pencil, Plus, Printer, Save, Search, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
+import { StandardPagination } from "@/components/standard-pagination";
+import { printReport } from "@/lib/print-report";
 
 type DistribuicaoAcao = {
   id: string;
@@ -42,6 +44,16 @@ type DistribuicaoForm = {
   numero_processo: string;
   assinatura_final: string;
 };
+
+const PAGE_SIZE = 8;
+const ORDENACOES = [
+  { value: "data_atendimento", label: "Data de atendimento" },
+  { value: "cliente", label: "Cliente" },
+  { value: "data_passada_advogado", label: "Data passada para o adv." },
+  { value: "data_devolvida_advogado", label: "Data devolvida pelo adv." },
+  { value: "classe", label: "Classe" },
+  { value: "natureza", label: "Natureza" },
+] as const;
 
 const emptyForm = (): DistribuicaoForm => ({
   titulo: "",
@@ -92,6 +104,11 @@ function DistribuicaoPage() {
   const [editing, setEditing] = useState<DistribuicaoAcao | null>(null);
   const [saving, setSaving] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<DistribuicaoAcao | null>(null);
+  const [busca, setBusca] = useState("");
+  const [dataDesde, setDataDesde] = useState("");
+  const [dataAte, setDataAte] = useState("");
+  const [ordem, setOrdem] = useState<string>("data_atendimento");
+  const [page, setPage] = useState(1);
 
   const { data: registros = [], isLoading, isError } = useQuery({
     queryKey: ["distribuicao-acoes"],
@@ -108,6 +125,87 @@ function DistribuicaoPage() {
   function limparFormulario() {
     setForm(emptyForm());
     setEditing(null);
+  }
+
+  const filtrados = useMemo(() => {
+    const termo = busca.trim().toLocaleLowerCase("pt-BR");
+    const rows = registros.filter((registro) => {
+      const texto = [
+        registro.titulo,
+        registro.cliente,
+        registro.numero_processo ?? "",
+        registro.classe ?? "",
+        registro.natureza ?? "",
+        registro.assinatura ?? "",
+        registro.assinatura_final ?? "",
+      ].join(" ").toLocaleLowerCase("pt-BR");
+      if (termo && !texto.includes(termo)) return false;
+      if (dataDesde && (!registro.data_atendimento || registro.data_atendimento < dataDesde)) return false;
+      if (dataAte && (!registro.data_atendimento || registro.data_atendimento > dataAte)) return false;
+      return true;
+    });
+
+    return [...rows].sort((a, b) => {
+      if (ordem === "cliente") return a.cliente.localeCompare(b.cliente, "pt-BR");
+      if (ordem === "classe") return (a.classe ?? "").localeCompare(b.classe ?? "", "pt-BR");
+      if (ordem === "natureza") return (a.natureza ?? "").localeCompare(b.natureza ?? "", "pt-BR");
+      if (ordem === "data_passada_advogado") return (a.data_passada_advogado ?? "9999-12-31").localeCompare(b.data_passada_advogado ?? "9999-12-31");
+      if (ordem === "data_devolvida_advogado") return (a.data_devolvida_advogado ?? "9999-12-31").localeCompare(b.data_devolvida_advogado ?? "9999-12-31");
+      return (a.data_atendimento ?? "9999-12-31").localeCompare(b.data_atendimento ?? "9999-12-31");
+    });
+  }, [registros, busca, dataDesde, dataAte, ordem]);
+
+  const totalPages = Math.max(1, Math.ceil(filtrados.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const paginados = filtrados.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+
+  function imprimirRegistro(registro: DistribuicaoAcao) {
+    printReport({
+      title: "Distribuição — Ações Novas",
+      subtitle: registro.titulo,
+      sections: [{
+        heading: "Dados da distribuição",
+        columns: ["Campo", "Informação"],
+        rows: [
+          ["Ações Novas", registro.titulo],
+          ["Data de atendimento", formatDate(registro.data_atendimento)],
+          ["Cliente", registro.cliente],
+          ["Data passada para o adv.", formatDate(registro.data_passada_advogado)],
+          ["Classe", registro.classe || "—"],
+          ["Natureza", registro.natureza || "—"],
+          ["Assinatura", registro.assinatura || "—"],
+          ["Data devolvida pelo adv.", formatDate(registro.data_devolvida_advogado)],
+          ["Número de processo", registro.numero_processo || "—"],
+          ["Assinatura", registro.assinatura_final || "—"],
+        ],
+      }],
+    });
+  }
+
+  function imprimirLista() {
+    if (!filtrados.length) {
+      toast.error("Não há registros para imprimir.");
+      return;
+    }
+    printReport({
+      title: "Distribuição — Ações Novas",
+      subtitle: `${filtrados.length} registro(s) · filtros aplicados`,
+      sections: [{
+        columns: ["Ações Novas", "Data atendimento", "Cliente", "Data passada adv.", "Classe", "Natureza", "Assinatura", "Data devolvida adv.", "Número de processo", "Assinatura"],
+        rows: filtrados.map((registro) => [
+          registro.titulo,
+          formatDate(registro.data_atendimento),
+          registro.cliente,
+          formatDate(registro.data_passada_advogado),
+          registro.classe || "—",
+          registro.natureza || "—",
+          registro.assinatura || "—",
+          formatDate(registro.data_devolvida_advogado),
+          registro.numero_processo || "—",
+          registro.assinatura_final || "—",
+        ]),
+      }],
+    });
   }
 
   function editarRegistro(registro: DistribuicaoAcao) {
@@ -279,9 +377,48 @@ function DistribuicaoPage() {
       </Card>
 
       <Card>
-        <CardHeader>
-          <CardTitle>Registros de distribuição</CardTitle>
-          <CardDescription>{registros.length} registro(s) cadastrado(s).</CardDescription>
+        <CardHeader className="space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <CardTitle>Registros de distribuição</CardTitle>
+              <CardDescription>{filtrados.length} de {registros.length} registro(s) · filtros aplicados.</CardDescription>
+            </div>
+            <Button type="button" variant="outline" onClick={imprimirLista} disabled={!filtrados.length}>
+              <Printer className="mr-2 h-4 w-4" />Imprimir lista
+            </Button>
+          </div>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <div className="relative min-w-0 flex-1">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Buscar por título, cliente, processo, classe, natureza ou assinatura"
+                value={busca}
+                onChange={(e) => { setBusca(e.target.value); setPage(1); }}
+                className="pl-9"
+              />
+            </div>
+            <Select value={ordem} onValueChange={(value) => { setOrdem(value); setPage(1); }}>
+              <SelectTrigger className="sm:w-60"><SelectValue placeholder="Ordenar por" /></SelectTrigger>
+              <SelectContent>
+                {ORDENACOES.map((opcao) => <SelectItem key={opcao.value} value={opcao.value}>Ordenar por {opcao.label}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="distribuicao-data-desde">Data de atendimento desde</Label>
+              <Input id="distribuicao-data-desde" type="date" value={dataDesde} onChange={(e) => { setDataDesde(e.target.value); setPage(1); }} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="distribuicao-data-ate">Data de atendimento até</Label>
+              <Input id="distribuicao-data-ate" type="date" value={dataAte} onChange={(e) => { setDataAte(e.target.value); setPage(1); }} />
+            </div>
+          </div>
+          {(busca || dataDesde || dataAte || ordem !== "data_atendimento") && (
+            <Button type="button" size="sm" variant="ghost" className="w-fit" onClick={() => { setBusca(""); setDataDesde(""); setDataAte(""); setOrdem("data_atendimento"); setPage(1); }}>
+              <X className="mr-1 h-4 w-4" />Limpar filtros
+            </Button>
+          )}
         </CardHeader>
         <CardContent className="p-0 sm:p-4 sm:pt-0">
           {isLoading ? <p className="p-4 text-sm text-muted-foreground">Carregando registros...</p>
@@ -295,7 +432,7 @@ function DistribuicaoPage() {
                   <TableHead>Assinatura</TableHead><TableHead>Data devolvida adv.</TableHead><TableHead>Número de processo</TableHead><TableHead>Assinatura</TableHead><TableHead className="text-right">Ações</TableHead>
                 </TableRow></TableHeader>
                 <TableBody>
-                  {registros.map((registro) => <TableRow key={registro.id}>
+                  {paginados.map((registro) => <TableRow key={registro.id}>
                     <TableCell className="max-w-64 truncate font-medium" title={registro.titulo}>{registro.titulo}</TableCell>
                     <TableCell className="whitespace-nowrap">{formatDate(registro.data_atendimento)}</TableCell>
                     <TableCell>{registro.cliente}</TableCell>
@@ -307,13 +444,15 @@ function DistribuicaoPage() {
                     <TableCell>{registro.numero_processo || "—"}</TableCell>
                     <TableCell>{registro.assinatura_final || "—"}</TableCell>
                     <TableCell><div className="flex justify-end gap-1">
+                      <Button type="button" size="icon" variant="ghost" title="Imprimir registro" onClick={() => imprimirRegistro(registro)}><Printer className="h-4 w-4" /></Button>
                       <Button type="button" size="icon" variant="ghost" title="Editar" onClick={() => editarRegistro(registro)}><Pencil className="h-4 w-4" /></Button>
                       <Button type="button" size="icon" variant="ghost" title="Excluir" onClick={() => setDeleteTarget(registro)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                     </div></TableCell>
                   </TableRow>)}
                 </TableBody>
               </Table>
-            </div>}
+            </div>
+            <StandardPagination current={safePage} total={totalPages} totalItems={filtrados.length} pageSize={PAGE_SIZE} onChange={setPage} />}
         </CardContent>
       </Card>
 
