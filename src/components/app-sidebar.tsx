@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { LayoutDashboard, Upload, Search, FolderOpen, ClipboardList, Scale, Users, Wallet, ConciergeBell, CalendarClock, ChevronDown, FileBarChart2, MessagesSquare, Gavel } from "lucide-react";
+import { LayoutDashboard, Upload, Search, FolderOpen, ClipboardList, Scale, Users, Wallet, ConciergeBell, CalendarClock, ChevronDown, FileBarChart2, MessagesSquare, Gavel, FileText } from "lucide-react";
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarHeader, useSidebar } from "@/components/ui/sidebar";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { supabase } from "@/integrations/supabase/client";
@@ -19,6 +19,7 @@ const groups = [
     { title: "Clientes", url: "/clientes", icon: Users, need: "all" },
     { title: "Audiências", url: "/audiencias", icon: Gavel, need: "all" },
     { title: "Prazos", url: "/prazos", icon: CalendarClock, need: "all" },
+    { title: "Distribuição", url: "/distribuicao", icon: FileText, need: "admin" },
     { title: "Financeiro", url: "/financeiro", icon: Wallet, need: "finance" },
   ] },
   { title: "Documentos", items: [
@@ -29,7 +30,8 @@ const groups = [
   { title: "Relatórios", items: [{ title: "Registro de Auditoria", url: "/audit", icon: ClipboardList, need: "audit" }] },
 ] as const;
 
-function menuItemVisible(item: { need: string }, perms: { canAccessFinance: boolean; canManageDocuments: boolean; canViewAudit: boolean }) {
+function menuItemVisible(item: { need: string }, perms: { isAdmin: boolean; canAccessFinance: boolean; canManageDocuments: boolean; canViewAudit: boolean }) {
+  if (item.need === "admin") return perms.isAdmin;
   if (item.need === "finance") return perms.canAccessFinance;
   if (item.need === "documents") return perms.canManageDocuments;
   if (item.need === "audit") return perms.canViewAudit;
