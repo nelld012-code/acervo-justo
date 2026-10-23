@@ -424,7 +424,9 @@ function DistribuicaoPage() {
           {isLoading ? <p className="p-4 text-sm text-muted-foreground">Carregando registros...</p>
             : isError ? <p className="p-4 text-sm text-destructive">Não foi possível carregar os registros.</p>
             : registros.length === 0 ? <p className="p-4 text-sm text-muted-foreground">Nenhuma distribuição cadastrada.</p>
-            : <div className="overflow-x-auto">
+            : filtrados.length === 0 ? <p className="p-4 text-sm text-muted-foreground">Nenhum registro corresponde aos filtros.</p>
+            : <>
+            <div className="overflow-x-auto">
               <Table>
                 <TableHeader><TableRow>
                   <TableHead>Ações Novas</TableHead><TableHead>Data atendimento</TableHead><TableHead>Cliente</TableHead>
@@ -452,7 +454,8 @@ function DistribuicaoPage() {
                 </TableBody>
               </Table>
             </div>
-            <StandardPagination current={safePage} total={totalPages} totalItems={filtrados.length} pageSize={PAGE_SIZE} onChange={setPage} />}
+            <StandardPagination current={safePage} total={totalPages} totalItems={filtrados.length} pageSize={PAGE_SIZE} onChange={setPage} />
+            </>}
         </CardContent>
       </Card>
 
