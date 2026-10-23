@@ -20,8 +20,8 @@ import { Route as AuthenticatedPerfilRouteImport } from './routes/_authenticated
 import { Route as AuthenticatedMyDocumentsRouteImport } from './routes/_authenticated/my-documents'
 import { Route as AuthenticatedMensagensRouteImport } from './routes/_authenticated/mensagens'
 import { Route as AuthenticatedFinanceiroRouteImport } from './routes/_authenticated/financeiro'
-import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedDistribuicaoRouteImport } from './routes/_authenticated/distribuicao'
+import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedClientesRouteImport } from './routes/_authenticated/clientes'
 import { Route as AuthenticatedAuditRouteImport } from './routes/_authenticated/audit'
 import { Route as AuthenticatedAudienciasRouteImport } from './routes/_authenticated/audiencias'
@@ -81,14 +81,15 @@ const AuthenticatedFinanceiroRoute = AuthenticatedFinanceiroRouteImport.update({
   path: '/financeiro',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedDistribuicaoRoute =
+  AuthenticatedDistribuicaoRouteImport.update({
+    id: '/distribuicao',
+    path: '/distribuicao',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
-const AuthenticatedDistribuicaoRoute = AuthenticatedDistribuicaoRouteImport.update({
-  id: '/distribuicao',
-  path: '/distribuicao',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedClientesRoute = AuthenticatedClientesRouteImport.update({
@@ -300,18 +301,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedFinanceiroRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/dashboard': {
-      id: '/_authenticated/dashboard'
-      path: '/dashboard'
-      fullPath: '/dashboard'
-      preLoaderRoute: typeof AuthenticatedDashboardRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
     '/_authenticated/distribuicao': {
       id: '/_authenticated/distribuicao'
       path: '/distribuicao'
       fullPath: '/distribuicao'
       preLoaderRoute: typeof AuthenticatedDistribuicaoRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/dashboard': {
+      id: '/_authenticated/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof AuthenticatedDashboardRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/clientes': {
