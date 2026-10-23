@@ -16,6 +16,7 @@ import { toast } from "sonner";
 import { StandardPagination } from "@/components/standard-pagination";
 import { printReport } from "@/lib/print-report";
 import { useProfile } from "@/hooks/use-profile";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 type DistribuicaoAcao = {
   id: string;
