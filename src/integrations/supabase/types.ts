@@ -398,6 +398,54 @@ export type Database = {
         }
         Relationships: []
       }
+      distribuicao_acoes: {
+        Row: {
+          assinatura: string | null
+          assinatura_final: string | null
+          classe: string | null
+          cliente: string
+          created_at: string
+          created_by: string | null
+          data_atendimento: string | null
+          data_devolvida_advogado: string | null
+          data_passada_advogado: string | null
+          id: string
+          natureza: string | null
+          numero_processo: string | null
+          titulo: string
+        }
+        Insert: {
+          assinatura?: string | null
+          assinatura_final?: string | null
+          classe?: string | null
+          cliente: string
+          created_at?: string
+          created_by?: string | null
+          data_atendimento?: string | null
+          data_devolvida_advogado?: string | null
+          data_passada_advogado?: string | null
+          id?: string
+          natureza?: string | null
+          numero_processo?: string | null
+          titulo: string
+        }
+        Update: {
+          assinatura?: string | null
+          assinatura_final?: string | null
+          classe?: string | null
+          cliente?: string
+          created_at?: string
+          created_by?: string | null
+          data_atendimento?: string | null
+          data_devolvida_advogado?: string | null
+          data_passada_advogado?: string | null
+          id?: string
+          natureza?: string | null
+          numero_processo?: string | null
+          titulo?: string
+        }
+        Relationships: []
+      }
       messages: {
         Row: {
           attachment_name: string | null
