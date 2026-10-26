@@ -101,11 +101,12 @@ function DistribuicaoPage() {
   if (profileLoading) {
     return <div className="p-6 text-sm text-muted-foreground">Verificando permissões...</div>;
   }
-  if (!perms.isAdmin && perms.cargo !== "advogado") {
+  const canManageDistribution = perms.isAdmin || perms.cargo === "assistente" || perms.cargo === "advogado";
+  if (!canManageDistribution) {
     return <div className="p-6 text-sm text-muted-foreground">Acesso restrito.</div>;
   }
 
-  return <DistribuicaoContent isAdmin={perms.isAdmin} />;
+  return <DistribuicaoContent isAdmin={canManageDistribution} />;
 }
 
 function DistribuicaoContent({ isAdmin }: { isAdmin: boolean }) {
