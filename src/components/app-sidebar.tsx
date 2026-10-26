@@ -17,7 +17,7 @@ const groups = [
   ] },
   { title: "Clientes", items: [
     { title: "Clientes", url: "/clientes", icon: Users, need: "all" },
-    { title: "Distribuição", url: "/distribuicao", icon: FileText, need: "admin" },
+    { title: "Distribuição", url: "/distribuicao", icon: FileText, need: "distribution" },
   ] },
   { title: "Gestão", items: [
     { title: "Audiências", url: "/audiencias", icon: Gavel, need: "all" },
@@ -32,8 +32,9 @@ const groups = [
   { title: "Relatórios", items: [{ title: "Registro de Auditoria", url: "/audit", icon: ClipboardList, need: "audit" }] },
 ] as const;
 
-function menuItemVisible(item: { need: string }, perms: { isAdmin: boolean; canAccessFinance: boolean; canManageDocuments: boolean; canViewAudit: boolean }) {
+function menuItemVisible(item: { need: string }, perms: { isAdmin: boolean; cargo: string; canAccessFinance: boolean; canManageDocuments: boolean; canViewAudit: boolean }) {
   if (item.need === "admin") return perms.isAdmin;
+  if (item.need === "distribution") return perms.isAdmin || perms.cargo === "advogado";
   if (item.need === "finance") return perms.canAccessFinance;
   if (item.need === "documents") return perms.canManageDocuments;
   if (item.need === "audit") return perms.canViewAudit;
