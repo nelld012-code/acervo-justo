@@ -101,14 +101,14 @@ function DistribuicaoPage() {
   if (profileLoading) {
     return <div className="p-6 text-sm text-muted-foreground">Verificando permissões...</div>;
   }
-  if (!perms.isAdmin) {
-    return <div className="p-6 text-sm text-muted-foreground">Acesso restrito ao administrador.</div>;
+  if (!perms.isAdmin && perms.cargo !== "advogado") {
+    return <div className="p-6 text-sm text-muted-foreground">Acesso restrito.</div>;
   }
 
-  return <DistribuicaoContent />;
+  return <DistribuicaoContent isAdmin={perms.isAdmin} />;
 }
 
-function DistribuicaoContent() {
+function DistribuicaoContent({ isAdmin }: { isAdmin: boolean }) {
   const queryClient = useQueryClient();
   const [form, setForm] = useState<DistribuicaoForm>(emptyForm);
   const [editing, setEditing] = useState<DistribuicaoAcao | null>(null);
@@ -319,7 +319,7 @@ function DistribuicaoContent() {
         </div>
       </div>
 
-      <Card>
+      {isAdmin && <Card>
         <CardHeader>
           <CardTitle>{editing ? "Editar distribuição" : "Nova distribuição"}</CardTitle>
           <CardDescription>Preencha os dados na ordem do formulário de distribuição.</CardDescription>
@@ -384,7 +384,7 @@ function DistribuicaoContent() {
             </div>
           </form>
         </CardContent>
-      </Card>
+      </Card>}
 
       <Card>
         <CardHeader className="space-y-3">
@@ -441,7 +441,7 @@ function DistribuicaoContent() {
                 <TableHeader><TableRow>
                   <TableHead>Ações Novas</TableHead><TableHead>Data atendimento</TableHead><TableHead>Cliente</TableHead>
                   <TableHead>Data passada adv.</TableHead><TableHead>Classe</TableHead><TableHead>Natureza</TableHead>
-                  <TableHead>Assinatura</TableHead><TableHead>Data devolvida adv.</TableHead><TableHead>Número de processo</TableHead><TableHead>Assinatura</TableHead><TableHead className="text-right">Ações</TableHead>
+                  <TableHead>Assinatura</TableHead><TableHead>Data devolvida adv.</TableHead><TableHead>Número de processo</TableHead><TableHead>Assinatura</TableHead><TableHead className="text-right">Imprimir{isAdmin ? " / Ações" : ""}</TableHead>
                 </TableRow></TableHeader>
                 <TableBody>
                   {paginados.map((registro) => <TableRow key={registro.id}>
@@ -457,8 +457,10 @@ function DistribuicaoContent() {
                     <TableCell>{registro.assinatura_final || "—"}</TableCell>
                     <TableCell><div className="flex justify-end gap-1">
                       <Button type="button" size="icon" variant="ghost" title="Imprimir registro" onClick={() => imprimirRegistro(registro)}><Printer className="h-4 w-4" /></Button>
-                      <Button type="button" size="icon" variant="ghost" title="Editar" onClick={() => editarRegistro(registro)}><Pencil className="h-4 w-4" /></Button>
-                      <Button type="button" size="icon" variant="ghost" title="Excluir" onClick={() => setDeleteTarget(registro)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                      {isAdmin && <>
+                        <Button type="button" size="icon" variant="ghost" title="Editar" onClick={() => editarRegistro(registro)}><Pencil className="h-4 w-4" /></Button>
+                        <Button type="button" size="icon" variant="ghost" title="Excluir" onClick={() => setDeleteTarget(registro)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                      </>}
                     </div></TableCell>
                   </TableRow>)}
                 </TableBody>
@@ -469,12 +471,12 @@ function DistribuicaoContent() {
         </CardContent>
       </Card>
 
-      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+      {isAdmin && <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader><AlertDialogTitle>Excluir distribuição?</AlertDialogTitle><AlertDialogDescription>O registro de “{deleteTarget?.titulo}” será excluído permanentemente.</AlertDialogDescription></AlertDialogHeader>
           <AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction onClick={(e) => { e.preventDefault(); void excluirRegistro(); }}>Excluir</AlertDialogAction></AlertDialogFooter>
         </AlertDialogContent>
-      </AlertDialog>
+      </AlertDialog>}
     </div>
   );
 }
