@@ -37,7 +37,7 @@ export function permissionsFor(cargo: Cargo): Permissions {
     isLeadership,
     canManageClients: isLeadership || cargo === "secretaria" || isFinanceiro,
     canManageDocuments: isLeadership || cargo === "secretaria" || isFinanceiro,
-    canAccessFinance: isLeadership || isFinanceiro,
+    canAccessFinance: isAdmin || isFinanceiro,
     canAssignTasks: isLeadership,
     canViewAudit: isLeadership,
   };
