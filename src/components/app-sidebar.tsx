@@ -34,7 +34,7 @@ const groups = [
 
 function menuItemVisible(item: { need: string }, perms: { isAdmin: boolean; cargo: string; canAccessFinance: boolean; canManageDocuments: boolean; canViewAudit: boolean }) {
   if (item.need === "admin") return perms.isAdmin;
-  if (item.need === "distribution") return perms.isAdmin || perms.cargo === "advogado";
+  if (item.need === "distribution") return perms.isAdmin || perms.cargo === "assistente" || perms.cargo === "advogado";
   if (item.need === "finance") return perms.canAccessFinance;
   if (item.need === "documents") return perms.canManageDocuments;
   if (item.need === "audit") return perms.canViewAudit;
