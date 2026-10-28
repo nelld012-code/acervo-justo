@@ -120,7 +120,6 @@ export interface FileRoutesByFullPath {
   '/audit': typeof AuthenticatedAuditRoute
   '/clientes': typeof AuthenticatedClientesRoute
   '/crm': typeof AuthenticatedCrmRoute
-  '/crm': typeof AuthenticatedCrmRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/distribuicao': typeof AuthenticatedDistribuicaoRoute
   '/financeiro': typeof AuthenticatedFinanceiroRoute
@@ -138,6 +137,7 @@ export interface FileRoutesByTo {
   '/audiencias': typeof AuthenticatedAudienciasRoute
   '/audit': typeof AuthenticatedAuditRoute
   '/clientes': typeof AuthenticatedClientesRoute
+  '/crm': typeof AuthenticatedCrmRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/distribuicao': typeof AuthenticatedDistribuicaoRoute
   '/financeiro': typeof AuthenticatedFinanceiroRoute
@@ -178,7 +178,6 @@ export interface FileRouteTypes {
     | '/audit'
     | '/clientes'
     | '/crm'
-    | '/crm'
     | '/dashboard'
     | '/distribuicao'
     | '/financeiro'
@@ -196,6 +195,7 @@ export interface FileRouteTypes {
     | '/audiencias'
     | '/audit'
     | '/clientes'
+    | '/crm'
     | '/dashboard'
     | '/distribuicao'
     | '/financeiro'
