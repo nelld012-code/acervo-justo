@@ -18,7 +18,7 @@ export const Route = createFileRoute("/_authenticated/upload")({
   component: UploadPage,
 });
 
-const ACCEPTED = ["application/pdf", "image/png", "image/jpeg", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"];
+const ACCEPTED = ["application/pdf", "image/png", "image/jpeg", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "application/vnd.ms-excel", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "application/vnd.ms-powerpoint", "application/vnd.openxmlformats-officedocument.presentationml.presentation", "text/csv"];
 
 type QueueItem = {
   id: string;
@@ -81,7 +81,7 @@ function UploadPage() {
     const files = Array.from(list);
     const validos = files.filter((f) => ACCEPTED.includes(f.type));
     if (validos.length < files.length) {
-      toast.error("Alguns arquivos foram ignorados", { description: "Aceitamos apenas PDF, DOCX, PNG ou JPG." });
+      toast.error("Alguns arquivos foram ignorados", { description: "Aceitamos PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX, CSV, PNG ou JPG." });
     }
     if (!validos.length) return;
     setQueue((q) => [
@@ -297,7 +297,7 @@ function UploadPage() {
             />
             <UploadCloud className="h-12 w-12 text-muted-foreground" />
             <p className="mt-3 text-sm font-medium text-foreground">Arraste vários arquivos ou clique para selecionar</p>
-            <p className="text-xs text-muted-foreground">PDF, DOCX, PNG ou JPG · seleção múltipla permitida</p>
+            <p className="text-xs text-muted-foreground">PDF, Office (DOC/DOCX/XLS/XLSX/PPT/PPTX), CSV, PNG ou JPG · seleção múltipla</p>
           </div>
         </CardContent>
       </Card>
