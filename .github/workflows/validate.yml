@@ -33,4 +33,5 @@ jobs:
         run: bun run lint
 
       - name: Build application
+        if: always()
         run: bun run build
