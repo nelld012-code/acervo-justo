@@ -23,6 +23,7 @@ const groups = [
   { title: "Agenda e tarefas", items: [
     { title: "Audiências", url: "/audiencias", icon: Gavel, need: "all" },
     { title: "Atividades", url: "/tarefas", icon: ListTodo, need: "all" },
+    { title: "Banco de tarefas", url: "/banco-tarefas", icon: ClipboardList, need: "all" },
     { title: "Prazos", url: "/prazos", icon: CalendarClock, need: "all" },
   ] },
   { title: "Gestão", items: [

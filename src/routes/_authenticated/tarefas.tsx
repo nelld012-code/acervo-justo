@@ -21,10 +21,18 @@ type Task = {
   data_tarefa: string;
   hora_tarefa: string | null;
   prioridade: "baixa" | "media" | "alta";
-  status: "pendente" | "concluida" | "cancelada";
+  status: "pendente" | "em_processo" | "resposta" | "concluida" | "cancelada";
   assigned_to: string;
   created_by: string | null;
   created_at: string;
+};
+
+const STATUS_LABEL: Record<Task["status"], string> = {
+  pendente: "Por realizar",
+  em_processo: "Em andamento",
+  resposta: "Aguardando resposta",
+  concluida: "Terminada",
+  cancelada: "Cancelada",
 };
 
 const today = format(new Date(), "yyyy-MM-dd");
@@ -93,6 +101,8 @@ function TarefasPage() {
   });
 
   const pending = tasks.filter((task) => task.status === "pendente");
+  const inProgress = tasks.filter((task) => task.status === "em_processo");
+  const waitingResponse = tasks.filter((task) => task.status === "resposta");
   const completed = tasks.filter((task) => task.status === "concluida");
   const cancelled = tasks.filter((task) => task.status === "cancelada");
 
@@ -112,9 +122,11 @@ function TarefasPage() {
         <Button onClick={() => { setForm({ ...emptyForm }); setOpen(true); }}><Plus className="mr-2 h-4 w-4" /> Nova tarefa</Button>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
         <Card><CardContent className="flex items-center gap-3 p-4"><Clock3 className="h-5 w-5 text-amber-500" /><div><p className="text-sm text-muted-foreground">Pendentes</p><p className="text-2xl font-semibold">{pending.length}</p></div></CardContent></Card>
-        <Card><CardContent className="flex items-center gap-3 p-4"><CheckCircle2 className="h-5 w-5 text-emerald-600" /><div><p className="text-sm text-muted-foreground">Concluídas</p><p className="text-2xl font-semibold">{completed.length}</p></div></CardContent></Card>
+        <Card><CardContent className="flex items-center gap-3 p-4"><Clock3 className="h-5 w-5 text-blue-500" /><div><p className="text-sm text-muted-foreground">Em andamento</p><p className="text-2xl font-semibold">{inProgress.length}</p></div></CardContent></Card>
+        <Card><CardContent className="flex items-center gap-3 p-4"><AlertCircle className="h-5 w-5 text-amber-500" /><div><p className="text-sm text-muted-foreground">Aguardando resposta</p><p className="text-2xl font-semibold">{waitingResponse.length}</p></div></CardContent></Card>
+        <Card><CardContent className="flex items-center gap-3 p-4"><CheckCircle2 className="h-5 w-5 text-emerald-600" /><div><p className="text-sm text-muted-foreground">Terminadas</p><p className="text-2xl font-semibold">{completed.length}</p></div></CardContent></Card>
         <Card><CardContent className="flex items-center gap-3 p-4"><AlertCircle className="h-5 w-5 text-muted-foreground" /><div><p className="text-sm text-muted-foreground">Canceladas</p><p className="text-2xl font-semibold">{cancelled.length}</p></div></CardContent></Card>
       </div>
 
@@ -122,7 +134,13 @@ function TarefasPage() {
         tasksQuery.isError ? <Card><CardContent className="p-6 text-sm text-destructive">Não foi possível carregar a agenda. Verifique se a tabela tasks existe no banco ativo e se as permissões de acesso estão aplicadas.</CardContent></Card> :
         tasks.length === 0 ? <Card><CardContent className="p-10 text-center"><ClipboardCheck className="mx-auto mb-3 h-8 w-8 text-muted-foreground" /><p className="font-medium">Nenhuma tarefa cadastrada</p><p className="mt-1 text-sm text-muted-foreground">Crie sua primeira tarefa para começar a organizar a rotina.</p></CardContent></Card> :
         <div className="space-y-6">
-          {([{ title: "Pendentes", rows: pending }, { title: "Concluídas", rows: completed }, { title: "Canceladas", rows: cancelled }] as const).map((section) => section.rows.length > 0 && (
+          {([
+            { title: "Por realizar", rows: pending },
+            { title: "Em andamento", rows: inProgress },
+            { title: "Aguardando resposta", rows: waitingResponse },
+            { title: "Terminadas", rows: completed },
+            { title: "Canceladas", rows: cancelled },
+          ] as const).map((section) => section.rows.length > 0 && (
             <Card key={section.title}>
               <CardHeader className="pb-3"><CardTitle className="text-lg">{section.title} <span className="text-sm font-normal text-muted-foreground">({section.rows.length})</span></CardTitle></CardHeader>
               <CardContent className="space-y-3">
@@ -133,11 +151,23 @@ function TarefasPage() {
                       {task.descricao && <p className="whitespace-pre-wrap text-sm text-muted-foreground">{task.descricao}</p>}
                       <p className="text-sm text-muted-foreground">Data: {dataBR(task.data_tarefa)}{task.hora_tarefa ? ` · ${task.hora_tarefa.slice(0, 5)}` : ""}</p>
                     </div>
-                    {task.status === "pendente" && <div className="flex shrink-0 flex-wrap gap-2">
-                      <Button size="sm" onClick={() => updateStatus.mutate({ id: task.id, status: "concluida" })} disabled={updateStatus.isPending}><CheckCircle2 className="mr-1.5 h-4 w-4" /> Concluir</Button>
-                      <Button size="sm" variant="outline" onClick={() => updateStatus.mutate({ id: task.id, status: "cancelada" })} disabled={updateStatus.isPending}>Cancelar</Button>
-                    </div>}
-                    {task.status !== "pendente" && <Button size="sm" variant="outline" onClick={() => updateStatus.mutate({ id: task.id, status: "pendente" })} disabled={updateStatus.isPending}>Reabrir</Button>}
+                    <div className="w-full shrink-0 sm:w-56">
+                      <Label className="mb-1 block text-xs text-muted-foreground">Etapa</Label>
+                      <Select
+                        value={task.status}
+                        onValueChange={(status: Task["status"]) => updateStatus.mutate({ id: task.id, status })}
+                        disabled={updateStatus.isPending}
+                      >
+                        <SelectTrigger className="h-9"><SelectValue>{STATUS_LABEL[task.status]}</SelectValue></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="pendente">Por realizar</SelectItem>
+                          <SelectItem value="em_processo">Em andamento</SelectItem>
+                          <SelectItem value="resposta">Aguardando resposta</SelectItem>
+                          <SelectItem value="concluida">Terminada</SelectItem>
+                          <SelectItem value="cancelada">Cancelada</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
                 ))}
               </CardContent>
