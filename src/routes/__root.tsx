@@ -123,6 +123,30 @@ function RootComponent() {
   const router = useRouter();
 
   useEffect(() => {
+    // Remove o badge de edição injetado pelo ambiente de publicação.
+    const removerBadgeLovable = () => {
+      const candidatos = document.querySelectorAll<HTMLElement>(
+        'a, button, iframe, [id*="lovable" i], [class*="lovable" i], [data-testid*="lovable" i]',
+      );
+      candidatos.forEach((el) => {
+        const texto = [
+          el.innerText,
+          el.getAttribute("aria-label"),
+          el.getAttribute("title"),
+          el.getAttribute("href"),
+        ].filter(Boolean).join(" ");
+        if (/edit\s+with\s+lovable/i.test(texto) || /lovable\.dev\/projects/i.test(texto)) {
+          el.remove();
+        }
+      });
+    };
+    removerBadgeLovable();
+    const observer = new MutationObserver(removerBadgeLovable);
+    observer.observe(document.documentElement, { childList: true, subtree: true });
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
     const { data: sub } = supabase.auth.onAuthStateChange((event) => {
       if (event !== "SIGNED_IN" && event !== "SIGNED_OUT" && event !== "USER_UPDATED") return;
       router.invalidate();
