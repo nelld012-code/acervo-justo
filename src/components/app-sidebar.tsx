@@ -21,7 +21,7 @@ const groups = [
     { title: "Distribuição", url: "/distribuicao", icon: FileText, need: "distribution" },
   ] },
   { title: "Agenda e tarefas", items: [
-    { title: "Agenda", url: "/audiencias", icon: Gavel, need: "all" },
+    { title: "Audiências", url: "/audiencias", icon: Gavel, need: "all" },
     { title: "Atividades", url: "/tarefas", icon: ListTodo, need: "all" },
     { title: "Prazos", url: "/prazos", icon: CalendarClock, need: "all" },
   ] },
