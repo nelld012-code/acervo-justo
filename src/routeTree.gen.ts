@@ -26,6 +26,7 @@ import { Route as AuthenticatedClientesRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedCrmRouteImport } from './routes/_authenticated/crm'
 import { Route as AuthenticatedAuditRouteImport } from './routes/_authenticated/audit'
 import { Route as AuthenticatedAudienciasRouteImport } from './routes/_authenticated/audiencias'
+import { Route as AuthenticatedTarefasRouteImport } from './routes/_authenticated/tarefas'
 
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
@@ -112,6 +113,11 @@ const AuthenticatedAudienciasRoute = AuthenticatedAudienciasRouteImport.update({
   path: '/audiencias',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedTarefasRoute = AuthenticatedTarefasRouteImport.update({
+  id: '/tarefas',
+  path: '/tarefas',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -129,6 +135,8 @@ export interface FileRoutesByFullPath {
   '/prazos': typeof AuthenticatedPrazosRoute
   '/recepcao': typeof AuthenticatedRecepcaoRoute
   '/search': typeof AuthenticatedSearchRoute
+  '/tarefas': typeof AuthenticatedTarefasRoute
+  '/tarefas': typeof AuthenticatedTarefasRoute
   '/upload': typeof AuthenticatedUploadRoute
 }
 export interface FileRoutesByTo {
@@ -256,6 +264,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/tarefas': {
+      id: '/_authenticated/tarefas'
+      path: '/tarefas'
+      fullPath: '/tarefas'
+      preLoaderRoute: typeof AuthenticatedTarefasRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/upload': {
       id: '/_authenticated/upload'
       path: '/upload'
@@ -359,6 +374,7 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAudienciasRoute: typeof AuthenticatedAudienciasRoute
+  AuthenticatedTarefasRoute: typeof AuthenticatedTarefasRoute
   AuthenticatedAuditRoute: typeof AuthenticatedAuditRoute
   AuthenticatedClientesRoute: typeof AuthenticatedClientesRoute
   AuthenticatedCrmRoute: typeof AuthenticatedCrmRoute
@@ -376,6 +392,7 @@ interface AuthenticatedRouteRouteChildren {
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAudienciasRoute: AuthenticatedAudienciasRoute,
+  AuthenticatedTarefasRoute: AuthenticatedTarefasRoute,
   AuthenticatedAuditRoute: AuthenticatedAuditRoute,
   AuthenticatedClientesRoute: AuthenticatedClientesRoute,
   AuthenticatedCrmRoute: AuthenticatedCrmRoute,
