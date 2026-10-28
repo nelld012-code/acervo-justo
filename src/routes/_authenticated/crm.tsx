@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useProfile } from "@/hooks/use-profile";
+import { whatsappLink } from "@/lib/documents";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CalendarClock, CheckCircle2, CircleDollarSign, Clock3, Handshake, Mail, MessageCircle, Pencil, Phone, Plus, Search, Trash2, UserRound, Users, X } from "lucide-react";
+import { CalendarClock, CheckCircle2, CircleDollarSign, Clock3, Handshake, Mail, MessageCircle, Pencil, Phone, Plus, Search, Trash2, Users } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/crm")({
@@ -81,9 +82,6 @@ function dataBR(value: string | null | undefined) {
 }
 function horarioBR(value: string | null | undefined) {
   return value ? new Date(value).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }) : "Ainda não houve contato";
-}
-function normalizarTelefone(value: string | null | undefined) {
-  return (value ?? "").replace(/\D/g, "");
 }
 function isVencido(value: string | null | undefined) {
   return !!value && value < new Date().toISOString().slice(0, 10);
@@ -356,7 +354,7 @@ function CrmPage() {
                         <Button size="sm" variant="ghost" className="h-8 px-2 text-xs" onClick={() => setHistoricoLead(lead)} title="Ver histórico"><Clock3 className="h-3 w-3" /></Button>
                       </div>
                       <div className="flex flex-wrap gap-1.5">
-                        {lead.telefone && <Button size="sm" variant="outline" className="h-8 flex-1 px-2 text-xs" onClick={() => window.open("https://wa.me/55" + normalizarTelefone(lead.telefone), "_blank", "noopener,noreferrer")}><MessageCircle className="mr-1 h-3 w-3" />WhatsApp</Button>}
+                        {lead.telefone && <Button size="sm" variant="outline" className="h-8 flex-1 px-2 text-xs" onClick={() => window.open(whatsappLink(lead.telefone), "_blank", "noopener,noreferrer")}><MessageCircle className="mr-1 h-3 w-3" />WhatsApp</Button>}
                         {lead.status !== "Convertido" && <Button size="sm" className="h-8 flex-1 px-2 text-xs" onClick={() => void converterCliente(lead)}><Handshake className="mr-1 h-3 w-3" />Converter</Button>}
                       </div>
                       <div className="flex items-center justify-between gap-2 border-t pt-2">
