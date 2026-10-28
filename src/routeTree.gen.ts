@@ -136,7 +136,6 @@ export interface FileRoutesByFullPath {
   '/recepcao': typeof AuthenticatedRecepcaoRoute
   '/search': typeof AuthenticatedSearchRoute
   '/tarefas': typeof AuthenticatedTarefasRoute
-  '/tarefas': typeof AuthenticatedTarefasRoute
   '/upload': typeof AuthenticatedUploadRoute
 }
 export interface FileRoutesByTo {
