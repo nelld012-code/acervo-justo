@@ -523,7 +523,7 @@ function FinanceiroPage() {
   if (!perms.canAccessFinance) {
     return (
       <AccessDenied
-        msg="O módulo financeiro está disponível apenas para administradores e advogados."
+        msg="O módulo financeiro está disponível apenas para administradores e usuários do financeiro."
       />
     );
   }

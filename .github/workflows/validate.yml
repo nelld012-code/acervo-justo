@@ -1,0 +1,44 @@
+name: Validate Acervo Justo
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [work/fase-1-2-auditoria]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    env:
+      VITE_SUPABASE_URL: https://example.supabase.co
+      VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_placeholder
+      SUPABASE_URL: https://example.supabase.co
+      SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_placeholder
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Lint changed application files
+        run: >-
+          bunx eslint
+          src/routes/_authenticated/crm.tsx
+          src/routes/_authenticated/tarefas.tsx
+          src/components/app-sidebar.tsx
+          src/routes/auth.tsx
+          src/routes/_authenticated/financeiro.tsx
+          --rule 'prettier/prettier: off'
+
+      - name: Build application
+        if: always()
+        run: bun run build

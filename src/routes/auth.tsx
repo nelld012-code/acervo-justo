@@ -5,8 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CARGO_OPTIONS, type Cargo } from "@/hooks/use-profile";
 import { toast } from "sonner";
 import { Scale } from "lucide-react";
 
@@ -31,7 +29,6 @@ function AuthPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [nome, setNome] = useState("");
-  const [cargo, setCargo] = useState<Cargo>("assistente");
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -54,7 +51,7 @@ function AuthPage() {
       password,
       options: {
         emailRedirectTo: `${window.location.origin}/recepcao`,
-        data: { nome, cargo },
+        data: { nome },
       },
     });
     setLoading(false);
@@ -104,21 +101,7 @@ function AuthPage() {
                 <Label htmlFor="password-s">Senha (mín. 6 caracteres)</Label>
                 <Input id="password-s" type="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="cargo-s">Cargo / Função</Label>
-                <Select value={cargo} onValueChange={(v) => setCargo(v as Cargo)}>
-                  <SelectTrigger id="cargo-s"><SelectValue placeholder="Selecione o cargo" /></SelectTrigger>
-                  <SelectContent>
-                    {CARGO_OPTIONS.map((o) => (
-                      <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-muted-foreground">
-                  O cargo define as permissões: administrador tem acesso total; advogado acessa processos, clientes e financeiro;
-                  secretário(a) gerencia clientes e documentos; assistente tem acesso somente de leitura.
-                </p>
-              </div>
+              <p className="text-xs text-muted-foreground">Novas contas recebem acesso inicial de assistente. Um administrador poderá ajustar as permissões conforme a função da equipe.</p>
               <Button type="submit" className="w-full" disabled={loading}>{loading ? "Cadastrando..." : "Criar Conta"}</Button>
             </form>
           </TabsContent>
