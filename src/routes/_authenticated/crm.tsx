@@ -410,7 +410,25 @@ function CrmPage() {
         <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-xl">
           <DialogHeader><DialogTitle>Histórico de relacionamento</DialogTitle><DialogDescription>{historicoLead?.nome}</DialogDescription></DialogHeader>
           {activitiesQuery.isLoading ? <p className="text-sm text-muted-foreground">Carregando histórico...</p> : activitiesQuery.error ? <p className="text-sm text-destructive">Não foi possível carregar o histórico.</p> : !(activitiesQuery.data ?? []).length ? <p className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">Nenhuma interação registrada ainda.</p> : (
-            <div className="space-y-3">{activitiesQuery.data!.map((activity) => <div key={activity.id} className="rounded-lg border p-3"><div className="flex flex-wrap items-center justify-between gap-2"><Badge variant="secondary">{activity.tipo}</Badge><span className="text-xs text-muted-foreground">{horarioBR(activity.data_atividade)}</span></div><p className="mt-2 whitespace-pre-wrap text-sm">{activity.descricao}</p>{activity.proximo_contato && <p className="mt-2 flex items-center gap-1 text-xs text-muted-foreground"><CalendarClock className="h-3.5 w-3.5" />Próximo contato: {dataBR(activity.proximo_contato)}</p></div>)}</div>
+            <div className="space-y-3">
+              {(activitiesQuery.data ?? []).map((activity) => (
+                <div key={activity.id} className="rounded-lg border p-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <Badge variant="secondary">{activity.tipo}</Badge>
+                    <span className="text-xs text-muted-foreground">
+                      {horarioBR(activity.data_atividade)}
+                    </span>
+                  </div>
+                  <p className="mt-2 whitespace-pre-wrap text-sm">{activity.descricao}</p>
+                  {activity.proximo_contato && (
+                    <p className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
+                      <CalendarClock className="h-3.5 w-3.5" />
+                      Próximo contato: {dataBR(activity.proximo_contato)}
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
           )}
           <DialogFooter><Button variant="outline" onClick={() => setHistoricoLead(null)}>Fechar</Button></DialogFooter>
         </DialogContent>
