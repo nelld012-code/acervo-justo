@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CalendarClock, CheckCircle2, CircleDollarSign, Clock3, Handshake, Mail, MessageCircle, Pencil, Phone, Plus, Search, Trash2, Users } from "lucide-react";
+import { CalendarClock, CheckCircle2, CircleDollarSign, Clock3, Filter, Handshake, Mail, MessageCircle, Pencil, Phone, Plus, RotateCcw, Search, Sparkles, Trash2, Users } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/crm")({
@@ -22,6 +22,13 @@ export const Route = createFileRoute("/_authenticated/crm")({
 
 const ETAPAS = ["Novo", "Em contato", "Em negociação", "Convertido", "Perdido"] as const;
 type Etapa = (typeof ETAPAS)[number];
+const ETAPA_ESTILO: Record<Etapa, { coluna: string; indicador: string; barra: string; texto: string }> = {
+  Novo: { coluna: "border-sky-400/20 bg-sky-950/20", indicador: "bg-sky-400", barra: "bg-sky-400", texto: "text-sky-300" },
+  "Em contato": { coluna: "border-blue-400/20 bg-blue-950/20", indicador: "bg-blue-400", barra: "bg-blue-400", texto: "text-blue-300" },
+  "Em negociação": { coluna: "border-amber-400/20 bg-amber-950/20", indicador: "bg-amber-400", barra: "bg-amber-400", texto: "text-amber-300" },
+  Convertido: { coluna: "border-emerald-400/20 bg-emerald-950/20", indicador: "bg-emerald-400", barra: "bg-emerald-400", texto: "text-emerald-300" },
+  Perdido: { coluna: "border-rose-400/20 bg-rose-950/20", indicador: "bg-rose-400", barra: "bg-rose-400", texto: "text-rose-300" },
+};
 const ORIGENS = ["Indicação", "WhatsApp", "Telefone", "Site", "Redes sociais", "Recepção", "Outro"] as const;
 const PRIORIDADES = ["Baixa", "Normal", "Alta"] as const;
 const TIPOS_ATIVIDADE = ["Ligação", "WhatsApp", "E-mail", "Reunião", "Observação"] as const;
@@ -95,6 +102,8 @@ function CrmPage() {
   const sb = supabase as any;
   const [busca, setBusca] = useState("");
   const [filtroEtapa, setFiltroEtapa] = useState("Todas");
+  const [filtroPrioridade, setFiltroPrioridade] = useState("Todas");
+  const [somenteRetornosPendentes, setSomenteRetornosPendentes] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Lead | null>(null);
   const [form, setForm] = useState<LeadForm>(FORM_VAZIO);
@@ -127,12 +136,16 @@ function CrmPage() {
   const leads = useMemo(() => leadsQuery.data ?? [], [leadsQuery.data]);
   const filtrados = useMemo(() => {
     const q = busca.trim().toLocaleLowerCase("pt-BR");
+    const hoje = new Date().toISOString().slice(0, 10);
     return leads.filter((lead) => {
       const matchesSearch = !q || [lead.nome, lead.telefone ?? "", lead.email ?? "", lead.servico_interesse ?? "", lead.origem].some((v) => v.toLocaleLowerCase("pt-BR").includes(q));
       const matchesStage = filtroEtapa === "Todas" || lead.status === filtroEtapa;
-      return matchesSearch && matchesStage;
+      const matchesPriority = filtroPrioridade === "Todas" || lead.prioridade === filtroPrioridade;
+      const temRetornoPendente = !!lead.next_follow_up && lead.next_follow_up <= hoje && !["Convertido", "Perdido"].includes(lead.status);
+      const matchesFollowUp = !somenteRetornosPendentes || temRetornoPendente;
+      return matchesSearch && matchesStage && matchesPriority && matchesFollowUp;
     });
-  }, [leads, busca, filtroEtapa]);
+  }, [leads, busca, filtroEtapa, filtroPrioridade, somenteRetornosPendentes]);
 
   const totalAtivos = leads.filter((l) => !["Convertido", "Perdido"].includes(l.status)).length;
   const valorAtivo = leads.filter((l) => !["Convertido", "Perdido"].includes(l.status)).reduce((sum, l) => sum + Number(l.valor_estimado ?? 0), 0);
@@ -302,53 +315,81 @@ function CrmPage() {
 
   return (
     <div className="w-full min-w-0 space-y-5">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">CRM — Relacionamento</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Acompanhe contatos, oportunidades e próximos retornos do escritório.</p>
+      <div className="relative overflow-hidden rounded-2xl border border-slate-700/80 bg-gradient-to-r from-slate-950 via-slate-900 to-blue-950 p-5 shadow-xl shadow-slate-950/30 sm:p-6">
+        <div className="pointer-events-none absolute -right-10 -top-16 h-56 w-56 rounded-full bg-cyan-400/10 blur-3xl" />
+        <div className="relative flex flex-wrap items-center justify-between gap-4">
+          <div className="min-w-0">
+            <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-sky-300/20 bg-sky-400/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-sky-200">
+              <Sparkles className="h-3.5 w-3.5" /> Relacionamento e oportunidades
+            </div>
+            <h1 className="text-2xl font-semibold tracking-tight text-white sm:text-3xl">CRM</h1>
+            <p className="mt-1 max-w-2xl text-sm text-slate-300">Organize seus contatos, acompanhe cada oportunidade e não perca o próximo retorno.</p>
+            <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-slate-300">
+              <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1"><strong className="text-white">{leads.length}</strong> contato(s) cadastrados</span>
+              <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1"><strong className="text-white">{filtrados.length}</strong> exibidos no quadro</span>
+            </div>
+          </div>
+          <Button onClick={novoLead} className="shrink-0 bg-sky-400 font-semibold text-slate-950 hover:bg-sky-300">
+            <Plus className="mr-2 h-4 w-4" /> Novo contato
+          </Button>
         </div>
-        <Button onClick={novoLead}><Plus className="mr-2 h-4 w-4" />Novo contato</Button>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <Card><CardContent className="flex items-center gap-3 p-4"><div className="rounded-lg bg-primary/10 p-3 text-primary"><Users className="h-5 w-5" /></div><div><p className="text-sm text-muted-foreground">Oportunidades ativas</p><p className="text-2xl font-semibold">{totalAtivos}</p></div></CardContent></Card>
-        <Card><CardContent className="flex items-center gap-3 p-4"><div className="rounded-lg bg-primary/10 p-3 text-primary"><CircleDollarSign className="h-5 w-5" /></div><div><p className="text-sm text-muted-foreground">Valor estimado ativo</p><p className="text-xl font-semibold">{moeda(valorAtivo)}</p></div></CardContent></Card>
-        <Card><CardContent className="flex items-center gap-3 p-4"><div className="rounded-lg bg-primary/10 p-3 text-primary"><CalendarClock className="h-5 w-5" /></div><div><p className="text-sm text-muted-foreground">Retornos pendentes</p><p className="text-2xl font-semibold">{followUps}</p></div></CardContent></Card>
-        <Card><CardContent className="flex items-center gap-3 p-4"><div className="rounded-lg bg-primary/10 p-3 text-primary"><CheckCircle2 className="h-5 w-5" /></div><div><p className="text-sm text-muted-foreground">Convertidos em clientes</p><p className="text-2xl font-semibold">{convertidos}</p></div></CardContent></Card>
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4 [&>*]:min-w-0">
+        <Card className="border-slate-700/80 bg-slate-900/70 shadow-lg shadow-slate-950/10 transition-colors hover:border-slate-600"><CardContent className="flex items-center gap-3 p-4"><div className="rounded-xl border border-sky-400/20 bg-sky-500/10 p-3 text-sky-300"><Users className="h-5 w-5" /></div><div><p className="text-sm text-muted-foreground">Oportunidades ativas</p><p className="text-2xl font-semibold">{totalAtivos}</p></div></CardContent></Card>
+        <Card className="border-slate-700/80 bg-slate-900/70 shadow-lg shadow-slate-950/10 transition-colors hover:border-slate-600"><CardContent className="flex items-center gap-3 p-4"><div className="rounded-xl border border-emerald-400/20 bg-emerald-500/10 p-3 text-emerald-300"><CircleDollarSign className="h-5 w-5" /></div><div><p className="text-sm text-muted-foreground">Valor estimado ativo</p><p className="text-xl font-semibold">{moeda(valorAtivo)}</p></div></CardContent></Card>
+        <Card className="border-slate-700/80 bg-slate-900/70 shadow-lg shadow-slate-950/10 transition-colors hover:border-slate-600"><CardContent className="flex items-center gap-3 p-4"><div className="rounded-xl border border-amber-400/20 bg-amber-500/10 p-3 text-amber-300"><CalendarClock className="h-5 w-5" /></div><div><p className="text-sm text-muted-foreground">Retornos pendentes</p><p className="text-2xl font-semibold">{followUps}</p></div></CardContent></Card>
+        <Card className="border-slate-700/80 bg-slate-900/70 shadow-lg shadow-slate-950/10 transition-colors hover:border-slate-600"><CardContent className="flex items-center gap-3 p-4"><div className="rounded-xl border border-violet-400/20 bg-violet-500/10 p-3 text-violet-300"><CheckCircle2 className="h-5 w-5" /></div><div><p className="text-sm text-muted-foreground">Convertidos em clientes</p><p className="text-2xl font-semibold">{convertidos}</p></div></CardContent></Card>
       </div>
 
-      <div className="flex flex-col gap-3 sm:flex-row">
-        <div className="relative min-w-0 flex-1"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar por nome, telefone, e-mail ou serviço..." className="pl-9" /></div>
-        <Select value={filtroEtapa} onValueChange={setFiltroEtapa}><SelectTrigger className="w-full sm:w-52"><SelectValue placeholder="Filtrar etapa" /></SelectTrigger><SelectContent><SelectItem value="Todas">Todas as etapas</SelectItem>{ETAPAS.map((etapa) => <SelectItem key={etapa} value={etapa}>{etapa}</SelectItem>)}</SelectContent></Select>
+      <div className="space-y-3 rounded-xl border border-slate-700/70 bg-slate-900/60 p-3 shadow-sm">
+        <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.12em] text-slate-400"><Filter className="h-3.5 w-3.5" /> Localizar oportunidades</div>
+        <div className="flex min-w-0 flex-col gap-2 lg:flex-row lg:items-center">
+          <div className="relative min-w-0 flex-1">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar nome, telefone, e-mail ou serviço..." className="h-10 border-slate-700 bg-slate-950/60 pl-9" />
+          </div>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:flex">
+            <Select value={filtroEtapa} onValueChange={setFiltroEtapa}><SelectTrigger className="h-10 w-full border-slate-700 bg-slate-950/60 lg:w-48"><SelectValue placeholder="Etapa" /></SelectTrigger><SelectContent><SelectItem value="Todas">Todas as etapas</SelectItem>{ETAPAS.map((etapa) => <SelectItem key={etapa} value={etapa}>{etapa}</SelectItem>)}</SelectContent></Select>
+            <Select value={filtroPrioridade} onValueChange={setFiltroPrioridade}><SelectTrigger className="h-10 w-full border-slate-700 bg-slate-950/60 lg:w-40"><SelectValue placeholder="Prioridade" /></SelectTrigger><SelectContent><SelectItem value="Todas">Todas prioridades</SelectItem>{PRIORIDADES.map((prioridade) => <SelectItem key={prioridade} value={prioridade}>{prioridade}</SelectItem>)}</SelectContent></Select>
+          </div>
+          <Button type="button" variant={somenteRetornosPendentes ? "default" : "outline"} onClick={() => setSomenteRetornosPendentes((v) => !v)} className={somenteRetornosPendentes ? "h-10 border-amber-400 bg-amber-400 text-slate-950 hover:bg-amber-300" : "h-10 border-slate-700 bg-slate-950/50 text-slate-200 hover:bg-slate-800"}>
+            <CalendarClock className="mr-2 h-4 w-4" /> Retornos pendentes
+          </Button>
+          <Button type="button" variant="ghost" aria-label="Limpar filtros" title="Limpar filtros" onClick={() => { setBusca(""); setFiltroEtapa("Todas"); setFiltroPrioridade("Todas"); setSomenteRetornosPendentes(false); }} className="h-10 shrink-0 text-slate-400 hover:text-white">
+            <RotateCcw className="mr-2 h-4 w-4" /><span className="lg:hidden">Limpar filtros</span>
+          </Button>
+        </div>
       </div>
 
-      <div className="flex gap-4 overflow-x-auto pb-3">
+      <div className="flex gap-3 overflow-x-auto pb-4 [scrollbar-color:#475569_transparent] [scrollbar-width:thin]">
         {ETAPAS.map((etapa) => {
           const etapaLeads = filtrados.filter((lead) => lead.status === etapa);
           const totalEtapa = etapaLeads.reduce((sum, lead) => sum + Number(lead.valor_estimado ?? 0), 0);
           return (
-            <section key={etapa} className="w-[280px] min-w-[280px] rounded-xl border bg-muted/20 p-3">
+            <section key={etapa} className={`w-[292px] min-w-[292px] shrink-0 rounded-xl border p-3 ${ETAPA_ESTILO[etapa].coluna}`}>
+              <div className="mb-3 h-1 rounded-full bg-slate-800"><div className={`h-1 w-2/5 rounded-full ${ETAPA_ESTILO[etapa].barra}`} /></div>
               <div className="mb-3 flex items-center justify-between gap-2">
-                <div><h2 className="text-sm font-semibold">{etapa}</h2><p className="text-xs text-muted-foreground">{etapaLeads.length} contato(s)</p></div>
-                <Badge variant="outline">{moeda(totalEtapa)}</Badge>
+                <div><h2 className="flex items-center gap-2 text-sm font-semibold text-slate-100"><span className={`h-2 w-2 rounded-full ${ETAPA_ESTILO[etapa].indicador}`} />{etapa}</h2><p className="mt-1 text-xs text-slate-400">{etapaLeads.length} contato(s)</p></div>
+                <Badge variant="outline" className={`border-slate-700 bg-slate-950/40 text-[11px] ${ETAPA_ESTILO[etapa].texto}`}>{moeda(totalEtapa)}</Badge>
               </div>
               <div className="space-y-3">
                 {etapaLeads.map((lead) => (
-                  <Card key={lead.id} className="overflow-hidden">
+                  <Card key={lead.id} className="group overflow-hidden border-slate-700/70 bg-slate-950/75 shadow-sm transition-all hover:-translate-y-0.5 hover:border-slate-500 hover:shadow-lg hover:shadow-slate-950/40">
                     <CardHeader className="space-y-2 p-3 pb-2">
                       <div className="flex items-start justify-between gap-2">
-                        <CardTitle className="min-w-0 break-words text-sm">{lead.nome}</CardTitle>
+                        <CardTitle className="min-w-0 break-words text-sm text-slate-100">{lead.nome}</CardTitle>
                         <Badge variant={lead.prioridade === "Alta" ? "destructive" : lead.prioridade === "Baixa" ? "outline" : "secondary"}>{lead.prioridade}</Badge>
                       </div>
                       <p className="text-xs text-muted-foreground">{lead.servico_interesse || "Serviço não informado"}</p>
                     </CardHeader>
                     <CardContent className="space-y-3 p-3 pt-1">
-                      <div className="space-y-1.5 text-xs">
+                      <div className="space-y-1.5 text-xs text-slate-300">
                         {lead.telefone && <p className="flex min-w-0 items-center gap-2 break-all"><Phone className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />{lead.telefone}</p>}
                         {lead.email && <p className="flex min-w-0 items-center gap-2 break-all"><Mail className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />{lead.email}</p>}
                         <p className="flex items-center gap-2"><Clock3 className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />Retorno: <span className={isVencido(lead.next_follow_up) ? "font-semibold text-destructive" : ""}>{dataBR(lead.next_follow_up)}</span></p>
                         <p className="flex items-center gap-2"><CircleDollarSign className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />{moeda(lead.valor_estimado)}</p>
-                        <p className="text-muted-foreground">Origem: {lead.origem}</p>
+                        <p className="text-slate-500">Origem: {lead.origem}</p>
                       </div>
                       <Select value={lead.status} onValueChange={(value) => void alterarEtapa(lead, value)}>
                         <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
