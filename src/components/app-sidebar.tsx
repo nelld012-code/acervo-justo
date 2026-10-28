@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { LayoutDashboard, Upload, Search, FolderOpen, ClipboardList, Scale, Users, Wallet, ConciergeBell, CalendarClock, ListTodo, ChevronDown, FileBarChart2, MessagesSquare, Gavel, FileText, Handshake } from "lucide-react";
+import { LayoutDashboard, Upload, Search, FolderOpen, ClipboardList, Scale, Users, Wallet, ConciergeBell, CalendarClock, ChevronDown, FileBarChart2, MessagesSquare, Gavel, FileText, Handshake } from "lucide-react";
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarHeader, useSidebar } from "@/components/ui/sidebar";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { supabase } from "@/integrations/supabase/client";
@@ -22,7 +22,6 @@ const groups = [
   ] },
   { title: "Agenda e tarefas", items: [
     { title: "Audiências", url: "/audiencias", icon: Gavel, need: "all" },
-    { title: "Atividades", url: "/tarefas", icon: ListTodo, need: "all" },
     { title: "Banco de tarefas", url: "/banco-tarefas", icon: ClipboardList, need: "all" },
     { title: "Prazos", url: "/prazos", icon: CalendarClock, need: "all" },
   ] },
