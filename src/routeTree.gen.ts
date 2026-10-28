@@ -23,6 +23,7 @@ import { Route as AuthenticatedFinanceiroRouteImport } from './routes/_authentic
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedDistribuicaoRouteImport } from './routes/_authenticated/distribuicao'
 import { Route as AuthenticatedClientesRouteImport } from './routes/_authenticated/clientes'
+import { Route as AuthenticatedCrmRouteImport } from './routes/_authenticated/crm'
 import { Route as AuthenticatedAuditRouteImport } from './routes/_authenticated/audit'
 import { Route as AuthenticatedAudienciasRouteImport } from './routes/_authenticated/audiencias'
 
@@ -96,6 +97,11 @@ const AuthenticatedClientesRoute = AuthenticatedClientesRouteImport.update({
   path: '/clientes',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedCrmRoute = AuthenticatedCrmRouteImport.update({
+  id: '/_authenticated/crm',
+  path: '/crm',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedAuditRoute = AuthenticatedAuditRouteImport.update({
   id: '/audit',
   path: '/audit',
@@ -113,6 +119,8 @@ export interface FileRoutesByFullPath {
   '/audiencias': typeof AuthenticatedAudienciasRoute
   '/audit': typeof AuthenticatedAuditRoute
   '/clientes': typeof AuthenticatedClientesRoute
+  '/crm': typeof AuthenticatedCrmRoute
+  '/crm': typeof AuthenticatedCrmRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/distribuicao': typeof AuthenticatedDistribuicaoRoute
   '/financeiro': typeof AuthenticatedFinanceiroRoute
@@ -149,6 +157,7 @@ export interface FileRoutesById {
   '/_authenticated/audiencias': typeof AuthenticatedAudienciasRoute
   '/_authenticated/audit': typeof AuthenticatedAuditRoute
   '/_authenticated/clientes': typeof AuthenticatedClientesRoute
+  '/_authenticated/crm': typeof AuthenticatedCrmRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/distribuicao': typeof AuthenticatedDistribuicaoRoute
   '/_authenticated/financeiro': typeof AuthenticatedFinanceiroRoute
@@ -168,6 +177,8 @@ export interface FileRouteTypes {
     | '/audiencias'
     | '/audit'
     | '/clientes'
+    | '/crm'
+    | '/crm'
     | '/dashboard'
     | '/distribuicao'
     | '/financeiro'
@@ -203,6 +214,7 @@ export interface FileRouteTypes {
     | '/_authenticated/audiencias'
     | '/_authenticated/audit'
     | '/_authenticated/clientes'
+    | '/_authenticated/crm'
     | '/_authenticated/dashboard'
     | '/_authenticated/distribuicao'
     | '/_authenticated/financeiro'
@@ -321,6 +333,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedClientesRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/crm': {
+      id: '/_authenticated/crm'
+      path: '/crm'
+      fullPath: '/crm'
+      preLoaderRoute: typeof AuthenticatedCrmRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/audit': {
       id: '/_authenticated/audit'
       path: '/audit'
@@ -342,6 +361,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAudienciasRoute: typeof AuthenticatedAudienciasRoute
   AuthenticatedAuditRoute: typeof AuthenticatedAuditRoute
   AuthenticatedClientesRoute: typeof AuthenticatedClientesRoute
+  AuthenticatedCrmRoute: typeof AuthenticatedCrmRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedDistribuicaoRoute: typeof AuthenticatedDistribuicaoRoute
   AuthenticatedFinanceiroRoute: typeof AuthenticatedFinanceiroRoute
@@ -358,6 +378,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAudienciasRoute: AuthenticatedAudienciasRoute,
   AuthenticatedAuditRoute: AuthenticatedAuditRoute,
   AuthenticatedClientesRoute: AuthenticatedClientesRoute,
+  AuthenticatedCrmRoute: AuthenticatedCrmRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedDistribuicaoRoute: AuthenticatedDistribuicaoRoute,
   AuthenticatedFinanceiroRoute: AuthenticatedFinanceiroRoute,
