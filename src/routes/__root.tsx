@@ -36,10 +36,27 @@ function NotFoundComponent() {
   );
 }
 
+// Após uma nova publicação, abas abertas ainda apontam para arquivos antigos da página
+// (ex.: Prazos). O carregamento falha e a tela de erro aparece — recarregamos uma vez.
+const CHUNK_RELOAD_KEY = "chunk-reload-at";
+function isChunkLoadError(error: unknown) {
+  const msg = String((error as { message?: string })?.message ?? error ?? "");
+  return /Failed to fetch dynamically imported module|Importing a module script failed|error loading dynamically imported module|Loading chunk .* failed|Unable to preload CSS/i.test(msg);
+}
+function reloadOnceForStaleChunk() {
+  if (typeof window === "undefined") return false;
+  const last = Number(sessionStorage.getItem(CHUNK_RELOAD_KEY) ?? 0);
+  if (Date.now() - last < 30_000) return false;
+  sessionStorage.setItem(CHUNK_RELOAD_KEY, String(Date.now()));
+  window.location.reload();
+  return true;
+}
+
 function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   console.error(error);
   const router = useRouter();
   useEffect(() => {
+    if (isChunkLoadError(error) && reloadOnceForStaleChunk()) return;
     reportLovableError(error, { boundary: "tanstack_root_error_component" });
   }, [error]);
 
@@ -121,6 +138,14 @@ function RootShell({ children }: { children: ReactNode }) {
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const router = useRouter();
+
+  useEffect(() => {
+    const onPreloadError = (event: Event) => {
+      if (reloadOnceForStaleChunk()) event.preventDefault();
+    };
+    window.addEventListener("vite:preloadError", onPreloadError);
+    return () => window.removeEventListener("vite:preloadError", onPreloadError);
+  }, []);
 
   useEffect(() => {
     // Remove o badge de edição injetado pelo ambiente de publicação.

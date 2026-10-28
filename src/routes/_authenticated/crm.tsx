@@ -360,7 +360,7 @@ function CrmPage() {
                         <Button size="sm" variant="ghost" className="h-8 px-2 text-xs" onClick={() => setHistoricoLead(lead)} title="Ver histórico"><Clock3 className="h-3 w-3" /></Button>
                       </div>
                       <div className="flex flex-wrap gap-1.5">
-                        {lead.telefone && <Button size="sm" variant="outline" className="h-8 flex-1 px-2 text-xs" onClick={() => window.open(whatsappLink(lead.telefone), "_blank", "noopener,noreferrer")}><MessageCircle className="mr-1 h-3 w-3" />WhatsApp</Button>}
+                        {lead.telefone && <Button size="sm" variant="outline" className="h-8 flex-1 px-2 text-xs" onClick={() => window.open(whatsappLink(lead.telefone ?? ""), "_blank", "noopener,noreferrer")}><MessageCircle className="mr-1 h-3 w-3" />WhatsApp</Button>}
                         {lead.status !== "Convertido" && perms.canManageClients && <Button size="sm" className="h-8 flex-1 px-2 text-xs" onClick={() => void converterCliente(lead)}><Handshake className="mr-1 h-3 w-3" />Converter</Button>}
                       </div>
                       <div className="flex items-center justify-between gap-2 border-t pt-2">

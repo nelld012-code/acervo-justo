@@ -45,12 +45,12 @@ function printAudiencia(a: Audiencia) {
   printReport({ title: "Registro de Audiência", subtitle: "J DIMAS GONÇALVES · ESCRITORIO DE ADVOCACIA", sections: [{ heading: "Dados da audiência", columns: ["Campo", "Informação"], rows: [
     ["Nome / Cliente", a.nome], ["Número do Processo", a.numero_processo || "—"], ["Parte", a.parte || "—"], ["Advogado", a.advogado || "—"],
     ["Data", brDate(a.data_audiencia)], ["Hora", a.hora_audiencia || "—"], ["Órgão Julgador", a.orgao_julgador || "—"], ["Vara / Unidade", a.vara || "—"],
-    ["Tipo", a.tipo_audiencia], ["Modalidade", a.modalidade], ["Lugar / Cidade", a.cidade_lugar || "—"], ["Local", a.local_audiencia || "—"], ["Link Virtual", a.link_virtual || "—"], ["Status", a.status], ["Observação", a.observacao || "—"],
+    ["Tipo", a.tipo_audiencia], ["Modalidade", a.modalidade], ["Lugar / Cidade", a.cidade_lugar || "—"], ["Local", a.local_audiencia || "—"], ["Link Virtual", a.link_virtual || "—"], ["Status", a.status ?? "—"], ["Observação", a.observacao || "—"],
   ] }] });
 }
 function printLista(rows: Audiencia[]) {
   printReport({ title: "Audiências — Lista", subtitle: rows.length + " registro(s)", sections: [{ columns: ["Data", "Hora", "Nome", "Processo", "Tipo", "Modalidade", "Advogado", "Status"],
-    rows: rows.map(a => [brDate(a.data_audiencia), a.hora_audiencia || "—", a.nome, a.numero_processo || "—", a.tipo_audiencia, a.modalidade, a.advogado || "—", a.status]) }] });
+    rows: rows.map(a => [brDate(a.data_audiencia), a.hora_audiencia || "—", a.nome, a.numero_processo || "—", a.tipo_audiencia, a.modalidade, a.advogado || "—", a.status ?? "—"]) }] });
 }
 
 export const Route = createFileRoute("/_authenticated/audiencias")({
@@ -161,7 +161,7 @@ function AudienciasPage() {
       nome: a.nome, numero_processo: a.numero_processo ?? "", parte: a.parte ?? "", advogado: a.advogado ?? "",
       data_audiencia: a.data_audiencia, hora_audiencia: a.hora_audiencia ?? "", orgao_julgador: a.orgao_julgador ?? "", vara: a.vara ?? "",
       tipo_audiencia: a.tipo_audiencia, modalidade: a.modalidade, cidade_lugar: a.cidade_lugar ?? "", local_audiencia: a.local_audiencia ?? "", link_virtual: a.link_virtual ?? "",
-      observacao: a.observacao ?? "", status: a.status, lembrete_5_dias: a.lembrete_5_dias, lembrete_3_dias: a.lembrete_3_dias, lembrete_1_dia: a.lembrete_1_dia,
+      observacao: a.observacao ?? "", status: a.status ?? "Agendada", lembrete_5_dias: a.lembrete_5_dias, lembrete_3_dias: a.lembrete_3_dias, lembrete_1_dia: a.lembrete_1_dia,
     });
     setDialogOpen(true);
   }
