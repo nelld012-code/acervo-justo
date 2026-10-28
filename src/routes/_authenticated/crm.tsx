@@ -90,6 +90,8 @@ function isVencido(value: string | null | undefined) {
 function CrmPage() {
   const { perms } = useProfile();
   const qc = useQueryClient();
+  // CRM tables are not yet represented in the generated Supabase Database types.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const sb = supabase as any;
   const [busca, setBusca] = useState("");
   const [filtroEtapa, setFiltroEtapa] = useState("Todas");
@@ -122,7 +124,7 @@ function CrmPage() {
     },
   });
 
-  const leads = leadsQuery.data ?? [];
+  const leads = useMemo(() => leadsQuery.data ?? [], [leadsQuery.data]);
   const filtrados = useMemo(() => {
     const q = busca.trim().toLocaleLowerCase("pt-BR");
     return leads.filter((lead) => {
