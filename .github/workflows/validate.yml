@@ -36,6 +36,7 @@ jobs:
           src/routes/_authenticated/tarefas.tsx
           src/components/app-sidebar.tsx
           src/routes/auth.tsx
+          src/routes/_authenticated/financeiro.tsx
           --rule 'prettier/prettier: off'
 
       - name: Build application
