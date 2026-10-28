@@ -4,7 +4,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { ClipboardCheck, Plus, CheckCircle2, Clock3, AlertCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { useProfile } from "@/hooks/use-profile";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -43,7 +42,6 @@ function dataBR(value: string) {
 
 function TarefasPage() {
   const qc = useQueryClient();
-  const { profile, perms } = useProfile();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ ...emptyForm });
 
