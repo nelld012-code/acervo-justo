@@ -34,6 +34,7 @@ jobs:
           bunx eslint
           src/routes/_authenticated/crm.tsx
           src/routes/_authenticated/tarefas.tsx
+          src/routes/_authenticated/banco-tarefas.tsx
           src/components/app-sidebar.tsx
           src/routes/auth.tsx
           src/routes/_authenticated/financeiro.tsx
