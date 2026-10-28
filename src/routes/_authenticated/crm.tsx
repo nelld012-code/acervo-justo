@@ -164,6 +164,7 @@ function CrmPage() {
   async function salvarLead() {
     if (!form.nome.trim()) return toast.error("Informe o nome do contato.");
     if (!form.telefone.trim() && !form.email.trim()) return toast.error("Informe um telefone ou e-mail para contato.");
+    if (form.status === "Convertido" && !editing?.client_id) return toast.error("Use o botão Converter para criar o cadastro do cliente.");
     setSaving(true);
     try {
       const { data: auth } = await supabase.auth.getUser();
@@ -199,6 +200,9 @@ function CrmPage() {
 
   async function alterarEtapa(lead: Lead, etapa: string) {
     if (!ETAPAS.includes(etapa as Etapa)) return;
+    if (etapa === "Convertido" && !lead.client_id) {
+      return toast.error("Use o botão Converter para criar o cadastro do cliente.");
+    }
     const { error } = await sb.from("crm_leads").update({ status: etapa }).eq("id", lead.id);
     if (error) return toast.error("Não foi possível alterar a etapa.", { description: error.message });
     toast.success("Etapa atualizada.");
@@ -236,7 +240,7 @@ function CrmPage() {
       if (activityError) throw activityError;
       const { error: leadError } = await sb.from("crm_leads").update({
         last_contact_at: new Date().toISOString(),
-        next_follow_up: proximoContato || atividadeLead.next_follow_up,
+        next_follow_up: proximoContato || null,
       }).eq("id", atividadeLead.id);
       if (leadError) throw leadError;
       toast.success("Interação registrada.");
@@ -355,7 +359,7 @@ function CrmPage() {
                       </div>
                       <div className="flex flex-wrap gap-1.5">
                         {lead.telefone && <Button size="sm" variant="outline" className="h-8 flex-1 px-2 text-xs" onClick={() => window.open(whatsappLink(lead.telefone), "_blank", "noopener,noreferrer")}><MessageCircle className="mr-1 h-3 w-3" />WhatsApp</Button>}
-                        {lead.status !== "Convertido" && <Button size="sm" className="h-8 flex-1 px-2 text-xs" onClick={() => void converterCliente(lead)}><Handshake className="mr-1 h-3 w-3" />Converter</Button>}
+                        {lead.status !== "Convertido" && perms.canManageClients && <Button size="sm" className="h-8 flex-1 px-2 text-xs" onClick={() => void converterCliente(lead)}><Handshake className="mr-1 h-3 w-3" />Converter</Button>}
                       </div>
                       <div className="flex items-center justify-between gap-2 border-t pt-2">
                         <span className="text-[11px] text-muted-foreground">{horarioBR(lead.last_contact_at)}</span>
