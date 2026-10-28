@@ -37,8 +37,9 @@ create table if not exists public.crm_activities (
 
 create index if not exists crm_activities_lead_date_idx on public.crm_activities(lead_id, data_atividade desc);
 
+revoke all privileges on table public.crm_leads, public.crm_activities from anon;
 grant select, insert, update, delete on public.crm_leads to authenticated;
-grant select, insert, update, delete on public.crm_activities to authenticated;
+grant select, insert, delete on public.crm_activities to authenticated;
 
 alter table public.crm_leads enable row level security;
 alter table public.crm_activities enable row level security;
