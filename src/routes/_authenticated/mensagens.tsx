@@ -160,7 +160,7 @@ function MensagensPage() {
   function escolherArquivo(file: File | null) {
     if (!file) return;
     if (!TIPOS_ANEXO_PERMITIDOS.includes(file.type)) {
-      toast.error("Tipo não permitido. Envie JPG, PNG, WebP, PDF, DOC ou DOCX.");
+      toast.error("Tipo não permitido. Envie JPG, PNG, WebP, PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX ou CSV.");
       return;
     }
     if (file.size > TAMANHO_MAX_ANEXO) {
