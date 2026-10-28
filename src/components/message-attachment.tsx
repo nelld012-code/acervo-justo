@@ -9,6 +9,11 @@ export const TIPOS_DOCUMENTO_ANEXO = [
   "application/pdf",
   "application/msword",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/vnd.ms-powerpoint",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  "text/csv",
 ];
 export const TIPOS_ANEXO_PERMITIDOS = [...TIPOS_IMAGEM, ...TIPOS_DOCUMENTO_ANEXO];
 export const TAMANHO_MAX_ANEXO = 10 * 1024 * 1024;
@@ -44,6 +49,7 @@ export function MessageAttachment({ path, name, type, size, minha }: Props) {
   const [url, setUrl] = useState<string | null>(null);
   const [erro, setErro] = useState(false);
   const [ampliada, setAmpliada] = useState(false);
+  const [baixando, setBaixando] = useState(false);
 
   useEffect(() => {
     let ativo = true;
@@ -56,6 +62,29 @@ export function MessageAttachment({ path, name, type, size, minha }: Props) {
   }, [path]);
 
   const nome = name || "arquivo";
+
+  async function baixarArquivo() {
+    if (!url || baixando) return;
+    setBaixando(true);
+    try {
+      const resposta = await fetch(url);
+      if (!resposta.ok) throw new Error("Falha HTTP " + resposta.status);
+      const blob = await resposta.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = blobUrl;
+      link.download = nome;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
+    } catch (e) {
+      console.error("Falha ao baixar anexo:", e);
+      setErro(true);
+    } finally {
+      setBaixando(false);
+    }
+  }
 
   if (erro) {
     return <p className="text-xs italic opacity-80">Não foi possível carregar o anexo.</p>;
@@ -98,19 +127,19 @@ export function MessageAttachment({ path, name, type, size, minha }: Props) {
         {size ? <span className="block text-[11px] opacity-70">{formatarTamanho(size)}</span> : null}
       </span>
       <Button
-        asChild={!!url}
+        type="button"
         variant="ghost"
         size="icon"
         className="h-7 w-7 shrink-0"
-        disabled={!url}
-        aria-label={`Abrir ${nome}`}
+        disabled={!url || baixando}
+        onClick={() => void baixarArquivo()}
+        aria-label={`Baixar ${nome}`}
+        title={`Baixar ${nome}`}
       >
-        {url ? (
-          <a href={url} target="_blank" rel="noreferrer" download={nome}>
-            <Download className="h-3.5 w-3.5" />
-          </a>
-        ) : (
+        {!url || baixando ? (
           <Loader2 className="h-3.5 w-3.5 animate-spin" />
+        ) : (
+          <Download className="h-3.5 w-3.5" />
         )}
       </Button>
     </div>
