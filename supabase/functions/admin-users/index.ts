@@ -12,13 +12,26 @@ const json = (body: unknown, status = 200) =>
   });
 const VALID_CARGOS = ["administrador", "advogado", "secretaria", "assistente", "financeiro"];
 
-const adminUsersHandler = withSupabase({ auth: "user" }, async (req, ctx) => {
+const adminUsersHandler = withSupabase({ auth: "none" }, async (req, ctx) => {
   if (req.method !== "POST") return json({ error: "Método não permitido" }, 405);
 
-  const callerId = ctx.userClaims?.id;
-  if (!callerId) return json({ error: "Não foi possível identificar o usuário autenticado." }, 401);
+  // A chave da aplicação identifica o projeto; a sessão do usuário é validada separadamente
+  // pelo Auth antes de qualquer operação privilegiada.
+  const authHeader = req.headers.get("Authorization");
+  if (!authHeader?.startsWith("Bearer ")) {
+    return json({ error: "Sessão não enviada. Entre novamente no sistema." }, 401);
+  }
+  const token = authHeader.slice("Bearer ".length).trim();
+  if (!token) return json({ error: "Sessão inválida. Entre novamente no sistema." }, 401);
 
   const admin = ctx.supabaseAdmin;
+  const { data: authResult, error: userError } = await admin.auth.getUser(token);
+  if (userError || !authResult.user) {
+    console.error("[admin-users] Falha ao validar a sessão do solicitante:", userError?.message ?? "usuário não encontrado");
+    return json({ error: "Sua sessão expirou ou é inválida. Entre novamente no sistema." }, 401);
+  }
+  const callerId = authResult.user.id;
+
   const { data: caller, error: callerError } = await admin
     .from("profiles")
     .select("cargo")
