@@ -133,6 +133,7 @@ export type Database = {
       clients: {
         Row: {
           bairro: string | null
+          cep: string | null
           cidade: string | null
           cpf_cnpj: string | null
           created_at: string
@@ -142,6 +143,7 @@ export type Database = {
           endereco: string | null
           estado_civil: string | null
           id: string
+          nacionalidade: string | null
           nome: string
           numero_processo: string | null
           observacoes: string | null
@@ -157,10 +159,12 @@ export type Database = {
           rg: string | null
           telefone: string
           tipo_acao: string | null
+          uf: string | null
           updated_at: string
         }
         Insert: {
           bairro?: string | null
+          cep?: string | null
           cidade?: string | null
           cpf_cnpj?: string | null
           created_at?: string
@@ -170,6 +174,7 @@ export type Database = {
           endereco?: string | null
           estado_civil?: string | null
           id?: string
+          nacionalidade?: string | null
           nome: string
           numero_processo?: string | null
           observacoes?: string | null
@@ -185,10 +190,12 @@ export type Database = {
           rg?: string | null
           telefone: string
           tipo_acao?: string | null
+          uf?: string | null
           updated_at?: string
         }
         Update: {
           bairro?: string | null
+          cep?: string | null
           cidade?: string | null
           cpf_cnpj?: string | null
           created_at?: string
@@ -198,6 +205,7 @@ export type Database = {
           endereco?: string | null
           estado_civil?: string | null
           id?: string
+          nacionalidade?: string | null
           nome?: string
           numero_processo?: string | null
           observacoes?: string | null
@@ -213,9 +221,84 @@ export type Database = {
           rg?: string | null
           telefone?: string
           tipo_acao?: string | null
+          uf?: string | null
           updated_at?: string
         }
         Relationships: []
+      }
+      client_contracts: {
+        Row: {
+          cidade_assinatura: string
+          client_id: string
+          contrato_html: string
+          created_at: string
+          created_by: string | null
+          data_assinatura: string
+          dados_snapshot: Json
+          entrada_data: string | null
+          entrada_valor: number
+          honorarios_total: number
+          id: string
+          objeto_servico: string
+          parcela_valor: number
+          parcelas_quantidade: number
+          parcelas_vencimentos: Json
+          representado_nome: string | null
+          testemunha_1: string | null
+          testemunha_2: string | null
+          updated_at: string
+        }
+        Insert: {
+          cidade_assinatura?: string
+          client_id: string
+          contrato_html: string
+          created_at?: string
+          created_by?: string | null
+          data_assinatura?: string
+          dados_snapshot: Json
+          entrada_data?: string | null
+          entrada_valor?: number
+          honorarios_total: number
+          id?: string
+          objeto_servico: string
+          parcela_valor?: number
+          parcelas_quantidade?: number
+          parcelas_vencimentos?: Json
+          representado_nome?: string | null
+          testemunha_1?: string | null
+          testemunha_2?: string | null
+          updated_at?: string
+        }
+        Update: {
+          cidade_assinatura?: string
+          client_id?: string
+          contrato_html?: string
+          created_at?: string
+          created_by?: string | null
+          data_assinatura?: string
+          dados_snapshot?: Json
+          entrada_data?: string | null
+          entrada_valor?: number
+          honorarios_total?: number
+          id?: string
+          objeto_servico?: string
+          parcela_valor?: number
+          parcelas_quantidade?: number
+          parcelas_vencimentos?: Json
+          representado_nome?: string | null
+          testemunha_1?: string | null
+          testemunha_2?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_contracts_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       crm_activities: {
         Row: {
