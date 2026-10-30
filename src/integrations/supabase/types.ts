@@ -217,6 +217,112 @@ export type Database = {
         }
         Relationships: []
       }
+      crm_activities: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          data_atividade: string
+          descricao: string
+          id: string
+          lead_id: string
+          proximo_contato: string | null
+          tipo: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          data_atividade?: string
+          descricao: string
+          id?: string
+          lead_id: string
+          proximo_contato?: string | null
+          tipo: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          data_atividade?: string
+          descricao?: string
+          id?: string
+          lead_id?: string
+          proximo_contato?: string | null
+          tipo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_activities_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "crm_leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_leads: {
+        Row: {
+          client_id: string | null
+          created_at: string
+          created_by: string | null
+          email: string | null
+          id: string
+          last_contact_at: string | null
+          next_follow_up: string | null
+          nome: string
+          notas: string | null
+          origem: string
+          prioridade: string
+          servico_interesse: string | null
+          status: string
+          telefone: string | null
+          updated_at: string
+          valor_estimado: number | null
+        }
+        Insert: {
+          client_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          email?: string | null
+          id?: string
+          last_contact_at?: string | null
+          next_follow_up?: string | null
+          nome: string
+          notas?: string | null
+          origem?: string
+          prioridade?: string
+          servico_interesse?: string | null
+          status?: string
+          telefone?: string | null
+          updated_at?: string
+          valor_estimado?: number | null
+        }
+        Update: {
+          client_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          email?: string | null
+          id?: string
+          last_contact_at?: string | null
+          next_follow_up?: string | null
+          nome?: string
+          notas?: string | null
+          origem?: string
+          prioridade?: string
+          servico_interesse?: string | null
+          status?: string
+          telefone?: string | null
+          updated_at?: string
+          valor_estimado?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_leads_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       distribuicao_acoes: {
         Row: {
           assinatura: string | null
