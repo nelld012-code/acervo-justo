@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
-import { FileSignature } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { FileSignature, Printer } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
