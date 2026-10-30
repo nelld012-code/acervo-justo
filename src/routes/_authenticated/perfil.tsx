@@ -29,11 +29,41 @@ export const Route = createFileRoute("/_authenticated/perfil")({
 });
 
 async function callAdminUsers(payload: Record<string, unknown>) {
-  const { data: sessionData } = await supabase.auth.getSession();
+  const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+  if (sessionError) throw new Error(sessionError.message);
   const token = sessionData.session?.access_token;
   if (!token) throw new Error("Sessão expirada. Faça login novamente.");
-  const { data, error } = await supabase.functions.invoke("admin-users", { body: payload, headers: { Authorization: `Bearer ${token}` } });
-  if (error) throw new Error(error.message);
+
+  const { data, error } = await supabase.functions.invoke("admin-users", {
+    body: payload,
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  if (error) {
+    const response = (error as unknown as { context?: unknown }).context;
+    let detail = "";
+    let status: number | undefined;
+    if (response instanceof Response) {
+      status = response.status;
+      const raw = await response.clone().text().catch(() => "");
+      if (raw) {
+        try {
+          const parsed = JSON.parse(raw) as { error?: string; message?: string; msg?: string };
+          detail = parsed.error ?? parsed.message ?? parsed.msg ?? "";
+        } catch {
+          detail = raw.slice(0, 500);
+        }
+      }
+    }
+    console.error("[admin-users] Falha na chamada da função", {
+      action: payload.action,
+      status,
+      message: error.message,
+      detail,
+    });
+    throw new Error(detail || error.message);
+  }
+
   if (data?.error) throw new Error(data.error);
   return data;
 }
@@ -113,9 +143,38 @@ function PerfilPage() {
     if (!editingUser && userForm.password.length < 6) return toast.error("A senha deve ter ao menos 6 caracteres");
     setUserSaving(true);
     try {
-      await callAdminUsers({ action: editingUser ? "update" : "create", ...(editingUser ? { id: editingUser.id } : {}), nome: userForm.nome.trim(), email: userForm.email.trim(), telefone: userForm.telefone.trim(), cargo: userForm.cargo, password: userForm.password });
+      const userData = {
+        nome: userForm.nome.trim(),
+        email: userForm.email.trim(),
+        telefone: userForm.telefone.trim(),
+        cargo: userForm.cargo,
+      };
+
+      if (editingUser) {
+        await callAdminUsers({ action: "update", id: editingUser.id, ...userData });
+        if (userForm.password) {
+          try {
+            await callAdminUsers({
+              action: "set-password",
+              id: editingUser.id,
+              password: userForm.password,
+            });
+          } catch (passwordError) {
+            const reason = passwordError instanceof Error ? passwordError.message : "Erro desconhecido.";
+            throw new Error(`Os dados do usuário foram atualizados, mas a senha não foi alterada: ${reason}`);
+          }
+        }
+      } else {
+        await callAdminUsers({
+          action: "create",
+          ...userData,
+          password: userForm.password,
+        });
+      }
+
       toast.success(editingUser ? "Usuário atualizado" : "Usuário criado");
-      setUserDialogOpen(false); await loadUsers();
+      setUserDialogOpen(false);
+      await loadUsers();
     } catch (e) { toast.error("Erro ao salvar usuário", { description: e instanceof Error ? e.message : "" }); }
     finally { setUserSaving(false); }
   }
