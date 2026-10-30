@@ -60,6 +60,9 @@ export type Cliente = {
   observacoes: string | null;
   created_at: string;
   data_atendimento?: string | null;
+  nacionalidade?: string | null;
+  uf?: string | null;
+  cep?: string | null;
   rg?: string | null;
   estado_civil?: string | null;
   profissao?: string | null;
