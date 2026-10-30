@@ -263,6 +263,9 @@ export type ImportClienteRow = {
   endereco: string | null;
   bairro: string | null;
   cidade: string | null;
+  nacionalidade: string | null;
+  uf: string | null;
+  cep: string | null;
   rg: string | null;
   estado_civil: string | null;
   profissao: string | null;
@@ -293,6 +296,9 @@ const CLIENTE_ALIASES: Record<keyof ImportClienteRow, string[]> = {
   endereco: ["endereco", "endereco do autor", "logradouro"],
   bairro: ["bairro"],
   cidade: ["cidade", "municipio"],
+  nacionalidade: ["nacionalidade"],
+  uf: ["uf", "estado"],
+  cep: ["cep", "codigo postal"],
   rg: ["rg", "registro geral", "identidade"],
   estado_civil: ["estado civil"],
   profissao: ["profissao"],
@@ -368,6 +374,9 @@ export function parseClientesRows(matrix: ExcelCell[][]): ImportClienteResult {
         endereco: opcional(row, "endereco"),
         bairro: opcional(row, "bairro"),
         cidade: opcional(row, "cidade"),
+        nacionalidade: opcional(row, "nacionalidade"),
+        uf: opcional(row, "uf"),
+        cep: opcional(row, "cep"),
         rg: opcional(row, "rg"),
         estado_civil: opcional(row, "estado_civil"),
         profissao: opcional(row, "profissao"),
