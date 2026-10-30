@@ -47,7 +47,7 @@ jobs:
           deno-version: v2.x
 
       - name: Check admin-users Edge Function
-        run: deno check --no-lock supabase/functions/admin-users/index.ts
+        run: deno check --no-lock --node-modules-dir=auto supabase/functions/admin-users/index.ts
 
       - name: Build application
         if: always()
