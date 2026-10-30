@@ -251,7 +251,16 @@ function AssistentesJuridicosPage() {
               key={item.id}
               type="button"
               variant={active ? "default" : "outline"}
-              onClick={() => setSpecialty(item.id)}
+              onClick={() => {
+                if (specialty !== item.id && messages.length > 0) {
+                  const confirmed = window.confirm("Trocar de especialidade inicia um novo atendimento. Salve o rascunho atual antes de continuar. Deseja trocar agora?");
+                  if (!confirmed) return;
+                  setMessages([]);
+                  setPrompt("");
+                  setDraft("");
+                }
+                setSpecialty(item.id);
+              }}
               aria-pressed={active}
               className={"h-auto min-h-[112px] items-start justify-start whitespace-normal p-4 text-left " + (active ? "shadow-sm" : "")}
             >
