@@ -96,8 +96,8 @@ async function extractDocxText(file: File): Promise<string> {
 }
 
 async function extractPdfText(file: File): Promise<string> {
-  const loadPdfJs = new Function("url", "return import(url)") as (url: string) => Promise<{ GlobalWorkerOptions: { workerSrc: string }; getDocument: (options: { data: ArrayBuffer }) => { promise: Promise<{ numPages: number; getPage: (page: number) => Promise<{ getTextContent: () => Promise<{ items: Array<{ str?: string }> }> }> }> }> }>;
-  const pdfjs = await loadPdfJs("https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs");
+  const pdfjsUrl = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs";
+  const pdfjs = await import(/* @vite-ignore */ pdfjsUrl);
   pdfjs.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.mjs";
   const pdf = await pdfjs.getDocument({ data: await file.arrayBuffer() }).promise;
   const pages: string[] = [];
