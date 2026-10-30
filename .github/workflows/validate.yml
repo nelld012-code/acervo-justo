@@ -39,6 +39,7 @@ jobs:
           src/routes/auth.tsx
           src/routes/_authenticated/financeiro.tsx
           src/routes/_authenticated/perfil.tsx
+          src/routes/_authenticated/assistentes-juridicos.tsx
           --rule 'prettier/prettier: off'
 
       - name: Install Deno
