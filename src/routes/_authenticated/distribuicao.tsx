@@ -101,7 +101,7 @@ function DistribuicaoPage() {
   if (profileLoading) {
     return <div className="p-6 text-sm text-muted-foreground">Verificando permissões...</div>;
   }
-  const canManageDistribution = perms.isAdmin || perms.cargo === "assistente" || perms.cargo === "advogado";
+  const canManageDistribution = perms.isAdmin;
   if (!canManageDistribution) {
     return <div className="p-6 text-sm text-muted-foreground">Acesso restrito.</div>;
   }
