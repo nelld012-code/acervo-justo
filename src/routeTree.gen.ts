@@ -25,6 +25,7 @@ import { Route as AuthenticatedDistribuicaoRouteImport } from './routes/_authent
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedCrmRouteImport } from './routes/_authenticated/crm'
 import { Route as AuthenticatedClientesRouteImport } from './routes/_authenticated/clientes'
+import { Route as AuthenticatedBancoTarefasRouteImport } from './routes/_authenticated/banco-tarefas'
 import { Route as AuthenticatedAuditRouteImport } from './routes/_authenticated/audit'
 import { Route as AuthenticatedAudienciasRouteImport } from './routes/_authenticated/audiencias'
 
@@ -109,6 +110,12 @@ const AuthenticatedClientesRoute = AuthenticatedClientesRouteImport.update({
   path: '/clientes',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedBancoTarefasRoute =
+  AuthenticatedBancoTarefasRouteImport.update({
+    id: '/banco-tarefas',
+    path: '/banco-tarefas',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedAuditRoute = AuthenticatedAuditRouteImport.update({
   id: '/audit',
   path: '/audit',
@@ -125,6 +132,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/audiencias': typeof AuthenticatedAudienciasRoute
   '/audit': typeof AuthenticatedAuditRoute
+  '/banco-tarefas': typeof AuthenticatedBancoTarefasRoute
   '/clientes': typeof AuthenticatedClientesRoute
   '/crm': typeof AuthenticatedCrmRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
@@ -144,6 +152,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/audiencias': typeof AuthenticatedAudienciasRoute
   '/audit': typeof AuthenticatedAuditRoute
+  '/banco-tarefas': typeof AuthenticatedBancoTarefasRoute
   '/clientes': typeof AuthenticatedClientesRoute
   '/crm': typeof AuthenticatedCrmRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
@@ -165,6 +174,7 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/_authenticated/audiencias': typeof AuthenticatedAudienciasRoute
   '/_authenticated/audit': typeof AuthenticatedAuditRoute
+  '/_authenticated/banco-tarefas': typeof AuthenticatedBancoTarefasRoute
   '/_authenticated/clientes': typeof AuthenticatedClientesRoute
   '/_authenticated/crm': typeof AuthenticatedCrmRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
@@ -186,6 +196,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/audiencias'
     | '/audit'
+    | '/banco-tarefas'
     | '/clientes'
     | '/crm'
     | '/dashboard'
@@ -205,6 +216,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/audiencias'
     | '/audit'
+    | '/banco-tarefas'
     | '/clientes'
     | '/crm'
     | '/dashboard'
@@ -225,6 +237,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/_authenticated/audiencias'
     | '/_authenticated/audit'
+    | '/_authenticated/banco-tarefas'
     | '/_authenticated/clientes'
     | '/_authenticated/crm'
     | '/_authenticated/dashboard'
@@ -360,6 +373,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedClientesRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/banco-tarefas': {
+      id: '/_authenticated/banco-tarefas'
+      path: '/banco-tarefas'
+      fullPath: '/banco-tarefas'
+      preLoaderRoute: typeof AuthenticatedBancoTarefasRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/audit': {
       id: '/_authenticated/audit'
       path: '/audit'
@@ -380,6 +400,7 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAudienciasRoute: typeof AuthenticatedAudienciasRoute
   AuthenticatedAuditRoute: typeof AuthenticatedAuditRoute
+  AuthenticatedBancoTarefasRoute: typeof AuthenticatedBancoTarefasRoute
   AuthenticatedClientesRoute: typeof AuthenticatedClientesRoute
   AuthenticatedCrmRoute: typeof AuthenticatedCrmRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
@@ -398,6 +419,7 @@ interface AuthenticatedRouteRouteChildren {
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAudienciasRoute: AuthenticatedAudienciasRoute,
   AuthenticatedAuditRoute: AuthenticatedAuditRoute,
+  AuthenticatedBancoTarefasRoute: AuthenticatedBancoTarefasRoute,
   AuthenticatedClientesRoute: AuthenticatedClientesRoute,
   AuthenticatedCrmRoute: AuthenticatedCrmRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
