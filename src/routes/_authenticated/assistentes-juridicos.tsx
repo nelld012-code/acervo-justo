@@ -54,10 +54,12 @@ const SPECIALTIES = [
 type Specialty = (typeof SPECIALTIES)[number]["id"];
 type ChatMessage = { role: "user" | "assistant"; content: string };
 
+const HTML_ENTITIES: Record<string, string> = {
+  "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+};
+
 function escapeHtml(value: string) {
-  return value.replace(/[&<>"']/g, (char) => ({
-    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
-  })[char] ?? char);
+  return value.replace(/[&<>"']/g, (char) => HTML_ENTITIES[char] ?? char);
 }
 
 function buildDocumentHtml(title: string, body: string) {
