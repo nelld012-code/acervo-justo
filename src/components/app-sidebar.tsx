@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { LayoutDashboard, Upload, Search, FolderOpen, ClipboardList, Scale, Users, Wallet, ConciergeBell, CalendarClock, ChevronDown, FileBarChart2, MessagesSquare, Gavel, FileText, Handshake } from "lucide-react";
+import { LayoutDashboard, Upload, Search, FolderOpen, ClipboardList, Scale, Users, Wallet, ConciergeBell, CalendarClock, ChevronDown, FileBarChart2, MessagesSquare, Gavel, FileText, Handshake, Bot } from "lucide-react";
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarHeader, useSidebar } from "@/components/ui/sidebar";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { supabase } from "@/integrations/supabase/client";
@@ -32,6 +32,7 @@ const groups = [
     { title: "Enviar Documento", url: "/upload", icon: Upload, need: "documents" },
     { title: "Buscar Documentos", url: "/search", icon: Search, need: "all" },
     { title: "Meus Documentos", url: "/my-documents", icon: FolderOpen, need: "all" },
+    { title: "Assistentes Jurídicos", url: "/assistentes-juridicos", icon: Bot, need: "legal" },
   ] },
   { title: "Sistema", items: [
     { title: "Auditoria", url: "/audit", icon: ClipboardList, need: "audit" },
@@ -43,6 +44,7 @@ function menuItemVisible(item: { need: string }, perms: { isAdmin: boolean; carg
   if (item.need === "admin") return perms.isAdmin;
   if (item.need === "distribution") return perms.isAdmin;
   if (item.need === "crm") return ["administrador", "advogado", "secretaria", "assistente"].includes(perms.cargo);
+  if (item.need === "legal") return ["administrador", "advogado", "secretaria", "assistente"].includes(perms.cargo);
   if (item.need === "finance") return perms.canAccessFinance;
   if (item.need === "documents") return perms.canManageDocuments;
   if (item.need === "audit") return perms.canViewAudit;
