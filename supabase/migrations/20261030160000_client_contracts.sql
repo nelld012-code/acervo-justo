@@ -30,7 +30,7 @@ CREATE TABLE IF NOT EXISTS public.client_contracts (
 CREATE INDEX IF NOT EXISTS client_contracts_client_id_idx ON public.client_contracts(client_id);
 CREATE INDEX IF NOT EXISTS client_contracts_created_at_idx ON public.client_contracts(created_at DESC);
 
-REVOKE ALL ON TABLE public.client_contracts FROM anon, PUBLIC;
+REVOKE ALL ON TABLE public.client_contracts FROM anon, authenticated, PUBLIC;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.client_contracts TO authenticated;
 ALTER TABLE public.client_contracts ENABLE ROW LEVEL SECURITY;
 
