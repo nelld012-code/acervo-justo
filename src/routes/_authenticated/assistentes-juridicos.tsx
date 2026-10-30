@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import {
   Bot, Download, FileText, FolderTree, Landmark, LoaderCircle, MessageSquare,
-  Printer, RefreshCw, Scale, Send, ShieldCheck, Copy, Save,
+  Printer, RefreshCw, Scale, Send, ShieldCheck, Copy, Save, Paperclip, X,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -53,6 +53,71 @@ const SPECIALTIES = [
 
 type Specialty = (typeof SPECIALTIES)[number]["id"];
 type ChatMessage = { role: "user" | "assistant"; content: string };
+const MAX_ATTACHMENT_CHARS = 5_000;
+
+async function extractDocxText(file: File): Promise<string> {
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  let eocd = -1;
+  for (let i = bytes.length - 22; i >= Math.max(0, bytes.length - 65_557); i -= 1) {
+    if (view.getUint32(i, true) === 0x06054b50) { eocd = i; break; }
+  }
+  if (eocd < 0) throw new Error("Não consegui ler este DOCX. Salve novamente no Word e tente outra vez.");
+  const count = view.getUint16(eocd + 10, true);
+  let offset = view.getUint32(eocd + 16, true);
+  for (let i = 0; i < count; i += 1) {
+    if (view.getUint32(offset, true) !== 0x02014b50) break;
+    const method = view.getUint16(offset + 10, true);
+    const compressedSize = view.getUint32(offset + 20, true);
+    const nameLength = view.getUint16(offset + 28, true);
+    const extraLength = view.getUint16(offset + 30, true);
+    const commentLength = view.getUint16(offset + 32, true);
+    const localOffset = view.getUint32(offset + 42, true);
+    const name = new TextDecoder().decode(bytes.slice(offset + 46, offset + 46 + nameLength));
+    if (name === "word/document.xml") {
+      const localNameLength = view.getUint16(localOffset + 26, true);
+      const localExtraLength = view.getUint16(localOffset + 28, true);
+      const start = localOffset + 30 + localNameLength + localExtraLength;
+      const compressed = bytes.slice(start, start + compressedSize);
+      let raw: Uint8Array;
+      if (method === 0) raw = compressed;
+      else if (method === 8 && typeof DecompressionStream !== "undefined") {
+        const stream = new Blob([compressed]).stream().pipeThrough(new DecompressionStream("deflate-raw" as CompressionFormat));
+        raw = new Uint8Array(await new Response(stream).arrayBuffer());
+      } else throw new Error("Este navegador não consegue abrir o DOCX. Converta para TXT ou PDF pesquisável.");
+      const xml = new DOMParser().parseFromString(new TextDecoder().decode(raw), "application/xml");
+      return Array.from(xml.getElementsByTagName("w:p")).map((p) =>
+        Array.from(p.getElementsByTagName("w:t")).map((t) => t.textContent ?? "").join(""),
+      ).join("\n").trim();
+    }
+    offset += 46 + nameLength + extraLength + commentLength;
+  }
+  throw new Error("O texto principal não foi encontrado neste DOCX.");
+}
+
+async function extractPdfText(file: File): Promise<string> {
+  const pdfjs = await import(/* @vite-ignore */ "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs");
+  pdfjs.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.mjs";
+  const pdf = await pdfjs.getDocument({ data: await file.arrayBuffer() }).promise;
+  const pages: string[] = [];
+  for (let pageNumber = 1; pageNumber <= Math.min(pdf.numPages, 25); pageNumber += 1) {
+    const page = await pdf.getPage(pageNumber);
+    const content = await page.getTextContent();
+    pages.push(content.items.map((item: { str?: string }) => item.str ?? "").join(" "));
+    if (pages.join("\n").length >= MAX_ATTACHMENT_CHARS) break;
+  }
+  const text = pages.join("\n").trim();
+  if (!text) throw new Error("Não encontrei texto neste PDF. Se for digitalização/imagem, faça OCR ou envie um PDF pesquisável.");
+  return text;
+}
+
+async function extractAttachment(file: File): Promise<string> {
+  const name = file.name.toLowerCase();
+  if (name.endsWith(".pdf")) return extractPdfText(file);
+  if (name.endsWith(".docx")) return extractDocxText(file);
+  if (/\.(txt|md|csv|json|html|rtf)$/i.test(name) || file.type.startsWith("text/")) return (await file.text()).slice(0, MAX_ATTACHMENT_CHARS);
+  throw new Error("Formato não suportado. Envie PDF pesquisável, Word (.docx), TXT, MD, CSV, JSON, HTML ou RTF.");
+}
 
 const HTML_ENTITIES: Record<string, string> = {
   "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
@@ -111,6 +176,9 @@ function AssistentesJuridicosPage() {
   const [prompt, setPrompt] = useState("");
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
+  const [attachmentName, setAttachmentName] = useState("");
+  const [attachmentText, setAttachmentText] = useState("");
+  const [readingAttachment, setReadingAttachment] = useState(false);
 
   const selected = SPECIALTIES.find((item) => item.id === specialty) ?? SPECIALTIES[0];
 
@@ -118,6 +186,8 @@ function AssistentesJuridicosPage() {
     setMessages([]);
     setPrompt("");
     setDraft("");
+    setAttachmentName("");
+    setAttachmentText("");
     toast.success("Novo atendimento iniciado. O anterior não foi salvo no sistema.");
   }
 
@@ -131,9 +201,17 @@ function AssistentesJuridicosPage() {
       toast.error("Reduza a solicitação para até 8.000 caracteres.");
       return;
     }
+    const requestText = attachmentText
+      ? text + "\n\nARQUIVO ANEXADO: " + attachmentName + "\nTEXTO EXTRAÍDO DO ARQUIVO (trecho disponível):\n" + attachmentText.slice(0, Math.max(0, 7_800 - text.length))
+      : text;
+    if (requestText.length > 8_000) {
+      toast.error("A solicitação e o arquivo ultrapassam o limite. Reduza a solicitação ou envie um arquivo menor.");
+      return;
+    }
+    const visibleText = text + (attachmentName ? "\n\n[Arquivo anexado: " + attachmentName + "]" : "");
 
     setSending(true);
-    const nextHistory: ChatMessage[] = [...messages, { role: "user", content: text }];
+    const nextHistory: ChatMessage[] = [...messages, { role: "user", content: requestText }];
     setMessages(nextHistory);
     setPrompt("");
 
@@ -163,7 +241,7 @@ function AssistentesJuridicosPage() {
       }
 
       const answer = result.answer.trim();
-      setMessages([...nextHistory, { role: "assistant", content: answer }]);
+      setMessages([...messages, { role: "user", content: visibleText }, { role: "assistant", content: answer }]);
       setDraft(answer);
       toast.success("Resposta gerada. Revise o texto antes de utilizar.");
     } catch (error) {
@@ -260,6 +338,8 @@ function AssistentesJuridicosPage() {
                   setMessages([]);
                   setPrompt("");
                   setDraft("");
+                  setAttachmentName("");
+                  setAttachmentText("");
                 }
                 setSpecialty(item.id);
               }}
@@ -319,6 +399,39 @@ function AssistentesJuridicosPage() {
               )}
             </div>
             <div className="space-y-2">
+              <div className="space-y-2 rounded-lg border border-dashed p-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <p className="flex items-center gap-2 text-sm font-medium"><Paperclip className="h-4 w-4" />Anexar arquivo ao assistente {selected.title}</p>
+                    <p className="text-xs text-muted-foreground">PDF pesquisável, Word (.docx), TXT, MD, CSV, JSON, HTML ou RTF · até 15 MB</p>
+                  </div>
+                  <label className="inline-flex cursor-pointer items-center rounded-md border px-3 py-2 text-sm font-medium hover:bg-muted">
+                    {readingAttachment ? <LoaderCircle className="mr-2 h-4 w-4 animate-spin" /> : <Paperclip className="mr-2 h-4 w-4" />}
+                    {readingAttachment ? "Lendo arquivo..." : "Escolher arquivo"}
+                    <input type="file" className="sr-only" accept=".pdf,.docx,.txt,.md,.csv,.json,.html,.rtf,text/*" disabled={sending || readingAttachment} onChange={async (event) => {
+                      const file = event.target.files?.[0];
+                      event.target.value = "";
+                      if (!file) return;
+                      if (file.size > 15 * 1024 * 1024) { toast.error("O arquivo deve ter até 15 MB."); return; }
+                      setReadingAttachment(true);
+                      try {
+                        const extracted = (await extractAttachment(file)).trim();
+                        if (!extracted) throw new Error("O arquivo não contém texto legível.");
+                        setAttachmentName(file.name);
+                        setAttachmentText(extracted.slice(0, MAX_ATTACHMENT_CHARS));
+                        toast.success("Arquivo lido. O conteúdo será enviado à IA somente quando você enviar a solicitação.");
+                      } catch (error) {
+                        toast.error("Não foi possível ler o arquivo.", { description: error instanceof Error ? error.message : "Verifique o formato do arquivo." });
+                      } finally { setReadingAttachment(false); }
+                    }} />
+                  </label>
+                </div>
+                {attachmentName && <div className="flex items-center justify-between gap-2 rounded-md bg-muted/50 p-2 text-sm">
+                  <span className="min-w-0 break-all"><FileText className="mr-2 inline h-4 w-4" />{attachmentName}<span className="ml-2 text-xs text-muted-foreground">({attachmentText.length.toLocaleString("pt-BR")} caracteres extraídos)</span></span>
+                  <Button type="button" size="icon" variant="ghost" aria-label="Remover arquivo" onClick={() => { setAttachmentName(""); setAttachmentText(""); }}><X className="h-4 w-4" /></Button>
+                </div>}
+                <p className="text-xs text-muted-foreground">O arquivo não é guardado no Acervo Justo. O texto extraído segue para a IA quando você clicar em “Enviar solicitação”. PDFs digitalizados como imagem podem precisar de OCR antes.</p>
+              </div>
               <Label htmlFor="legal-assistant-prompt">Descreva o caso ou faça sua pergunta</Label>
               <Textarea
                 id="legal-assistant-prompt"
