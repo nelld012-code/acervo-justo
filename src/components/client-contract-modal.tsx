@@ -35,11 +35,44 @@ function monthlyDates(first:string,count:number) {
     return format(new Date(m.getFullYear(),m.getMonth(),Math.min(p[2],last),12),"yyyy-MM-dd");
   });
 }
+
+function underThousand(n:number): string {
+  const units="zero|um|dois|três|quatro|cinco|seis|sete|oito|nove|dez|onze|doze|treze|quatorze|quinze|dezesseis|dezessete|dezoito|dezenove".split("|");
+  const tens=["","","vinte","trinta","quarenta","cinquenta","sessenta","setenta","oitenta","noventa"];
+  const hundreds=["","cento","duzentos","trezentos","quatrocentos","quinhentos","seiscentos","setecentos","oitocentos","novecentos"];
+  if(n===0) return "zero";
+  if(n===100) return "cem";
+  if(n<20) return units[n];
+  if(n<100) return tens[Math.floor(n/10)]+(n%10?" e "+units[n%10]:"");
+  return hundreds[Math.floor(n/100)]+(n%100?" e "+underThousand(n%100):"");
+}
+function numberWords(value:number): string {
+  let n=Math.floor(Math.abs(value));
+  if(n===0) return "zero";
+  const parts:string[]=[];
+  const billions=Math.floor(n/1_000_000_000); n%=1_000_000_000;
+  const millions=Math.floor(n/1_000_000); n%=1_000_000;
+  const thousands=Math.floor(n/1_000); n%=1_000;
+  if(billions) parts.push((billions===1?"um":underThousand(billions))+(billions===1?" bilhão":" bilhões"));
+  if(millions) parts.push((millions===1?"um":underThousand(millions))+(millions===1?" milhão":" milhões"));
+  if(thousands) parts.push(thousands===1?"mil":underThousand(thousands)+" mil");
+  if(n) parts.push(underThousand(n));
+  return parts.join(" e ");
+}
+function currencyWords(value:number): string {
+  const cents=Math.round(Math.abs(value)*100);
+  const reais=Math.floor(cents/100);
+  const centavos=cents%100;
+  let result=numberWords(reais)+(reais===1?" real":" reais");
+  if(centavos) result+=" e "+numberWords(centavos)+(centavos===1?" centavo":" centavos");
+  return result;
+}
+
 function contractHtml(f:Form, dates:string[]) {
   const entrada=Number(f.entrada_valor||0), total=Number(f.honorarios_total||0), parcela=Number(f.parcela_valor||0);
-  const pagamento = "Em remuneração pelos serviços profissionais ora contratados serão devidos honorários advocatícios no importe de "+formatBRL(total)+". "+
-    (entrada>0 ? "Sendo uma entrada no valor de "+formatBRL(entrada)+", paga na data de "+brDate(f.entrada_data)+". " : "Não haverá pagamento de entrada. ")+
-    (dates.length ? "Serão devidas mais "+dates.length+" parcelas no valor de "+formatBRL(parcela)+", com os seguintes vencimentos: "+dates.map(brDate).join(", ")+". " : "Não haverá parcelas adicionais.");
+  const pagamento = "Em remuneração pelos serviços profissionais ora contratados serão devidos honorários advocatícios no importe de "+formatBRL(total)+" ("+currencyWords(total)+"). "+
+    (entrada>0 ? "Sendo uma entrada no valor de "+formatBRL(entrada)+" ("+currencyWords(entrada)+"), paga na data de "+brDate(f.entrada_data)+". " : "Não haverá pagamento de entrada. ")+
+    (dates.length ? "Serão devidas mais "+dates.length+" parcelas no valor de "+formatBRL(parcela)+" ("+currencyWords(parcela)+"), com os seguintes vencimentos: "+dates.map(brDate).join(", ")+". " : "Não haverá parcelas adicionais.");
   const p = [];
   p.push("<p>Pelo presente instrumento particular, que entre si fazem, de um lado como cliente/contratante, "+esc(f.nome)+", "+esc(f.nacionalidade)+", "+esc(f.estado_civil)+", "+esc(f.profissao)+", portador da CI nº "+esc(f.rg)+", inscrito no CPF de n.º "+esc(f.cpf_cnpj)+", com endereço a "+esc(f.endereco)+", Bairro "+esc(f.bairro)+" - "+esc(f.cidade)+"/"+esc(f.uf)+", CEP "+esc(f.cep)+", e de outro lado, como prestador de serviço/contratado JOAQUIM DIMAS GONÇALVES, brasileiro, separado judicialmente, advogado, inscrito na OAB/MG sob o n.º 37.610, com escritório na Avenida Amazonas, 115 / 1.717 – Centro – CEP. 30.180-902 - Belo Horizonte (MG), ajusta entre si, com fulcro no artigo 22 da Lei nº 8.906/94, mediante as seguintes cláusulas e condições:</p>");
   p.push("<p><b>Cláusula Primeira -</b> O Contratado compromete-se, em cumprimento ao mandato recebido, para propor "+esc(f.objeto_servico)+" em nome de "+esc(f.representado_nome)+".</p>");
