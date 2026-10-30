@@ -38,7 +38,16 @@ jobs:
           src/components/app-sidebar.tsx
           src/routes/auth.tsx
           src/routes/_authenticated/financeiro.tsx
+          src/routes/_authenticated/perfil.tsx
           --rule 'prettier/prettier: off'
+
+      - name: Install Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Check admin-users Edge Function
+        run: deno check --no-lock supabase/functions/admin-users/index.ts
 
       - name: Build application
         if: always()
