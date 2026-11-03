@@ -177,8 +177,10 @@ function prepareContractHtmlForPrint(html: string) {
   const parent = pages.length > 0 ? pages[0].parentElement ?? contentHost : contentHost;
   const firstOldPage = pages[0] ?? null;
   const newPages: HTMLElement[] = [];
-  const firstEnd = Math.min(4, blocks.length);
-  const secondEnd = Math.min(9, blocks.length);
+  // Distribuição equilibrada do contrato: introdução e cláusulas iniciais,
+  // cláusulas intermediárias e cláusulas finais/assinaturas.
+  const firstEnd = Math.min(5, blocks.length);
+  const secondEnd = Math.min(10, blocks.length);
   const ranges: Array<[number, number]> = [
     [0, firstEnd],
     [firstEnd, secondEnd],
@@ -219,7 +221,7 @@ function prepareContractHtmlForPrint(html: string) {
     ".contract-page { display:block !important; position:static !important; float:none !important; width:auto !important; min-height:0 !important; height:auto !important; margin:0 !important; padding:0 !important; break-after:page !important; page-break-after:always !important; }",
     ".contract-page.is-last-contract-page { break-after:auto !important; page-break-after:auto !important; }",
     /* Somente a segunda página recebe reforço de quebra e visibilidade do cabeçalho. */
-    ".contract-page-second { break-before:page !important; page-break-before:always !important; }",
+    /* A página 1 já termina com break-after; não duplicar a quebra antes da página 2. */
     ".contract-page-second > .contract-header-page-2 { display:flex !important; position:static !important; visibility:visible !important; opacity:1 !important; margin-top:0 !important; margin-bottom:7mm !important; break-after:avoid !important; page-break-after:avoid !important; }",
     ".contract-header { display:flex !important; position:static !important; float:none !important; clear:both !important; transform:none !important; visibility:visible !important; opacity:1 !important; flex-direction:column !important; align-items:center !important; justify-content:center !important; width:100% !important; min-height:25mm !important; height:auto !important; margin:0 0 7mm !important; padding:4mm 8mm !important; box-sizing:border-box !important; text-align:center !important; background:#0F1729 !important; color:#fff !important; break-inside:avoid !important; page-break-inside:avoid !important; -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; }",
     ".contract-header .sys { font-size:9pt !important; letter-spacing:1.2px !important; color:#C7CFE6 !important; font-weight:400 !important; }",
