@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { type Cliente, formatBRL } from "@/lib/documents";
+import { type Cliente, formatBRL, METODOS_PAGAMENTO } from "@/lib/documents";
 import { openPrintDocument } from "@/lib/print-doc";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -14,7 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
 type Props = { client: Cliente | null; onClose: () => void; onSaved: () => void };
-type Form = { nome:string; nacionalidade:string; estado_civil:string; profissao:string; rg:string; cpf_cnpj:string; endereco:string; bairro:string; cidade:string; uf:string; cep:string; objeto_servico:string; representado_nome:string; honorarios_total:string; entrada_valor:string; entrada_data:string; parcelas_quantidade:string; parcela_valor:string; primeiro_vencimento:string; cidade_assinatura:string; data_assinatura:string; testemunha_1:string; testemunha_2:string };
+type Form = { nome:string; nacionalidade:string; estado_civil:string; profissao:string; rg:string; cpf_cnpj:string; endereco:string; bairro:string; cidade:string; uf:string; cep:string; objeto_servico:string; representado_nome:string; honorarios_total:string; entrada_valor:string; entrada_data:string; entrada_metodo_pagamento:string; parcelas_quantidade:string; parcela_valor:string; primeiro_vencimento:string; cidade_assinatura:string; data_assinatura:string; testemunha_1:string; testemunha_2:string };
 
 const hoje = () => format(new Date(), "yyyy-MM-dd");
 const initial = (c: Cliente): Form => ({
@@ -22,7 +22,7 @@ const initial = (c: Cliente): Form => ({
   profissao:c.profissao ?? "", rg:c.rg ?? "", cpf_cnpj:c.cpf_cnpj ?? "", endereco:c.endereco ?? "",
   bairro:c.bairro ?? "", cidade:c.cidade ?? "", uf:c.uf ?? "MG", cep:c.cep ?? "",
   objeto_servico:c.tipo_acao ?? "", representado_nome:c.nome, honorarios_total:"0",
-  entrada_valor:"0", entrada_data:hoje(), parcelas_quantidade:"0", parcela_valor:"0",
+  entrada_valor:"0", entrada_data:hoje(), entrada_metodo_pagamento:"", parcelas_quantidade:"0", parcela_valor:"0",
   primeiro_vencimento:format(new Date(new Date().getFullYear(),new Date().getMonth()+1,1),"yyyy-MM-dd"),
   cidade_assinatura:"Belo Horizonte", data_assinatura:hoje(), testemunha_1:"", testemunha_2:""
 });
@@ -70,7 +70,7 @@ function currencyWords(value:number): string {
   return result;
 }
 
-function contractHtml(f:Form, dates:string[]) {
+function contractHtml(f:Form, dates:string[], numeroProcesso?: string | null) {
   const entrada=Number(f.entrada_valor||0), total=Number(f.honorarios_total||0), parcela=Number(f.parcela_valor||0);
   const pagamento = "Em remuneração pelos serviços profissionais ora contratados serão devidos honorários advocatícios no importe de "+formatBRL(total)+" ("+currencyWords(total)+"). "+
     (entrada>0 ? "Sendo uma entrada no valor de "+formatBRL(entrada)+" ("+currencyWords(entrada)+"), paga na data de "+brDate(f.entrada_data)+". " : "Não haverá pagamento de entrada. ")+
@@ -91,16 +91,43 @@ function contractHtml(f:Form, dates:string[]) {
   p.push("<p><b>Cláusula Décima -</b> Elegem as partes o foro da Comarca de Belo Horizonte (MG) para dirimir controvérsias que possam surgir do presente contrato, podendo o Advogado optar pelo foro de residência do Contratante.</p>");
   p.push("<p>E por estarem assim justos e contratados, assinam o presente em 02 (duas) vias de igual forma e teor, na presença de duas testemunhas, para que possa produzir todos os seus efeitos de direito.</p>");
   p.push("<p class='center'>"+esc(f.cidade_assinatura)+", "+brDate(f.data_assinatura)+".</p><div class='sign'>Contratante:<br>"+esc(f.nome)+"<br>______________________________________________<br><br>Contratado:<br>JOAQUIM DIMAS GONÇALVES<br>______________________________________________<br><br>Testemunhas:<br>"+esc(f.testemunha_1)+" ______________________________<br>"+esc(f.testemunha_2)+" ______________________________</div>");
-  const pageOne = p.slice(0, 6).join("");
-  const pageTwo = p.slice(6, 11).join("");
-  const pageThree = p.slice(11).join("");
+  const pageOne = p.slice(0, 5).join("");
+  const pageTwo = p.slice(5, 10).join("");
+  const pageThree = p.slice(10).join("");
+  const reciboVia = (via: string) => `
+    <article class="receipt-copy">
+      <header class="contract-header">
+        <div class="sys">Sistema de Gestão Judicial</div>
+        <div class="brand">J DIMAS GONÇALVES</div>
+        <div class="doc-title">RECIBO DE PAGAMENTO · ${esc(via)}</div>
+      </header>
+      <div class="receipt-data">
+        <div class="receipt-field"><span class="receipt-label">Cliente / Pagador</span><strong>${esc(f.nome)}</strong></div>
+        <div class="receipt-field"><span class="receipt-label">CPF</span><strong>${esc(f.cpf_cnpj)}</strong></div>
+        <div class="receipt-field"><span class="receipt-label">Processo</span><strong>${esc(numeroProcesso?.trim() || "Sem número de processo")}</strong></div>
+        <div class="receipt-field"><span class="receipt-label">Data do recebimento</span><strong>${brDate(f.entrada_data)}</strong></div>
+        <div class="receipt-field"><span class="receipt-label">Forma de pagamento</span><strong>${esc(f.entrada_metodo_pagamento)}</strong></div>
+        <div class="receipt-field"><span class="receipt-label">Referência</span><strong>Entrada dos honorários contratuais</strong></div>
+        <div class="receipt-amount">Valor recebido: ${formatBRL(entrada)} (${currencyWords(entrada)})</div>
+      </div>
+      <p class="receipt-declaration">Declaramos, para os devidos fins, que recebemos de <strong>${esc(f.nome)}</strong> a importância de <strong>${formatBRL(entrada)} (${currencyWords(entrada)})</strong>, referente à entrada dos honorários previstos no contrato de prestação de serviços advocatícios, paga em ${brDate(f.entrada_data)}.</p>
+      <div class="receipt-signatures">
+        <div class="receipt-sign"><div class="line"></div><strong>JOAQUIM DIMAS GONÇALVES</strong><small>Recebedor · OAB/MG 37.610</small></div>
+        <div class="receipt-sign"><div class="line"></div><strong>${esc(f.nome)}</strong><small>Pagador(a)</small></div>
+      </div>
+    </article>`;
+  const recibo = entrada > 0 ? `
+    <section class="receipt-page">
+      ${reciboVia("1ª via — Escritório")}
+      ${reciboVia("2ª via — Cliente")}
+    </section>` : "";
   return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Contrato - ${esc(f.nome)}</title>
 <style>
   *{box-sizing:border-box}
   html,body{margin:0;padding:0;background:#fff;color:#222}
-  body{font-family:Calibri,Arial,sans-serif;font-size:12pt;line-height:1.35;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  body{font-family:Calibri,Arial,sans-serif;font-size:12pt;line-height:1.5;-webkit-print-color-adjust:exact;print-color-adjust:exact}
   @page{size:A4 portrait;margin:14mm 22mm 18mm}
   .contract-page{width:100%;break-after:page;page-break-after:always}
   .contract-page:last-child{break-after:auto;page-break-after:auto}
@@ -116,7 +143,22 @@ function contractHtml(f:Form, dates:string[]) {
   .contract-header .doc-title{font-size:10pt;letter-spacing:.4px;color:#B8C7FF}
   .content p{text-align:justify;text-indent:10mm;margin:0 0 10px;orphans:3;widows:3;hyphens:auto}
   .content .center{text-align:center;text-indent:0;margin-top:6mm;margin-bottom:8mm}
-  .sign{margin-top:7mm;line-height:1.35;break-inside:avoid;page-break-inside:avoid}
+  .sign{margin-top:7mm;line-height:1.5;break-inside:avoid;page-break-inside:avoid}
+  .receipt-page{break-before:page;page-break-before:always}
+  .receipt-copy{border:1px solid #CBD5E1;padding:4mm 5mm;margin:0 0 5mm;break-inside:avoid;page-break-inside:avoid;font-size:10pt;line-height:1.25}
+  .receipt-copy .contract-header{min-height:18mm;margin:0 0 4mm;padding:2mm 5mm}
+  .receipt-copy .contract-header .brand{font-size:12pt}
+  .receipt-copy .contract-header .doc-title{font-size:9pt}
+  .receipt-data{display:grid;grid-template-columns:1fr 1fr;gap:2mm 5mm}
+  .receipt-label{display:block;font-size:8pt;color:#475569}
+  .receipt-field strong{display:block;font-size:9.5pt}
+  .receipt-amount{grid-column:1/-1;border:1px solid #CBD5E1;padding:2mm;font-size:13pt;font-weight:700}
+  .receipt-declaration{text-align:justify;margin:3mm 0;font-size:9pt;line-height:1.35}
+  .receipt-signatures{display:grid;grid-template-columns:1fr 1fr;gap:8mm;margin-top:6mm}
+  .receipt-sign .line{border-top:1px solid #334155;margin-bottom:1mm}
+  .receipt-sign strong,.receipt-sign small{display:block;text-align:center}
+  .receipt-sign strong{font-size:8.5pt}
+  .receipt-sign small{font-size:7.5pt;color:#475569}
   @media screen{
     body{width:210mm;margin:0 auto;padding:14mm 22mm 18mm}
     .contract-page{min-height:265mm}
@@ -147,6 +189,7 @@ function contractHtml(f:Form, dates:string[]) {
     </header>
     ${pageThree}
   </section>
+  ${recibo}
 </main>
 </body></html>`;
 }
@@ -177,6 +220,7 @@ export function ClientContractModal({ client, onClose, onSaved }: Props) {
     if(!form.nome.trim()||!form.nacionalidade.trim()||!form.estado_civil.trim()||!form.profissao.trim()||!form.rg.trim()||!form.cpf_cnpj.trim()||!form.endereco.trim()||!form.bairro.trim()||!form.cidade.trim()||!form.uf.trim()||!form.cep.trim()||!form.objeto_servico.trim()||!form.representado_nome.trim()) return toast.error("Preencha todos os dados obrigatórios do contratante e do serviço.");
     if(!Number.isInteger(Number(form.parcelas_quantidade))||Number(form.parcelas_quantidade)<0||total<0||entry<0||installment<0) return toast.error("Informe valores válidos e uma quantidade inteira de parcelas.");
     if(entry>0&&!form.entrada_data) return toast.error("Informe a data da entrada.");
+    if(entry>0&&!form.entrada_metodo_pagamento) return toast.error("Selecione a forma de pagamento da entrada para emitir o recibo.");
     if(count>0&&(dates.length!==count||dates.some(d=>!d)||!form.parcela_valor||installment<=0)) return toast.error("Informe o valor e os vencimentos de todas as parcelas.");
     if(mismatch) return toast.error("A entrada somada às parcelas deve ser igual aos honorários totais.");
     setSaving(true);
@@ -186,19 +230,21 @@ export function ClientContractModal({ client, onClose, onSaved }: Props) {
       const clientUpdate={nome:form.nome.trim(),nacionalidade:form.nacionalidade.trim(),estado_civil:form.estado_civil.trim(),profissao:form.profissao.trim(),rg:form.rg.trim(),cpf_cnpj:form.cpf_cnpj.trim(),endereco:form.endereco.trim(),bairro:form.bairro.trim(),cidade:form.cidade.trim(),uf:form.uf.trim().toUpperCase(),cep:form.cep.trim()};
       const {error:clientError}=await (supabase as any).from("clients").update(clientUpdate).eq("id",client.id);
       if(clientError) throw clientError;
-      const html=contractHtml(form,dates);
-      const snapshot={contratante:clientUpdate,contrato:{objeto_servico:form.objeto_servico,representado_nome:form.representado_nome,honorarios_total:total,entrada_valor:entry,entrada_data:form.entrada_data||null,parcelas_quantidade:count,parcela_valor:installment,parcelas_vencimentos:dates,cidade_assinatura:form.cidade_assinatura,data_assinatura:form.data_assinatura,testemunha_1:form.testemunha_1,testemunha_2:form.testemunha_2},contratado:"JOAQUIM DIMAS GONÇALVES - OAB/MG 37.610"};
+      const html=contractHtml(form,dates,client.numero_processo ?? null);
+      const snapshot={contratante:clientUpdate,contrato:{objeto_servico:form.objeto_servico,representado_nome:form.representado_nome,honorarios_total:total,entrada_valor:entry,entrada_data:form.entrada_data||null,entrada_metodo_pagamento:form.entrada_metodo_pagamento||null,recibo_entrada_incluido:entry>0,parcelas_quantidade:count,parcela_valor:installment,parcelas_vencimentos:dates,cidade_assinatura:form.cidade_assinatura,data_assinatura:form.data_assinatura,testemunha_1:form.testemunha_1,testemunha_2:form.testemunha_2},contratado:"JOAQUIM DIMAS GONÇALVES - OAB/MG 37.610"};
       const {error:saveError}=await (supabase as any).from("client_contracts").insert({client_id:client.id,objeto_servico:form.objeto_servico,representado_nome:form.representado_nome,honorarios_total:total,entrada_valor:entry,entrada_data:entry>0?form.entrada_data:null,parcelas_quantidade:count,parcela_valor:installment,parcelas_vencimentos:dates,cidade_assinatura:form.cidade_assinatura,data_assinatura:form.data_assinatura,testemunha_1:form.testemunha_1||null,testemunha_2:form.testemunha_2||null,contrato_html:html,dados_snapshot:snapshot,created_by:userData.user.id});
       if(saveError) throw saveError;
       onSaved();
       const opened = openPrintDocument(html);
       if (!opened) toast.error("Contrato salvo, mas não foi possível abrir a impressão. Reabra pela ficha do cliente.");
-      else toast.success("Contrato salvo e preparado para impressão.");
+      else toast.success(entry>0 ? "Contrato e recibo da entrada (2 vias) preparados para impressão." : "Contrato salvo e preparado para impressão.");
       onClose();
     }catch(error){toast.error("Não foi possível gerar o contrato.",{description:error instanceof Error?error.message:"Erro inesperado."});}
     finally{setSaving(false);}
   }
-  return <Dialog open={!!client} onOpenChange={open=>!open&&onClose()}><DialogContent className="max-h-[90vh] w-[calc(100vw-1rem)] max-w-4xl overflow-y-auto"><DialogHeader><DialogTitle className="flex items-center gap-2"><FileSignature className="h-5 w-5"/>Gerar contrato — {client.nome}</DialogTitle></DialogHeader><div className="space-y-5"><Card><CardHeader><CardTitle className="text-base">Dados do contratante</CardTitle></CardHeader><CardContent className="grid gap-3 sm:grid-cols-2">{inputs.slice(0,11).map(([key,label,type])=><div className="space-y-1" key={key}><Label>{label}</Label><Input type={type} value={form[key]} onChange={e=>set(key,e.target.value)} /></div>)}</CardContent></Card><Card><CardHeader><CardTitle className="text-base">Serviço jurídico</CardTitle></CardHeader><CardContent className="grid gap-3"><div className="space-y-1"><Label>Objeto / serviço contratado</Label><Textarea rows={2} value={form.objeto_servico} onChange={e=>set("objeto_servico",e.target.value)} /></div><div className="space-y-1"><Label>Pessoa representada</Label><Input value={form.representado_nome} onChange={e=>set("representado_nome",e.target.value)} /></div></CardContent></Card><Card><CardHeader><CardTitle className="text-base">Honorários e pagamento</CardTitle></CardHeader><CardContent className="grid gap-3 sm:grid-cols-2">{inputs.slice(12,18).map(([key,label,type])=><div className="space-y-1" key={key}><Label>{label}</Label><Input type={type} min={type==="number"?"0":undefined} step={type==="number"?(key==="parcelas_quantidade"?"1":"0.01"):undefined} value={form[key]} onChange={e=>set(key,e.target.value)} /></div>)}<div className="sm:col-span-2 rounded-md border p-3 text-sm"><p>Vencimentos calculados automaticamente:</p><div className="mt-2 grid gap-2 sm:grid-cols-3">{dates.map((d,i)=><div key={i} className="space-y-1"><Label>{i+1}ª parcela</Label><Input type="date" value={d} onChange={e=>setDates(old=>old.map((item,index)=>index===i?e.target.value:item))} /></div>)}</div>{!dates.length&&<p className="mt-1 text-muted-foreground">Sem parcelas adicionais.</p>}<p className="mt-2 font-medium">Entrada + parcelas: {formatBRL(sum)} / Total: {formatBRL(total)}</p>{mismatch&&<p className="mt-1 text-destructive">A soma ainda não corresponde aos honorários totais.</p>}</div></CardContent></Card><Card><CardHeader><CardTitle className="text-base">Assinatura e testemunhas</CardTitle></CardHeader><CardContent className="grid gap-3 sm:grid-cols-2">{inputs.slice(18).map(([key,label,type])=><div className="space-y-1" key={key}><Label>{label}</Label><Input type={type} value={form[key]} onChange={e=>set(key,e.target.value)} /></div>)}</CardContent></Card><p className="text-xs text-muted-foreground">Os dados pessoais serão atualizados no cadastro deste cliente. As condições e o texto do contrato ficarão guardados como um registro independente, sem alterar contratos anteriores.</p></div><DialogFooter><Button variant="outline" onClick={onClose}>Cancelar</Button><Button onClick={save} disabled={saving||mismatch}>{saving?"Salvando...":"Gerar e salvar contrato"}</Button></DialogFooter></DialogContent></Dialog>;
+  return <Dialog open={!!client} onOpenChange={open=>!open&&onClose()}><DialogContent className="max-h-[90vh] w-[calc(100vw-1rem)] max-w-4xl overflow-y-auto"><DialogHeader><DialogTitle className="flex items-center gap-2"><FileSignature className="h-5 w-5"/>Gerar contrato — {client.nome}</DialogTitle></DialogHeader><div className="space-y-5"><Card><CardHeader><CardTitle className="text-base">Dados do contratante</CardTitle></CardHeader><CardContent className="grid gap-3 sm:grid-cols-2">{inputs.slice(0,11).map(([key,label,type])=><div className="space-y-1" key={key}><Label>{label}</Label><Input type={type} value={form[key]} onChange={e=>set(key,e.target.value)} /></div>)}</CardContent></Card><Card><CardHeader><CardTitle className="text-base">Serviço jurídico</CardTitle></CardHeader><CardContent className="grid gap-3"><div className="space-y-1"><Label>Objeto / serviço contratado</Label><Textarea rows={2} value={form.objeto_servico} onChange={e=>set("objeto_servico",e.target.value)} /></div><div className="space-y-1"><Label>Pessoa representada</Label><Input value={form.representado_nome} onChange={e=>set("representado_nome",e.target.value)} /></div></CardContent></Card><Card><CardHeader><CardTitle className="text-base">Honorários e pagamento</CardTitle></CardHeader><CardContent className="grid gap-3 sm:grid-cols-2">{inputs.slice(12,18).map(([key,label,type])=><div className="space-y-1" key={key}><Label>{label}</Label><Input type={type} min={type==="number"?"0":undefined} step={type==="number"?(key==="parcelas_quantidade"?"1":"0.01"):undefined} value={form[key]} onChange={e=>set(key,e.target.value)} /></div>)}
+{entry>0&&<div className="space-y-1.5 sm:col-span-2"><Label>Forma de pagamento da entrada *</Label><select className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={form.entrada_metodo_pagamento} onChange={e=>set("entrada_metodo_pagamento",e.target.value)}><option value="">Selecione a forma de pagamento</option>{METODOS_PAGAMENTO.map(m=><option key={m} value={m}>{m}</option>)}</select><p className="text-xs text-muted-foreground">Ao gerar o contrato, será incluído automaticamente um recibo da entrada em duas vias, com o valor e a data informados.</p></div>}
+<div className="sm:col-span-2 rounded-md border p-3 text-sm><p>Vencimentos calculados automaticamente:</p><div className="mt-2 grid gap-2 sm:grid-cols-3">{dates.map((d,i)=><div key={i} className="space-y-1"><Label>{i+1}ª parcela</Label><Input type="date" value={d} onChange={e=>setDates(old=>old.map((item,index)=>index===i?e.target.value:item))} /></div>)}</div>{!dates.length&&<p className="mt-1 text-muted-foreground">Sem parcelas adicionais.</p>}<p className="mt-2 font-medium">Entrada + parcelas: {formatBRL(sum)} / Total: {formatBRL(total)}</p>{mismatch&&<p className="mt-1 text-destructive">A soma ainda não corresponde aos honorários totais.</p>}</div></CardContent></Card><Card><CardHeader><CardTitle className="text-base">Assinatura e testemunhas</CardTitle></CardHeader><CardContent className="grid gap-3 sm:grid-cols-2">{inputs.slice(18).map(([key,label,type])=><div className="space-y-1" key={key}><Label>{label}</Label><Input type={type} value={form[key]} onChange={e=>set(key,e.target.value)} /></div>)}</CardContent></Card><p className="text-xs text-muted-foreground">Os dados pessoais serão atualizados no cadastro deste cliente. As condições e o texto do contrato ficarão guardados como um registro independente, sem alterar contratos anteriores.</p></div><DialogFooter><Button variant="outline" onClick={onClose}>Cancelar</Button><Button onClick={save} disabled={saving||mismatch}>{saving?"Salvando...":"Gerar e salvar contrato"}</Button></DialogFooter></DialogContent></Dialog>;
 }
 
 export function ClientContractsHistory({ clientId }: { clientId: string }) {
