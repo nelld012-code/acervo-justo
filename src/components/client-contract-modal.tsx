@@ -244,14 +244,75 @@ export function ClientContractModal({ client, onClose, onSaved }: Props) {
   }
   return <Dialog open={!!client} onOpenChange={open=>!open&&onClose()}><DialogContent className="max-h-[90vh] w-[calc(100vw-1rem)] max-w-4xl overflow-y-auto"><DialogHeader><DialogTitle className="flex items-center gap-2"><FileSignature className="h-5 w-5"/>Gerar contrato — {client.nome}</DialogTitle></DialogHeader><div className="space-y-5"><Card><CardHeader><CardTitle className="text-base">Dados do contratante</CardTitle></CardHeader><CardContent className="grid gap-3 sm:grid-cols-2">{inputs.slice(0,11).map(([key,label,type])=><div className="space-y-1" key={key}><Label>{label}</Label><Input type={type} value={form[key]} onChange={e=>set(key,e.target.value)} /></div>)}</CardContent></Card><Card><CardHeader><CardTitle className="text-base">Serviço jurídico</CardTitle></CardHeader><CardContent className="grid gap-3"><div className="space-y-1"><Label>Objeto / serviço contratado</Label><Textarea rows={2} value={form.objeto_servico} onChange={e=>set("objeto_servico",e.target.value)} /></div><div className="space-y-1"><Label>Pessoa representada</Label><Input value={form.representado_nome} onChange={e=>set("representado_nome",e.target.value)} /></div></CardContent></Card><Card><CardHeader><CardTitle className="text-base">Honorários e pagamento</CardTitle></CardHeader><CardContent className="grid gap-3 sm:grid-cols-2">{inputs.slice(12,18).map(([key,label,type])=><div className="space-y-1" key={key}><Label>{label}</Label><Input type={type} min={type==="number"?"0":undefined} step={type==="number"?(key==="parcelas_quantidade"?"1":"0.01"):undefined} value={form[key]} onChange={e=>set(key,e.target.value)} /></div>)}
 {entry>0&&<div className="space-y-1.5 sm:col-span-2"><Label>Forma de pagamento da entrada *</Label><select className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={form.entrada_metodo_pagamento} onChange={e=>set("entrada_metodo_pagamento",e.target.value)}><option value="">Selecione a forma de pagamento</option>{METODOS_PAGAMENTO.map(m=><option key={m} value={m}>{m}</option>)}</select><p className="text-xs text-muted-foreground">Ao gerar o contrato, será incluído automaticamente um recibo da entrada em duas vias, com o valor e a data informados.</p></div>}
-<div className="sm:col-span-2 rounded-md border p-3 text-sm><p>Vencimentos calculados automaticamente:</p><div className="mt-2 grid gap-2 sm:grid-cols-3">{dates.map((d,i)=><div key={i} className="space-y-1"><Label>{i+1}ª parcela</Label><Input type="date" value={d} onChange={e=>setDates(old=>old.map((item,index)=>index===i?e.target.value:item))} /></div>)}</div>{!dates.length&&<p className="mt-1 text-muted-foreground">Sem parcelas adicionais.</p>}<p className="mt-2 font-medium">Entrada + parcelas: {formatBRL(sum)} / Total: {formatBRL(total)}</p>{mismatch&&<p className="mt-1 text-destructive">A soma ainda não corresponde aos honorários totais.</p>}</div></CardContent></Card><Card><CardHeader><CardTitle className="text-base">Assinatura e testemunhas</CardTitle></CardHeader><CardContent className="grid gap-3 sm:grid-cols-2">{inputs.slice(18).map(([key,label,type])=><div className="space-y-1" key={key}><Label>{label}</Label><Input type={type} value={form[key]} onChange={e=>set(key,e.target.value)} /></div>)}</CardContent></Card><p className="text-xs text-muted-foreground">Os dados pessoais serão atualizados no cadastro deste cliente. As condições e o texto do contrato ficarão guardados como um registro independente, sem alterar contratos anteriores.</p></div><DialogFooter><Button variant="outline" onClick={onClose}>Cancelar</Button><Button onClick={save} disabled={saving||mismatch}>{saving?"Salvando...":"Gerar e salvar contrato"}</Button></DialogFooter></DialogContent></Dialog>;
+<div className="sm:col-span-2 rounded-md border p-3 text-sm"><p>Vencimentos calculados automaticamente:</p><div className="mt-2 grid gap-2 sm:grid-cols-3">{dates.map((d,i)=><div key={i} className="space-y-1"><Label>{i+1}ª parcela</Label><Input type="date" value={d} onChange={e=>setDates(old=>old.map((item,index)=>index===i?e.target.value:item))} /></div>)}</div>{!dates.length&&<p className="mt-1 text-muted-foreground">Sem parcelas adicionais.</p>}<p className="mt-2 font-medium">Entrada + parcelas: {formatBRL(sum)} / Total: {formatBRL(total)}</p>{mismatch&&<p className="mt-1 text-destructive">A soma ainda não corresponde aos honorários totais.</p>}</div></CardContent></Card><Card><CardHeader><CardTitle className="text-base">Assinatura e testemunhas</CardTitle></CardHeader><CardContent className="grid gap-3 sm:grid-cols-2">{inputs.slice(18).map(([key,label,type])=><div className="space-y-1" key={key}><Label>{label}</Label><Input type={type} value={form[key]} onChange={e=>set(key,e.target.value)} /></div>)}</CardContent></Card><p className="text-xs text-muted-foreground">Os dados pessoais serão atualizados no cadastro deste cliente. As condições e o texto do contrato ficarão guardados como um registro independente, sem alterar contratos anteriores.</p></div><DialogFooter><Button variant="outline" onClick={onClose}>Cancelar</Button><Button onClick={save} disabled={saving||mismatch}>{saving?"Salvando...":"Gerar e salvar contrato"}</Button></DialogFooter></DialogContent></Dialog>;
 }
 
+type SavedContract = {
+  id: string;
+  objeto_servico: string;
+  honorarios_total: number | string;
+  entrada_valor: number | string;
+  entrada_data: string | null;
+  parcelas_quantidade: number;
+  parcela_valor: number | string;
+  parcelas_vencimentos: string[] | null;
+  contrato_html: string;
+  dados_snapshot: {
+    contrato?: {
+      entrada_metodo_pagamento?: string | null;
+      recibo_entrada_incluido?: boolean;
+    };
+  } | null;
+  data_assinatura: string;
+  created_at: string;
+};
+
 export function ClientContractsHistory({ clientId }: { clientId: string }) {
-  const {data:contracts=[],isLoading}=useQuery({queryKey:["client-contracts",clientId],queryFn:async()=>{
-    const {data,error}=await (supabase as any).from("client_contracts").select("id,objeto_servico,honorarios_total,data_assinatura,contrato_html,created_at").eq("client_id",clientId).order("created_at",{ascending:false});
-    if(error) throw error;
-    return (data??[]) as SavedContract[];
-  }});
-  return <section><h3 className="mb-2 text-sm font-semibold">Contratos</h3><div className="space-y-2">{isLoading?<p className="text-sm text-muted-foreground">Carregando contratos...</p>:contracts.length===0?<p className="text-sm text-muted-foreground">Nenhum contrato gerado para este cliente.</p>:contracts.map(c=><div key={c.id} className="flex flex-col gap-2 rounded-md border p-3 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-sm font-medium">{c.objeto_servico}</p><p className="text-xs text-muted-foreground">{brDate(c.data_assinatura)} · {formatBRL(Number(c.honorarios_total))}</p></div><Button size="sm" variant="outline" onClick={()=>openPrintDocument(c.contrato_html)}><Printer className="mr-2 h-4 w-4"/>Reimprimir</Button></div>)}</div></section>;
+  const {data:contracts=[],isLoading}=useQuery({
+    queryKey:["client-contracts",clientId],
+    queryFn:async()=>{
+      const {data,error}=await (supabase as any)
+        .from("client_contracts")
+        .select("id,objeto_servico,honorarios_total,entrada_valor,entrada_data,parcelas_quantidade,parcela_valor,parcelas_vencimentos,contrato_html,dados_snapshot,data_assinatura,created_at")
+        .eq("client_id",clientId)
+        .order("created_at",{ascending:false});
+      if(error) throw error;
+      return (data??[]) as SavedContract[];
+    }
+  });
+  const totalContratado=contracts.reduce((sum,c)=>sum+Number(c.honorarios_total||0),0);
+  const totalEntradas=contracts.reduce((sum,c)=>sum+Number(c.entrada_valor||0),0);
+  return <section className="space-y-3">
+    <h3 className="text-sm font-semibold">Contratos e condições financeiras</h3>
+    {!isLoading&&contracts.length>0&&<div className="grid grid-cols-1 gap-2 rounded-md border bg-muted/20 p-3 sm:grid-cols-3">
+      <div><p className="text-xs text-muted-foreground">Contratos registrados</p><p className="text-lg font-semibold">{contracts.length}</p></div>
+      <div><p className="text-xs text-muted-foreground">Honorários contratados</p><p className="text-lg font-semibold font-mono">{formatBRL(totalContratado)}</p></div>
+      <div><p className="text-xs text-muted-foreground">Entradas previstas / recebidas conforme contrato</p><p className="text-lg font-semibold font-mono">{formatBRL(totalEntradas)}</p></div>
+    </div>}
+    <div className="space-y-2">
+      {isLoading?<p className="text-sm text-muted-foreground">Carregando contratos...</p>:contracts.length===0?<p className="text-sm text-muted-foreground">Nenhum contrato gerado para este cliente.</p>:contracts.map(c=>{
+        const entrada=Number(c.entrada_valor||0);
+        const total=Number(c.honorarios_total||0);
+        const quantidade=Number(c.parcelas_quantidade||0);
+        const valorParcela=Number(c.parcela_valor||0);
+        const metodo=c.dados_snapshot?.contrato?.entrada_metodo_pagamento||"—";
+        const reciboIncluido=c.dados_snapshot?.contrato?.recibo_entrada_incluido??entrada>0;
+        const vencimentos=(c.parcelas_vencimentos??[]).map(brDate).join(", ");
+        return <div key={c.id} className="space-y-3 rounded-md border p-3">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+            <div><p className="text-sm font-semibold">{c.objeto_servico}</p><p className="text-xs text-muted-foreground">Assinado em {brDate(c.data_assinatura)} · Honorários totais: {formatBRL(total)}</p></div>
+            <Button size="sm" variant="outline" onClick={()=>openPrintDocument(c.contrato_html)}><Printer className="mr-2 h-4 w-4"/>{reciboIncluido?"Reimprimir contrato e recibo":"Reimprimir contrato"}</Button>
+          </div>
+          <div className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
+            <div><p className="text-xs text-muted-foreground">Entrada</p><p className="font-medium">{formatBRL(entrada)}{c.entrada_data? " · "+brDate(c.entrada_data):""}</p></div>
+            <div><p className="text-xs text-muted-foreground">Forma de pagamento</p><p className="font-medium">{entrada>0?metodo:"Sem entrada"}</p></div>
+            <div><p className="text-xs text-muted-foreground">Parcelamento</p><p className="font-medium">{quantidade>0?quantidade+" × "+formatBRL(valorParcela):"Sem parcelas"}</p></div>
+            <div><p className="text-xs text-muted-foreground">Saldo após a entrada</p><p className="font-medium font-mono">{formatBRL(Math.max(0,total-entrada))}</p></div>
+            {quantidade>0&&<div className="sm:col-span-2"><p className="text-xs text-muted-foreground">Vencimentos das parcelas</p><p className="font-medium">{vencimentos||"Não informados"}</p></div>}
+            <div className="sm:col-span-2"><p className="text-xs text-muted-foreground">Recibo da entrada</p><p className="font-medium">{reciboIncluido?"Incluído e salvo junto ao contrato (duas vias)":"Não aplicável — contrato sem entrada"}</p></div>
+          </div>
+        </div>;
+      })}
+    </div>
+  </section>;
 }
