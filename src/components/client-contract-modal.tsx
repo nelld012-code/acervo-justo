@@ -77,26 +77,51 @@ function prepareContractHtmlForPrint(html: string) {
 
   const parsed = new DOMParser().parseFromString(html, "text/html");
   const pages = Array.from(parsed.querySelectorAll<HTMLElement>(".contract-page"));
-  const legacyHeader = parsed.querySelector<HTMLElement>("header.header");
 
-  // Contratos antigos tinham um único cabeçalho fixo fora das páginas.
-  // Reposiciona uma cópia no início de cada página para que nunca vá para o rodapé.
-  if (legacyHeader && pages.length > 0 && !legacyHeader.closest(".contract-page")) {
-    pages.forEach((page) => {
-      const header = legacyHeader.cloneNode(true) as HTMLElement;
-      header.className = "contract-header";
-      page.insertBefore(header, page.firstChild);
-    });
-    legacyHeader.remove();
-  }
+  // Busca el encabezado del estudio incluso en documentos antiguos, aunque
+  // esté fuera de las secciones o tenga la clase CSS histórica "header".
+  const outsideHeaders = Array.from(
+    parsed.body.querySelectorAll<HTMLElement>("header, .header, .contract-header"),
+  ).filter((element) =>
+    !element.closest(".contract-page, .receipt-page") &&
+    /J DIMAS GONÇALVES/i.test(element.textContent ?? ""),
+  );
+  const legacyHeader = outsideHeaders[0] ?? null;
 
-  // Garante que os cabeçalhos dos contratos novos também sejam o primeiro elemento.
   pages.forEach((page) => {
-    const header = page.querySelector<HTMLElement>(":scope > .contract-header");
-    if (header) page.insertBefore(header, page.firstChild);
-    page.classList.remove("is-last-contract-page");
+    let header = page.querySelector<HTMLElement>(
+      ":scope > header, :scope > .header, :scope > .contract-header",
+    );
+
+    if (!header) {
+      header = page.querySelector<HTMLElement>("header, .header, .contract-header");
+    }
+    if (!header && legacyHeader) {
+      header = legacyHeader.cloneNode(true) as HTMLElement;
+    }
+
+    if (header) {
+      header.classList.remove("header");
+      header.classList.add("contract-header");
+      header.removeAttribute("style");
+      header.style.setProperty("position", "absolute", "important");
+      header.style.setProperty("top", "0", "important");
+      header.style.setProperty("bottom", "auto", "important");
+      header.style.setProperty("left", "0", "important");
+      header.style.setProperty("right", "0", "important");
+      page.style.setProperty("position", "relative", "important");
+      page.style.setProperty("padding-top", "32mm", "important");
+      page.insertBefore(header, page.firstChild);
+    }
   });
-  if (pages.length > 0) pages[pages.length - 1].classList.add("is-last-contract-page");
+
+  // Elimina los encabezados globales viejos para que no vuelvan a imprimirse
+  // en su antigua posición fija, normalmente al pie de la hoja.
+  outsideHeaders.forEach((header) => header.remove());
+
+  pages.forEach((page, index) => {
+    page.classList.toggle("is-last-contract-page", index === pages.length - 1);
+  });
 
   const printFix = parsed.createElement("style");
   printFix.setAttribute("data-contract-print-fix", "true");
@@ -104,41 +129,59 @@ function prepareContractHtmlForPrint(html: string) {
     @media print {
       @page { size: A4 portrait; margin: 14mm 22mm 18mm !important; }
       html, body { margin: 0 !important; padding: 0 !important; background: #fff !important; }
-      body { font-family: Calibri, Arial, sans-serif !important; font-size: 12pt !important; line-height: 1.5 !important; }
+      body {
+        width: auto !important;
+        font-family: Calibri, Arial, sans-serif !important;
+        font-size: 12pt !important;
+        line-height: 1.5 !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
       .contract-page {
         display: block !important;
         position: relative !important;
         width: auto !important;
         min-height: 0 !important;
         margin: 0 !important;
+        padding: 32mm 0 0 !important;
         break-after: page !important;
         page-break-after: always !important;
       }
-      .contract-page.is-last-contract-page { break-after: auto !important; page-break-after: auto !important; }
+      .contract-page.is-last-contract-page {
+        break-after: auto !important;
+        page-break-after: auto !important;
+      }
       .contract-page > .contract-header {
         display: flex !important;
+        position: absolute !important;
+        top: 0 !important;
+        bottom: auto !important;
+        left: 0 !important;
+        right: 0 !important;
         flex-direction: column !important;
         align-items: center !important;
         justify-content: center !important;
-        padding: 4mm 8mm !important;
-        text-align: center !important;
-        position: static !important;
-        top: auto !important;
-        left: auto !important;
-        right: auto !important;
         width: 100% !important;
         min-height: 25mm !important;
-        margin: 0 0 7mm !important;
-        break-inside: avoid !important;
-        page-break-inside: avoid !important;
+        margin: 0 !important;
+        padding: 4mm 8mm !important;
+        text-align: center !important;
         background: #0F1729 !important;
         color: #fff !important;
+        break-inside: avoid !important;
+        page-break-inside: avoid !important;
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
       }
-      .contract-page > .contract-header .sys { font-size: 9pt !important; letter-spacing: 1.2px !important; color: #C7CFE6 !important; }
-      .contract-page > .contract-header .brand { font-size: 15pt !important; letter-spacing: 1px !important; color: #fff !important; margin: 1mm 0 !important; }
-      .contract-page > .contract-header .doc-title { font-size: 10pt !important; letter-spacing: .4px !important; color: #B8C7FF !important; }
+      .contract-page > .contract-header .sys {
+        font-size: 9pt !important; letter-spacing: 1.2px !important; color: #C7CFE6 !important;
+      }
+      .contract-page > .contract-header .brand {
+        font-size: 15pt !important; letter-spacing: 1px !important; color: #fff !important; margin: 1mm 0 !important;
+      }
+      .contract-page > .contract-header .doc-title {
+        font-size: 10pt !important; letter-spacing: .4px !important; color: #B8C7FF !important;
+      }
       .contract-page p {
         font-family: Calibri, Arial, sans-serif !important;
         font-size: 12pt !important;
