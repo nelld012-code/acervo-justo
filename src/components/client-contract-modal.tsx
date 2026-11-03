@@ -152,16 +152,16 @@ function prepareContractHtmlForPrint(html: string) {
   printFix.setAttribute("data-contract-print-fix", "true");
   printFix.textContent = [
     "@media print {",
-    "@page { size:A4 portrait; margin:14mm 22mm 18mm !important; }",
+    "@page { size:A4 portrait; margin:18mm 22mm 18mm !important; }",
     "html,body { margin:0 !important; padding:0 !important; background:#fff !important; }",
-    "body { width:auto !important; font-family:Calibri,Arial,sans-serif !important; font-size:12pt !important; line-height:1.5 !important; -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; }",
+    "body { width:auto !important; font-family:Calibri,Arial,sans-serif !important; font-size:13pt !important; line-height:1.5 !important; -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; }",
     ".contract-page { display:block !important; position:static !important; float:none !important; width:auto !important; min-height:0 !important; height:auto !important; margin:0 !important; padding:0 !important; break-after:page !important; page-break-after:always !important; }",
     ".contract-page.is-last-contract-page { break-after:auto !important; page-break-after:auto !important; }",
     ".contract-header { display:flex !important; position:static !important; float:none !important; clear:both !important; transform:none !important; visibility:visible !important; opacity:1 !important; flex-direction:column !important; align-items:center !important; justify-content:center !important; width:100% !important; min-height:25mm !important; height:auto !important; margin:0 0 7mm !important; padding:4mm 8mm !important; box-sizing:border-box !important; text-align:center !important; background:#0F1729 !important; color:#fff !important; break-inside:avoid !important; page-break-inside:avoid !important; -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; }",
     ".contract-header .sys { font-size:9pt !important; letter-spacing:1.2px !important; color:#C7CFE6 !important; font-weight:400 !important; }",
     ".contract-header .brand { font-size:15pt !important; letter-spacing:1px !important; color:#fff !important; font-weight:700 !important; margin:1mm 0 !important; }",
     ".contract-header .doc-title { font-size:10pt !important; letter-spacing:.4px !important; color:#B8C7FF !important; font-weight:700 !important; }",
-    ".contract-page p, main.content p, body > p { font-family:Calibri,Arial,sans-serif !important; font-size:12pt !important; line-height:1.5 !important; text-align:justify !important; margin:0 0 14px !important; }",
+    ".contract-page p, main.content p, body > p { font-family:Calibri,Arial,sans-serif !important; font-size:13pt !important; line-height:1.5 !important; text-align:justify !important; margin:0 0 14px !important; }",
     ".contract-page .center, main.content .center { text-align:center !important; }",
     ".contract-page .sign, main.content .sign { line-height:1.5 !important; }",
     ".receipt-page { break-before:page !important; page-break-before:always !important; }",
@@ -229,8 +229,8 @@ function contractHtml(f:Form, dates:string[], numeroProcesso?: string | null) {
 <style>
   *{box-sizing:border-box}
   html,body{margin:0;padding:0;background:#fff;color:#222}
-  body{font-family:Calibri,Arial,sans-serif;font-size:12pt;line-height:1.5;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-  @page{size:A4 portrait;margin:14mm 22mm 18mm}
+  body{font-family:Calibri,Arial,sans-serif;font-size:13pt;line-height:1.5;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  @page{size:A4 portrait;margin:18mm 22mm 18mm}
   .contract-page{width:100%;break-after:page;page-break-after:always}
   .contract-page:last-child{break-after:auto;page-break-after:auto}
   .contract-header{
@@ -243,7 +243,7 @@ function contractHtml(f:Form, dates:string[], numeroProcesso?: string | null) {
   .contract-header .sys{font-size:9pt;letter-spacing:1.2px;color:#C7CFE6;font-weight:400}
   .contract-header .brand{font-size:15pt;letter-spacing:1px;color:#fff;margin:1mm 0}
   .contract-header .doc-title{font-size:10pt;letter-spacing:.4px;color:#B8C7FF}
-  .content p{font-size:12pt;line-height:1.5;text-align:justify;text-indent:10mm;margin:0 0 14px;orphans:3;widows:3;hyphens:auto}
+  .content p{font-size:13pt;line-height:1.5;text-align:justify;text-indent:10mm;margin:0 0 14px;orphans:3;widows:3;hyphens:auto}
   .content .center{text-align:center;text-indent:0;margin-top:6mm;margin-bottom:8mm}
   .sign{margin-top:7mm;line-height:1.5;break-inside:avoid;page-break-inside:avoid}
   .receipt-page{break-before:page;page-break-before:always}
@@ -262,7 +262,7 @@ function contractHtml(f:Form, dates:string[], numeroProcesso?: string | null) {
   .receipt-sign strong{font-size:8.5pt}
   .receipt-sign small{font-size:7.5pt;color:#475569}
   @media screen{
-    body{width:210mm;margin:0 auto;padding:14mm 22mm 18mm}
+    body{width:210mm;margin:0 auto;padding:18mm 22mm 18mm}
     .contract-page{min-height:265mm}
   }
 </style></head><body>
