@@ -364,7 +364,7 @@ export function ClientContractModal({ client, onClose, onSaved }: Props) {
       const {error:saveError}=await (supabase as any).from("client_contracts").insert({client_id:client.id,objeto_servico:form.objeto_servico,representado_nome:form.representado_nome,honorarios_total:total,entrada_valor:entry,entrada_data:entry>0?form.entrada_data:null,parcelas_quantidade:count,parcela_valor:installment,parcelas_vencimentos:dates,cidade_assinatura:form.cidade_assinatura,data_assinatura:form.data_assinatura,testemunha_1:form.testemunha_1||null,testemunha_2:form.testemunha_2||null,contrato_html:html,dados_snapshot:snapshot,created_by:userData.user.id});
       if(saveError) throw saveError;
       onSaved();
-      const opened = openPrintDocument(prepareContractHtmlForPrint(html));
+      const opened = openPrintDocument(prepareContractHtmlForPrint(html), { pageSize: "A4" });
       if (!opened) toast.error("Contrato salvo, mas não foi possível abrir a impressão. Reabra pela ficha do cliente.");
       else toast.success(entry>0 ? "Contrato e recibo da entrada (2 vias) preparados para impressão." : "Contrato salvo e preparado para impressão.");
       onClose();
@@ -461,7 +461,7 @@ export function ClientContractsHistory({ clientId }: { clientId: string }) {
             <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
               <div><p className="text-sm font-semibold">{c.objeto_servico}</p><p className="text-xs text-muted-foreground">Assinado em {brDate(c.data_assinatura)} · Honorários totais: {formatBRL(total)}</p></div>
               <div className="flex flex-col gap-2 sm:min-w-48">
-                <Button size="sm" variant="outline" onClick={()=>openPrintDocument(prepareContractHtmlForPrint(c.contrato_html))}><Printer className="mr-2 h-4 w-4"/>{reciboIncluido?"Reimprimir contrato e recibo":"Reimprimir contrato"}</Button>
+                <Button size="sm" variant="outline" onClick={()=>openPrintDocument(prepareContractHtmlForPrint(c.contrato_html), { pageSize: "A4" })}><Printer className="mr-2 h-4 w-4"/>{reciboIncluido?"Reimprimir contrato e recibo":"Reimprimir contrato"}</Button>
                 {perms.isLeadership&&<Button size="sm" variant="destructive" onClick={()=>setContractToDelete(c)}><Trash2 className="mr-2 h-4 w-4"/>Borrar contrato</Button>}
               </div>
             </div>
