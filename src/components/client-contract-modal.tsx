@@ -216,7 +216,7 @@ function prepareContractHtmlForPrint(html: string) {
     ".contract-page .sign { line-height:1.5 !important; }",
     ".receipt-page { break-before:page !important; page-break-before:always !important; }",
     "}",
-  ].join("\\n");
+  ].join(" ");
   parsed.head.appendChild(printFix);
 
   // Não antepõe uma sequência literal "\\n" ao HTML: ela aparecia impressa
