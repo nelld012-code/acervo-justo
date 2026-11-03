@@ -114,7 +114,7 @@ function contractHtml(f:Form, dates:string[]) {
   .header .doc-title{font-size:10pt;letter-spacing:.4px;color:#B8C7FF}
   .contract-page{width:100%;break-after:page;page-break-after:always}
   .contract-page:last-child{break-after:auto;page-break-after:auto}
-  .content p{text-align:justify;text-indent:10mm;margin:0 0 10px;orphans:3;widows:3}
+  .content p{text-align:justify;text-indent:10mm;margin:0 0 10px;orphans:3;widows:3;hyphens:auto}
   .content .center{text-align:center;text-indent:0;margin-top:6mm;margin-bottom:8mm}
   .sign{margin-top:7mm;line-height:1.35;break-inside:avoid;page-break-inside:avoid}
   @media screen{
