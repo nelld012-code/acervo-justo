@@ -94,7 +94,9 @@ function prepareContractHtmlForPrint(html: string) {
   pages.forEach((page) => {
     const header = page.querySelector<HTMLElement>(":scope > .contract-header");
     if (header) page.insertBefore(header, page.firstChild);
+    page.classList.remove("is-last-contract-page");
   });
+  if (pages.length > 0) pages[pages.length - 1].classList.add("is-last-contract-page");
 
   const printFix = parsed.createElement("style");
   printFix.setAttribute("data-contract-print-fix", "true");
@@ -112,9 +114,14 @@ function prepareContractHtmlForPrint(html: string) {
         break-after: page !important;
         page-break-after: always !important;
       }
-      .contract-page:last-of-type { break-after: auto !important; page-break-after: auto !important; }
+      .contract-page.is-last-contract-page { break-after: auto !important; page-break-after: auto !important; }
       .contract-page > .contract-header {
         display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        justify-content: center !important;
+        padding: 4mm 8mm !important;
+        text-align: center !important;
         position: static !important;
         top: auto !important;
         left: auto !important;
@@ -129,6 +136,9 @@ function prepareContractHtmlForPrint(html: string) {
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
       }
+      .contract-page > .contract-header .sys { font-size: 9pt !important; letter-spacing: 1.2px !important; color: #C7CFE6 !important; }
+      .contract-page > .contract-header .brand { font-size: 15pt !important; letter-spacing: 1px !important; color: #fff !important; margin: 1mm 0 !important; }
+      .contract-page > .contract-header .doc-title { font-size: 10pt !important; letter-spacing: .4px !important; color: #B8C7FF !important; }
       .contract-page p {
         font-family: Calibri, Arial, sans-serif !important;
         font-size: 12pt !important;
