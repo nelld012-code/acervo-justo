@@ -40,8 +40,7 @@ export function openPrintDocument(html: string, options: { pageSize?: "A4" } = {
     iframe.style.left = options.pageSize === "A4" ? "-10000px" : "0";
     iframe.style.right = "auto";
     iframe.style.bottom = "auto";
-    // A impressão precisa de um viewport real: um iframe 0x0 pode alterar
-    // o layout de paginação e deslocar elementos posicionados no HTML.
+    // El viewport 0x0 del iframe oculto puede alterar la paginación A4.
     iframe.style.width = options.pageSize === "A4" ? "210mm" : "1024px";
     iframe.style.height = options.pageSize === "A4" ? "297mm" : "768px";
     iframe.style.border = "0";
@@ -52,7 +51,7 @@ export function openPrintDocument(html: string, options: { pageSize?: "A4" } = {
       try {
         await win.document.fonts?.ready;
       } catch {
-        // Se uma fonte não carregar, imprime usando o fallback CSS.
+        // Usa la fuente de respaldo definida en el documento.
       }
       win.focus();
       setTimeout(() => {
