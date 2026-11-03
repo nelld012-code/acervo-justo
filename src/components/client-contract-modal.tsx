@@ -101,37 +101,52 @@ function contractHtml(f:Form, dates:string[]) {
   *{box-sizing:border-box}
   html,body{margin:0;padding:0;background:#fff;color:#222}
   body{font-family:Calibri,Arial,sans-serif;font-size:12pt;line-height:1.35;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-  @page{size:A4 portrait;margin:39mm 22mm 18mm}
-  .header{
-    position:fixed;top:-30mm;left:-22mm;right:-22mm;height:28mm;
-    display:flex;flex-direction:column;justify-content:center;align-items:center;
-    box-sizing:border-box;padding:4mm 10mm;text-align:center;
-    background:#0F1729;color:#fff;font-family:Calibri,Arial,sans-serif;
-    font-weight:700;-webkit-print-color-adjust:exact;print-color-adjust:exact;
-  }
-  .header .sys{font-size:9pt;letter-spacing:1.2px;color:#C7CFE6;font-weight:400}
-  .header .brand{font-size:15pt;letter-spacing:1px;color:#fff;margin:1mm 0}
-  .header .doc-title{font-size:10pt;letter-spacing:.4px;color:#B8C7FF}
+  @page{size:A4 portrait;margin:14mm 22mm 18mm}
   .contract-page{width:100%;break-after:page;page-break-after:always}
   .contract-page:last-child{break-after:auto;page-break-after:auto}
+  .contract-header{
+    position:static;display:flex;flex-direction:column;justify-content:center;align-items:center;
+    width:100%;min-height:25mm;box-sizing:border-box;margin:0 0 7mm;padding:4mm 8mm;
+    text-align:center;background:#0F1729;color:#fff;
+    font-family:Calibri,Arial,sans-serif;font-weight:700;
+    -webkit-print-color-adjust:exact;print-color-adjust:exact;
+  }
+  .contract-header .sys{font-size:9pt;letter-spacing:1.2px;color:#C7CFE6;font-weight:400}
+  .contract-header .brand{font-size:15pt;letter-spacing:1px;color:#fff;margin:1mm 0}
+  .contract-header .doc-title{font-size:10pt;letter-spacing:.4px;color:#B8C7FF}
   .content p{text-align:justify;text-indent:10mm;margin:0 0 10px;orphans:3;widows:3;hyphens:auto}
   .content .center{text-align:center;text-indent:0;margin-top:6mm;margin-bottom:8mm}
   .sign{margin-top:7mm;line-height:1.35;break-inside:avoid;page-break-inside:avoid}
   @media screen{
-    body{max-width:210mm;margin:0 auto;padding:39mm 22mm 18mm}
-    .header{position:fixed;top:0;left:0;right:0;width:100%;height:30mm}
-    .contract-page{min-height:240mm}
+    body{width:210mm;margin:0 auto;padding:14mm 22mm 18mm}
+    .contract-page{min-height:265mm}
   }
 </style></head><body>
-<header class="header">
-  <div class="sys">Sistema de Gestão Judicial</div>
-  <div class="brand">J DIMAS GONÇALVES</div>
-  <div class="doc-title">CONTRATO DE PRESTAÇÃO DE SERVIÇOS ADVOCATÍCIOS</div>
-</header>
 <main class="content">
-  <section class="contract-page">${pageOne}</section>
-  <section class="contract-page">${pageTwo}</section>
-  <section class="contract-page">${pageThree}</section>
+  <section class="contract-page">
+    <header class="contract-header">
+      <div class="sys">Sistema de Gestão Judicial</div>
+      <div class="brand">J DIMAS GONÇALVES</div>
+      <div class="doc-title">CONTRATO DE PRESTAÇÃO DE SERVIÇOS ADVOCATÍCIOS</div>
+    </header>
+    ${pageOne}
+  </section>
+  <section class="contract-page">
+    <header class="contract-header">
+      <div class="sys">Sistema de Gestão Judicial</div>
+      <div class="brand">J DIMAS GONÇALVES</div>
+      <div class="doc-title">CONTRATO DE PRESTAÇÃO DE SERVIÇOS ADVOCATÍCIOS</div>
+    </header>
+    ${pageTwo}
+  </section>
+  <section class="contract-page">
+    <header class="contract-header">
+      <div class="sys">Sistema de Gestão Judicial</div>
+      <div class="brand">J DIMAS GONÇALVES</div>
+      <div class="doc-title">CONTRATO DE PRESTAÇÃO DE SERVIÇOS ADVOCATÍCIOS</div>
+    </header>
+    ${pageThree}
+  </section>
 </main>
 </body></html>`;
 }
