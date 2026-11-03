@@ -72,14 +72,24 @@ function currencyWords(value:number): string {
 }
 
 // Normaliza tanto contratos novos quanto HTMLs antigos já salvos no histórico.
-function prepareContractHtmlForPrint(html: string) {
+type ReceiptPrintSnapshot = {
+  contratante?: { nome?: string | null; cpf_cnpj?: string | null };
+  contrato?: {
+    entrada_valor?: number | string | null;
+    entrada_data?: string | null;
+    entrada_metodo_pagamento?: string | null;
+    recibo_entrada_incluido?: boolean;
+  };
+};
+
+function prepareContractHtmlForPrint(html: string, snapshot?: ReceiptPrintSnapshot | null) {
   if (typeof DOMParser === "undefined") return html;
 
   const parsed = new DOMParser().parseFromString(html, "text/html");
   let pages = Array.from(parsed.querySelectorAll<HTMLElement>(".contract-page"));
 
   // Mantém o recibo fora da redistribuição das cláusulas do contrato.
-  const receiptPage = parsed.querySelector<HTMLElement>(".receipt-page");
+  let receiptPage = parsed.querySelector<HTMLElement>(".receipt-page");
   if (receiptPage) receiptPage.remove();
 
   // Remove os cabeçalhos antigos do contrato; cada página receberá um novo.
@@ -174,6 +184,105 @@ function prepareContractHtmlForPrint(html: string) {
     return header;
   };
 
+  // Reconstrói o recibo em duas vias quando um contrato antigo foi salvo sem
+  // a seção .receipt-page, usando os valores financeiros persistidos no snapshot.
+  const buildReceiptFromSnapshot = (): HTMLElement | null => {
+    const entryValue = Number(snapshot?.contrato?.entrada_valor ?? 0);
+    if (!(entryValue > 0) || snapshot?.contrato?.recibo_entrada_incluido === false) return null;
+
+    const clientName = snapshot?.contratante?.nome ?? "";
+    const clientCpf = snapshot?.contratante?.cpf_cnpj ?? "";
+    const entryDate = snapshot?.contrato?.entrada_data ?? "";
+    const paymentMethod = snapshot?.contrato?.entrada_metodo_pagamento ?? "";
+    const receiptPage = parsed.createElement("section");
+    receiptPage.className = "receipt-page";
+
+    const makeField = (label: string, value: string) => {
+      const field = parsed.createElement("div");
+      field.className = "receipt-field";
+      const caption = parsed.createElement("span");
+      caption.className = "receipt-label";
+      caption.textContent = label;
+      const strong = parsed.createElement("strong");
+      strong.textContent = value || "—";
+      field.append(caption, strong);
+      return field;
+    };
+
+    const makeCopy = (copyTitle: string) => {
+      const copy = parsed.createElement("article");
+      copy.className = "receipt-copy";
+
+      const receiptHeader = parsed.createElement("header");
+      receiptHeader.className = "contract-header";
+      const system = parsed.createElement("div");
+      system.className = "sys";
+      system.textContent = "Sistema de Gestão Judicial";
+      const brand = parsed.createElement("div");
+      brand.className = "brand";
+      brand.textContent = "J DIMAS GONÇALVES";
+      const title = parsed.createElement("div");
+      title.className = "doc-title";
+      title.textContent = "RECIBO DE PAGAMENTO · " + copyTitle;
+      receiptHeader.append(system, brand, title);
+      copy.appendChild(receiptHeader);
+
+      const data = parsed.createElement("div");
+      data.className = "receipt-data";
+      data.append(
+        makeField("Cliente / Pagador", clientName),
+        makeField("CPF", clientCpf),
+        makeField("Processo", "Sem número de processo"),
+        makeField("Data do recebimento", entryDate ? brDate(entryDate) : ""),
+        makeField("Forma de pagamento", paymentMethod),
+        makeField("Referência", "Entrada dos honorários contratuais")
+      );
+
+      const amount = parsed.createElement("div");
+      amount.className = "receipt-amount";
+      amount.textContent = "Valor recebido: " + formatBRL(entryValue) + " (" + currencyWords(entryValue) + ")";
+      data.appendChild(amount);
+      copy.appendChild(data);
+
+      const declaration = parsed.createElement("p");
+      declaration.className = "receipt-declaration";
+      declaration.textContent =
+        "Declaramos, para os devidos fins, que recebemos de " + clientName +
+        " a importância de " + formatBRL(entryValue) + " (" + currencyWords(entryValue) +
+        "), referente à entrada dos honorários previstos no contrato de prestação de serviços advocatícios" +
+        (entryDate ? ", paga em " + brDate(entryDate) : "") + ".";
+      copy.appendChild(declaration);
+
+      const signatures = parsed.createElement("div");
+      signatures.className = "receipt-signatures";
+      const office = parsed.createElement("div");
+      office.className = "receipt-sign";
+      const officeLine = parsed.createElement("div");
+      officeLine.className = "line";
+      const officeName = parsed.createElement("strong");
+      officeName.textContent = "JOAQUIM DIMAS GONÇALVES";
+      const officeRole = parsed.createElement("small");
+      officeRole.textContent = "Recebedor · OAB/MG 37.610";
+      office.append(officeLine, officeName, officeRole);
+
+      const payer = parsed.createElement("div");
+      payer.className = "receipt-sign";
+      const payerLine = parsed.createElement("div");
+      payerLine.className = "line";
+      const payerName = parsed.createElement("strong");
+      payerName.textContent = clientName || "Pagador(a)";
+      const payerRole = parsed.createElement("small");
+      payerRole.textContent = "Pagador(a)";
+      payer.append(payerLine, payerName, payerRole);
+      signatures.append(office, payer);
+      copy.appendChild(signatures);
+      return copy;
+    };
+
+    receiptPage.append(makeCopy("1ª via — Escritório"), makeCopy("2ª via — Cliente"));
+    return receiptPage;
+  };
+
   const parent = pages.length > 0 ? pages[0].parentElement ?? contentHost : contentHost;
   const firstOldPage = pages[0] ?? null;
   const newPages: HTMLElement[] = [];
@@ -185,7 +294,7 @@ function prepareContractHtmlForPrint(html: string) {
   // Página 2 recebe as Cláusulas Quinta a Nona.
   // Página 3 recebe a Cláusula Décima, encerramento e assinaturas.
   const firstEnd = Math.min(7, blocks.length);
-  const secondEnd = Math.min(12, blocks.length);
+  const secondEnd = Math.min(13, blocks.length);
   const ranges: Array<[number, number]> = [
     [0, firstEnd],
     [firstEnd, secondEnd],
@@ -211,7 +320,15 @@ function prepareContractHtmlForPrint(html: string) {
   }
   pages = newPages;
 
+  // Mantém o recibo original; se o HTML salvo não o trouxer, reconstrói
+  // a página 4 usando os dados financeiros persistidos na ficha do cliente.
+  if (!receiptPage) receiptPage = buildReceiptFromSnapshot();
   if (receiptPage) {
+    receiptPage.style.setProperty("display", "block", "important");
+    receiptPage.style.setProperty("visibility", "visible", "important");
+    receiptPage.style.setProperty("opacity", "1", "important");
+    receiptPage.style.setProperty("break-before", "page", "important");
+    receiptPage.style.setProperty("page-break-before", "always", "important");
     const receiptParent = pages[0]?.parentElement ?? parsed.body;
     receiptParent.appendChild(receiptPage);
   }
@@ -235,7 +352,8 @@ function prepareContractHtmlForPrint(html: string) {
     ".contract-page p { font-family:Calibri,Arial,sans-serif !important; font-size:13pt !important; line-height:1.5 !important; text-align:justify !important; margin:0 0 14px !important; }",
     ".contract-page .center { text-align:center !important; }",
     ".contract-page .sign { line-height:1.5 !important; }",
-    ".receipt-page { break-before:page !important; page-break-before:always !important; }",
+    ".receipt-page { display:block !important; position:static !important; visibility:visible !important; opacity:1 !important; break-before:page !important; page-break-before:always !important; }",
+    ".receipt-copy { display:block !important; visibility:visible !important; opacity:1 !important; break-inside:avoid !important; page-break-inside:avoid !important; }",
     "}",
   ].join(" ");
   parsed.head.appendChild(printFix);
@@ -431,7 +549,13 @@ type SavedContract = {
   parcelas_vencimentos: string[] | null;
   contrato_html: string;
   dados_snapshot: {
+    contratante?: {
+      nome?: string | null;
+      cpf_cnpj?: string | null;
+    };
     contrato?: {
+      entrada_valor?: number | string | null;
+      entrada_data?: string | null;
       entrada_metodo_pagamento?: string | null;
       recibo_entrada_incluido?: boolean;
     };
@@ -505,7 +629,7 @@ export function ClientContractsHistory({ clientId }: { clientId: string }) {
             <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
               <div><p className="text-sm font-semibold">{c.objeto_servico}</p><p className="text-xs text-muted-foreground">Assinado em {brDate(c.data_assinatura)} · Honorários totais: {formatBRL(total)}</p></div>
               <div className="flex flex-col gap-2 sm:min-w-48">
-                <Button size="sm" variant="outline" onClick={()=>openPrintDocument(prepareContractHtmlForPrint(c.contrato_html), { pageSize: "A4" })}><Printer className="mr-2 h-4 w-4"/>{reciboIncluido?"Reimprimir contrato e recibo":"Reimprimir contrato"}</Button>
+                <Button size="sm" variant="outline" onClick={()=>openPrintDocument(prepareContractHtmlForPrint(c.contrato_html,c.dados_snapshot), { pageSize: "A4" })}><Printer className="mr-2 h-4 w-4"/>{reciboIncluido?"Reimprimir contrato e recibo":"Reimprimir contrato"}</Button>
                 {perms.isLeadership&&<Button size="sm" variant="destructive" onClick={()=>setContractToDelete(c)}><Trash2 className="mr-2 h-4 w-4"/>Borrar contrato</Button>}
               </div>
             </div>
