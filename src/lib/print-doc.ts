@@ -10,7 +10,7 @@ function isMobile() {
 
 const AUTO_PRINT = `<script>window.addEventListener('load',function(){setTimeout(function(){window.focus();window.print();},350);});<\/script>`;
 
-export function openPrintDocument(html: string) {
+export function openPrintDocument(html: string, options: { pageSize?: "A4" } = {}) {
   const withScript = html.includes("</body>")
     ? html.replace("</body>", `${AUTO_PRINT}</body>`)
     : html + AUTO_PRINT;
@@ -36,18 +36,29 @@ export function openPrintDocument(html: string) {
     const iframe = document.createElement("iframe");
     iframe.setAttribute("aria-hidden", "true");
     iframe.style.position = "fixed";
-    iframe.style.right = "0";
-    iframe.style.bottom = "0";
-    iframe.style.width = "0";
-    iframe.style.height = "0";
+    iframe.style.top = "0";
+    iframe.style.left = options.pageSize === "A4" ? "-10000px" : "0";
+    iframe.style.right = "auto";
+    iframe.style.bottom = "auto";
+    // A impressão precisa de um viewport real: um iframe 0x0 pode alterar
+    // o layout de paginação e deslocar elementos posicionados no HTML.
+    iframe.style.width = options.pageSize === "A4" ? "210mm" : "1024px";
+    iframe.style.height = options.pageSize === "A4" ? "297mm" : "768px";
     iframe.style.border = "0";
     iframe.srcdoc = html;
-    iframe.onload = () => {
+    iframe.onload = async () => {
       const win = iframe.contentWindow;
       if (!win) return;
+      try {
+        await win.document.fonts?.ready;
+      } catch {
+        // Se uma fonte não carregar, imprime usando o fallback CSS.
+      }
       win.focus();
-      win.print();
-      setTimeout(() => iframe.remove(), 60000);
+      setTimeout(() => {
+        win.print();
+        setTimeout(() => iframe.remove(), 60000);
+      }, 150);
     };
     document.body.appendChild(iframe);
     return true;
