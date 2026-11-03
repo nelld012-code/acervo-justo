@@ -181,10 +181,15 @@ function prepareContractHtmlForPrint(html: string) {
   // cláusulas intermediárias e cláusulas finais/assinaturas.
   // Página 1: introdução até a cláusula quinta (inclui duas cláusulas
   // que antes estavam na página 2). Página 2: todo o restante do contrato.
-  const firstEnd = Math.min(8, blocks.length);
+  // Página 1 termina exatamente ao final da Cláusula Quarta.
+  // Página 2 recebe as Cláusulas Quinta a Nona.
+  // Página 3 recebe a Cláusula Décima, encerramento e assinaturas.
+  const firstEnd = Math.min(7, blocks.length);
+  const secondEnd = Math.min(12, blocks.length);
   const ranges: Array<[number, number]> = [
     [0, firstEnd],
-    [firstEnd, blocks.length],
+    [firstEnd, secondEnd],
+    [secondEnd, blocks.length],
   ];
 
   ranges.forEach(([from, to], index) => {
