@@ -196,7 +196,7 @@ function prepareContractHtmlForPrint(html: string) {
   `;
   parsed.head.appendChild(printFix);
 
-  return "<!doctype html>\\n" + parsed.documentElement.outerHTML;
+  return "<!doctype html>\n" + parsed.documentElement.outerHTML;
 }
 
 function contractHtml(f:Form, dates:string[], numeroProcesso?: string | null) {
