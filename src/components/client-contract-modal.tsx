@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { FileSignature, Printer, Trash2 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { FileSignature, Printer } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -12,7 +12,6 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { useProfile } from "@/hooks/use-profile";
 
 type Props = { client: Cliente | null; onClose: () => void; onSaved: () => void };
 type Form = { nome:string; nacionalidade:string; estado_civil:string; profissao:string; rg:string; cpf_cnpj:string; endereco:string; bairro:string; cidade:string; uf:string; cep:string; objeto_servico:string; representado_nome:string; honorarios_total:string; entrada_valor:string; entrada_data:string; entrada_metodo_pagamento:string; parcelas_quantidade:string; parcela_valor:string; primeiro_vencimento:string; cidade_assinatura:string; data_assinatura:string; testemunha_1:string; testemunha_2:string };
@@ -142,7 +141,7 @@ function contractHtml(f:Form, dates:string[], numeroProcesso?: string | null) {
   .contract-header .sys{font-size:9pt;letter-spacing:1.2px;color:#C7CFE6;font-weight:400}
   .contract-header .brand{font-size:15pt;letter-spacing:1px;color:#fff;margin:1mm 0}
   .contract-header .doc-title{font-size:10pt;letter-spacing:.4px;color:#B8C7FF}
-  .content p{font-size:12pt;line-height:1.5;text-align:justify;text-indent:10mm;margin:0 0 14px;orphans:3;widows:3;hyphens:auto}
+  .content p{text-align:justify;text-indent:10mm;margin:0 0 10px;orphans:3;widows:3;hyphens:auto}
   .content .center{text-align:center;text-indent:0;margin-top:6mm;margin-bottom:8mm}
   .sign{margin-top:7mm;line-height:1.5;break-inside:avoid;page-break-inside:avoid}
   .receipt-page{break-before:page;page-break-before:always}
@@ -269,10 +268,6 @@ type SavedContract = {
 };
 
 export function ClientContractsHistory({ clientId }: { clientId: string }) {
-  const queryClient=useQueryClient();
-  const {perms}=useProfile();
-  const [contractToDelete,setContractToDelete]=useState<SavedContract|null>(null);
-  const [deleting,setDeleting]=useState(false);
   const {data:contracts=[],isLoading}=useQuery({
     queryKey:["client-contracts",clientId],
     queryFn:async()=>{
@@ -287,78 +282,37 @@ export function ClientContractsHistory({ clientId }: { clientId: string }) {
   });
   const totalContratado=contracts.reduce((sum,c)=>sum+Number(c.honorarios_total||0),0);
   const totalEntradas=contracts.reduce((sum,c)=>sum+Number(c.entrada_valor||0),0);
-
-  async function confirmDeleteContract(){
-    const selected=contractToDelete;
-    if(!selected||!perms.isLeadership) return;
-    setDeleting(true);
-    try{
-      const {data,error}=await (supabase as any)
-        .from("client_contracts")
-        .delete()
-        .eq("id",selected.id)
-        .eq("client_id",clientId)
-        .select("id")
-        .maybeSingle();
-      if(error) throw error;
-      if(!data) throw new Error("O contrato não foi removido. Verifique suas permissões e tente novamente.");
-      await queryClient.invalidateQueries({queryKey:["client-contracts",clientId]});
-      setContractToDelete(null);
-      toast.success("Contrato e recibo associado excluídos.");
-    }catch(error){
-      toast.error("Não foi possível excluir o contrato.",{description:error instanceof Error?error.message:"Erro inesperado."});
-    }finally{
-      setDeleting(false);
-    }
-  }
-
-  return <>
-    <section className="space-y-3">
-      <h3 className="text-sm font-semibold">Contratos e condições financeiras</h3>
-      {!isLoading&&contracts.length>0&&<div className="grid grid-cols-1 gap-2 rounded-md border bg-muted/20 p-3 sm:grid-cols-3">
-        <div><p className="text-xs text-muted-foreground">Contratos registrados</p><p className="text-lg font-semibold">{contracts.length}</p></div>
-        <div><p className="text-xs text-muted-foreground">Honorários contratados</p><p className="text-lg font-semibold font-mono">{formatBRL(totalContratado)}</p></div>
-        <div><p className="text-xs text-muted-foreground">Entradas previstas / recebidas conforme contrato</p><p className="text-lg font-semibold font-mono">{formatBRL(totalEntradas)}</p></div>
-      </div>}
-      <div className="space-y-2">
-        {isLoading?<p className="text-sm text-muted-foreground">Carregando contratos...</p>:contracts.length===0?<p className="text-sm text-muted-foreground">Nenhum contrato gerado para este cliente.</p>:contracts.map(c=>{
-          const entrada=Number(c.entrada_valor||0);
-          const total=Number(c.honorarios_total||0);
-          const quantidade=Number(c.parcelas_quantidade||0);
-          const valorParcela=Number(c.parcela_valor||0);
-          const metodo=c.dados_snapshot?.contrato?.entrada_metodo_pagamento||"—";
-          const reciboIncluido=c.dados_snapshot?.contrato?.recibo_entrada_incluido??entrada>0;
-          const vencimentos=(c.parcelas_vencimentos??[]).map(brDate).join(", ");
-          return <div key={c.id} className="space-y-3 rounded-md border p-3">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-              <div><p className="text-sm font-semibold">{c.objeto_servico}</p><p className="text-xs text-muted-foreground">Assinado em {brDate(c.data_assinatura)} · Honorários totais: {formatBRL(total)}</p></div>
-              <div className="flex flex-col gap-2 sm:min-w-48">
-                <Button size="sm" variant="outline" onClick={()=>openPrintDocument(c.contrato_html)}><Printer className="mr-2 h-4 w-4"/>{reciboIncluido?"Reimprimir contrato e recibo":"Reimprimir contrato"}</Button>
-                {perms.isLeadership&&<Button size="sm" variant="destructive" onClick={()=>setContractToDelete(c)}><Trash2 className="mr-2 h-4 w-4"/>Borrar contrato</Button>}
-              </div>
-            </div>
-            <div className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
-              <div><p className="text-xs text-muted-foreground">Entrada</p><p className="font-medium">{formatBRL(entrada)}{c.entrada_data? " · "+brDate(c.entrada_data):""}</p></div>
-              <div><p className="text-xs text-muted-foreground">Forma de pagamento</p><p className="font-medium">{entrada>0?metodo:"Sem entrada"}</p></div>
-              <div><p className="text-xs text-muted-foreground">Parcelamento</p><p className="font-medium">{quantidade>0?quantidade+" × "+formatBRL(valorParcela):"Sem parcelas"}</p></div>
-              <div><p className="text-xs text-muted-foreground">Saldo após a entrada</p><p className="font-medium font-mono">{formatBRL(Math.max(0,total-entrada))}</p></div>
-              {quantidade>0&&<div className="sm:col-span-2"><p className="text-xs text-muted-foreground">Vencimentos das parcelas</p><p className="font-medium">{vencimentos||"Não informados"}</p></div>}
-              <div className="sm:col-span-2"><p className="text-xs text-muted-foreground">Recibo da entrada</p><p className="font-medium">{reciboIncluido?"Incluído e salvo junto ao contrato (duas vias)":"Não aplicável — contrato sem entrada"}</p></div>
-            </div>
-          </div>;
-        })}
-      </div>
-    </section>
-    <Dialog open={!!contractToDelete} onOpenChange={open=>!open&&!deleting&&setContractToDelete(null)}>
-      <DialogContent>
-        <DialogHeader><DialogTitle>Excluir contrato?</DialogTitle></DialogHeader>
-        <p className="text-sm text-muted-foreground">Esta ação excluirá somente o contrato selecionado e o recibo que está salvo junto a ele. Não excluirá pagamentos ou recibos registrados separadamente no Financeiro. A exclusão não pode ser desfeita.</p>
-        {contractToDelete&&<div className="rounded-md border p-3 text-sm"><p className="font-semibold">{contractToDelete.objeto_servico}</p><p>{formatBRL(Number(contractToDelete.honorarios_total||0))} · {brDate(contractToDelete.data_assinatura)}</p></div>}
-        <DialogFooter>
-          <Button variant="outline" disabled={deleting} onClick={()=>setContractToDelete(null)}>Cancelar</Button>
-          <Button variant="destructive" disabled={deleting||!perms.isLeadership} onClick={confirmDeleteContract}>{deleting?"Excluindo...":"Confirmar exclusão"}</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  </>;
+  return <section className="space-y-3">
+    <h3 className="text-sm font-semibold">Contratos e condições financeiras</h3>
+    {!isLoading&&contracts.length>0&&<div className="grid grid-cols-1 gap-2 rounded-md border bg-muted/20 p-3 sm:grid-cols-3">
+      <div><p className="text-xs text-muted-foreground">Contratos registrados</p><p className="text-lg font-semibold">{contracts.length}</p></div>
+      <div><p className="text-xs text-muted-foreground">Honorários contratados</p><p className="text-lg font-semibold font-mono">{formatBRL(totalContratado)}</p></div>
+      <div><p className="text-xs text-muted-foreground">Entradas previstas / recebidas conforme contrato</p><p className="text-lg font-semibold font-mono">{formatBRL(totalEntradas)}</p></div>
+    </div>}
+    <div className="space-y-2">
+      {isLoading?<p className="text-sm text-muted-foreground">Carregando contratos...</p>:contracts.length===0?<p className="text-sm text-muted-foreground">Nenhum contrato gerado para este cliente.</p>:contracts.map(c=>{
+        const entrada=Number(c.entrada_valor||0);
+        const total=Number(c.honorarios_total||0);
+        const quantidade=Number(c.parcelas_quantidade||0);
+        const valorParcela=Number(c.parcela_valor||0);
+        const metodo=c.dados_snapshot?.contrato?.entrada_metodo_pagamento||"—";
+        const reciboIncluido=c.dados_snapshot?.contrato?.recibo_entrada_incluido??entrada>0;
+        const vencimentos=(c.parcelas_vencimentos??[]).map(brDate).join(", ");
+        return <div key={c.id} className="space-y-3 rounded-md border p-3">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+            <div><p className="text-sm font-semibold">{c.objeto_servico}</p><p className="text-xs text-muted-foreground">Assinado em {brDate(c.data_assinatura)} · Honorários totais: {formatBRL(total)}</p></div>
+            <Button size="sm" variant="outline" onClick={()=>openPrintDocument(c.contrato_html)}><Printer className="mr-2 h-4 w-4"/>{reciboIncluido?"Reimprimir contrato e recibo":"Reimprimir contrato"}</Button>
+          </div>
+          <div className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
+            <div><p className="text-xs text-muted-foreground">Entrada</p><p className="font-medium">{formatBRL(entrada)}{c.entrada_data? " · "+brDate(c.entrada_data):""}</p></div>
+            <div><p className="text-xs text-muted-foreground">Forma de pagamento</p><p className="font-medium">{entrada>0?metodo:"Sem entrada"}</p></div>
+            <div><p className="text-xs text-muted-foreground">Parcelamento</p><p className="font-medium">{quantidade>0?quantidade+" × "+formatBRL(valorParcela):"Sem parcelas"}</p></div>
+            <div><p className="text-xs text-muted-foreground">Saldo após a entrada</p><p className="font-medium font-mono">{formatBRL(Math.max(0,total-entrada))}</p></div>
+            {quantidade>0&&<div className="sm:col-span-2"><p className="text-xs text-muted-foreground">Vencimentos das parcelas</p><p className="font-medium">{vencimentos||"Não informados"}</p></div>}
+            <div className="sm:col-span-2"><p className="text-xs text-muted-foreground">Recibo da entrada</p><p className="font-medium">{reciboIncluido?"Incluído e salvo junto ao contrato (duas vias)":"Não aplicável — contrato sem entrada"}</p></div>
+          </div>
+        </div>;
+      })}
+    </div>
+  </section>;
 }
