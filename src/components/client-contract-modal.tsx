@@ -72,7 +72,17 @@ function currencyWords(value:number): string {
 }
 
 // Normaliza tanto contratos novos quanto HTMLs antigos já salvos no histórico.
-function prepareContractHtmlForPrint(html: string) {
+type ReceiptPrintSnapshot = {
+  contratante?: { nome?: string | null; cpf_cnpj?: string | null };
+  contrato?: {
+    entrada_valor?: number | string | null;
+    entrada_data?: string | null;
+    entrada_metodo_pagamento?: string | null;
+    recibo_entrada_incluido?: boolean;
+  };
+};
+
+function prepareContractHtmlForPrint(html: string, snapshot?: ReceiptPrintSnapshot | null) {
   if (typeof DOMParser === "undefined") return html;
 
   const parsed = new DOMParser().parseFromString(html, "text/html");
@@ -185,7 +195,7 @@ function prepareContractHtmlForPrint(html: string) {
   // Página 2 recebe as Cláusulas Quinta a Nona.
   // Página 3 recebe a Cláusula Décima, encerramento e assinaturas.
   const firstEnd = Math.min(7, blocks.length);
-  const secondEnd = Math.min(12, blocks.length);
+  const secondEnd = Math.min(13, blocks.length);
   const ranges: Array<[number, number]> = [
     [0, firstEnd],
     [firstEnd, secondEnd],
