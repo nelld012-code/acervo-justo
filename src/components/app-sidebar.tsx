@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { LayoutDashboard, Upload, Search, FolderOpen, ClipboardList, Scale, Users, Wallet, ConciergeBell, CalendarClock, ChevronDown, FileBarChart2, MessagesSquare, Gavel, FileText, Handshake, Bot } from "lucide-react";
+import { LayoutDashboard, Upload, Search, FolderOpen, ClipboardList, Scale, Users, Wallet, ConciergeBell, CalendarClock, ChevronDown, FileBarChart2, MessagesSquare, Gavel, FileText, Handshake, Bot, FileSignature } from "lucide-react";
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarHeader, useSidebar } from "@/components/ui/sidebar";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { supabase } from "@/integrations/supabase/client";
@@ -18,6 +18,8 @@ const groups = [
   { title: "Relacionamento", items: [
     { title: "CRM", url: "/crm", icon: Handshake, need: "crm" },
     { title: "Contatos", url: "/clientes", icon: Users, need: "all" },
+    { title: "Contratos", url: "/clientes", icon: FileSignature, need: "all" },
+    { title: "Assistentes Jurídicos", url: "/assistentes-juridicos", icon: Bot, need: "legal" },
     { title: "Distribuição", url: "/distribuicao", icon: FileText, need: "distribution" },
   ] },
   { title: "Agenda e tarefas", items: [
@@ -32,7 +34,6 @@ const groups = [
     { title: "Enviar Documento", url: "/upload", icon: Upload, need: "documents" },
     { title: "Buscar Documentos", url: "/search", icon: Search, need: "all" },
     { title: "Meus Documentos", url: "/my-documents", icon: FolderOpen, need: "all" },
-    { title: "Assistentes Jurídicos", url: "/assistentes-juridicos", icon: Bot, need: "legal" },
   ] },
   { title: "Sistema", items: [
     { title: "Auditoria", url: "/audit", icon: ClipboardList, need: "audit" },
