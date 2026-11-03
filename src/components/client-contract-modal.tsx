@@ -76,23 +76,31 @@ function prepareContractHtmlForPrint(html: string) {
   if (typeof DOMParser === "undefined") return html;
 
   const parsed = new DOMParser().parseFromString(html, "text/html");
-  let pages = Array.from(parsed.querySelectorAll<HTMLElement>(".contract-page"));
+  const pages = Array.from(parsed.querySelectorAll<HTMLElement>(".contract-page"));
 
-  // Conserva el recibo independiente mientras normaliza el contrato.
-  const receiptPage = parsed.querySelector<HTMLElement>(".receipt-page");
-  if (receiptPage) receiptPage.remove();
-
-  // Elimina encabezados antiguos o globales. El encabezado se reconstruye
-  // siempre, en lugar de depender de las clases/posiciones del HTML guardado.
-  const oldHeaders = Array.from(
+  // Remove cabeçalhos antigos somente do contrato (nunca do recibo).
+  Array.from(
     parsed.body.querySelectorAll<HTMLElement>("header, .header, .contract-header"),
-  );
-  oldHeaders.forEach((header) => header.remove());
+  )
+    .filter((element) => !element.closest(".receipt-page"))
+    .forEach((element) => element.remove());
 
-  const makeHeader = () => {
+  // Remove o marcador literal "\\n" que aparecia como conteúdo no topo do PDF.
+  Array.from(parsed.body.querySelectorAll<HTMLElement>("p")).forEach((paragraph) => {
+    const value = paragraph.textContent?.trim() ?? "";
+    if (value === "\\n" || value === "") paragraph.remove();
+  });
+
+  const createHeader = () => {
     const header = parsed.createElement("div");
     header.className = "contract-header";
     header.setAttribute("role", "banner");
+    header.innerHTML = [
+      '<div class="sys">Sistema de Gestão Judicial</div>',
+      '<div class="brand">J DIMAS GONÇALVES</div>',
+      '<div class="doc-title">CONTRATO DE PRESTAÇÃO DE SERVIÇOS ADVOCATÍCIOS</div>',
+    ].join("");
+
     header.style.cssText = [
       "display:flex!important",
       "position:static!important",
@@ -119,83 +127,25 @@ function prepareContractHtmlForPrint(html: string) {
       "page-break-inside:avoid!important",
     ].join(";");
 
-    const system = parsed.createElement("div");
-    system.className = "sys";
-    system.textContent = "Sistema de Gestão Judicial";
+    const system = header.querySelector<HTMLElement>(".sys")!;
     system.style.cssText = "font-size:9pt!important;letter-spacing:1.2px!important;color:#C7CFE6!important;font-weight:400!important";
-
-    const brand = parsed.createElement("div");
-    brand.className = "brand";
-    brand.textContent = "J DIMAS GONÇALVES";
+    const brand = header.querySelector<HTMLElement>(".brand")!;
     brand.style.cssText = "font-size:15pt!important;letter-spacing:1px!important;color:#fff!important;font-weight:700!important;margin:1mm 0!important";
-
-    const title = parsed.createElement("div");
-    title.className = "doc-title";
-    title.textContent = "CONTRATO DE PRESTAÇÃO DE SERVIÇOS ADVOCATÍCIOS";
+    const title = header.querySelector<HTMLElement>(".doc-title")!;
     title.style.cssText = "font-size:10pt!important;letter-spacing:.4px!important;color:#B8C7FF!important;font-weight:700!important";
-
-    header.append(system, brand, title);
     return header;
   };
 
-  if (pages.length === 0) {
-    // Contratos antigos podem ter apenas parágrafos no <main> ou <body>,
-    // sem as seções .contract-page. Nesse caso, criamos as três páginas.
-    let contentHost =
-      parsed.querySelector<HTMLElement>("main.content, main, .content") ?? parsed.body;
-
-    const directElements = Array.from(contentHost.children).filter((element) =>
-      !element.matches("script, style, link, meta, title, .receipt-page"),
-    );
-
-    if (
-      directElements.length === 1 &&
-      directElements[0].matches("div, article, section") &&
-      directElements[0].querySelector("p")
-    ) {
-      contentHost = directElements[0] as HTMLElement;
-    }
-
-    const contentNodes = Array.from(contentHost.childNodes).filter((node) => {
-      if (node.nodeType === Node.TEXT_NODE) {
-        const value = node.textContent?.trim() ?? "";
-        return value !== "" && value !== "\\n";
-      }
-      if (node.nodeType !== Node.ELEMENT_NODE) return false;
-      const element = node as HTMLElement;
-      return !element.matches("script, style, link, meta, title, header, .header, .contract-header, .receipt-page");
-    });
-
-    const chunkSize = Math.max(1, Math.ceil(contentNodes.length / 3));
-    const newPages: HTMLElement[] = [];
-
-    for (let index = 0; index < 3; index += 1) {
-      const page = parsed.createElement("section");
-      page.className = "contract-page";
-      page.appendChild(makeHeader());
-
-      const startAt = index * chunkSize;
-      const endAt = index === 2 ? contentNodes.length : Math.min(contentNodes.length, startAt + chunkSize);
-      contentNodes.slice(startAt, endAt).forEach((node) => page.appendChild(node));
-      page.classList.toggle("is-last-contract-page", index === 2);
-      newPages.push(page);
-    }
-
-    contentHost.replaceChildren(...newPages);
-    pages = newPages;
+  if (pages.length > 0) {
+    // Em documentos com páginas, o cabeçalho entra antes do primeiro texto
+    // de cada seção, no fluxo normal da própria página.
+    pages.forEach((page) => page.insertBefore(createHeader(), page.firstChild));
   } else {
-    pages.forEach((page, index) => {
-      page.style.setProperty("position", "static", "important");
-      page.style.setProperty("padding-top", "0", "important");
-      page.style.setProperty("margin-top", "0", "important");
-      page.classList.toggle("is-last-contract-page", index === pages.length - 1);
-      page.insertBefore(makeHeader(), page.firstChild);
-    });
-  }
-
-  if (receiptPage) {
-    const parent = pages[0]?.parentElement ?? parsed.body;
-    parent.appendChild(receiptPage);
+    // Compatibilidade com contratos antigos que não tinham .contract-page:
+    // o cabeçalho entra diretamente no início do documento, antes do texto.
+    const contentHost =
+      parsed.querySelector<HTMLElement>("main.content, main, .content") ?? parsed.body;
+    contentHost.insertBefore(createHeader(), contentHost.firstChild);
   }
 
   const printFix = parsed.createElement("style");
@@ -207,20 +157,18 @@ function prepareContractHtmlForPrint(html: string) {
     "body { width:auto !important; font-family:Calibri,Arial,sans-serif !important; font-size:12pt !important; line-height:1.5 !important; -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; }",
     ".contract-page { display:block !important; position:static !important; float:none !important; width:auto !important; min-height:0 !important; height:auto !important; margin:0 !important; padding:0 !important; break-after:page !important; page-break-after:always !important; }",
     ".contract-page.is-last-contract-page { break-after:auto !important; page-break-after:auto !important; }",
-    ".contract-page > .contract-header { display:flex !important; position:static !important; top:auto !important; bottom:auto !important; left:auto !important; right:auto !important; float:none !important; clear:both !important; transform:none !important; visibility:visible !important; opacity:1 !important; flex-direction:column !important; align-items:center !important; justify-content:center !important; width:100% !important; min-height:25mm !important; height:auto !important; margin:0 0 7mm !important; padding:4mm 8mm !important; box-sizing:border-box !important; text-align:center !important; background:#0F1729 !important; color:#fff !important; break-inside:avoid !important; page-break-inside:avoid !important; -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; }",
-    ".contract-page > .contract-header .sys { font-size:9pt !important; letter-spacing:1.2px !important; color:#C7CFE6 !important; font-weight:400 !important; }",
-    ".contract-page > .contract-header .brand { font-size:15pt !important; letter-spacing:1px !important; color:#fff !important; font-weight:700 !important; margin:1mm 0 !important; }",
-    ".contract-page > .contract-header .doc-title { font-size:10pt !important; letter-spacing:.4px !important; color:#B8C7FF !important; font-weight:700 !important; }",
-    ".contract-page p { font-family:Calibri,Arial,sans-serif !important; font-size:12pt !important; line-height:1.5 !important; text-align:justify !important; margin:0 0 14px !important; }",
-    ".contract-page .center { text-align:center !important; }",
-    ".contract-page .sign { line-height:1.5 !important; }",
+    ".contract-header { display:flex !important; position:static !important; float:none !important; clear:both !important; transform:none !important; visibility:visible !important; opacity:1 !important; flex-direction:column !important; align-items:center !important; justify-content:center !important; width:100% !important; min-height:25mm !important; height:auto !important; margin:0 0 7mm !important; padding:4mm 8mm !important; box-sizing:border-box !important; text-align:center !important; background:#0F1729 !important; color:#fff !important; break-inside:avoid !important; page-break-inside:avoid !important; -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; }",
+    ".contract-header .sys { font-size:9pt !important; letter-spacing:1.2px !important; color:#C7CFE6 !important; font-weight:400 !important; }",
+    ".contract-header .brand { font-size:15pt !important; letter-spacing:1px !important; color:#fff !important; font-weight:700 !important; margin:1mm 0 !important; }",
+    ".contract-header .doc-title { font-size:10pt !important; letter-spacing:.4px !important; color:#B8C7FF !important; font-weight:700 !important; }",
+    ".contract-page p, main.content p, body > p { font-family:Calibri,Arial,sans-serif !important; font-size:12pt !important; line-height:1.5 !important; text-align:justify !important; margin:0 0 14px !important; }",
+    ".contract-page .center, main.content .center { text-align:center !important; }",
+    ".contract-page .sign, main.content .sign { line-height:1.5 !important; }",
     ".receipt-page { break-before:page !important; page-break-before:always !important; }",
     "}",
   ].join(" ");
   parsed.head.appendChild(printFix);
 
-  // Não antepõe uma sequência literal "\\n" ao HTML: ela aparecia impressa
-  // como texto no alto da primeira página.
   return "<!DOCTYPE html>" + parsed.documentElement.outerHTML;
 }
 
