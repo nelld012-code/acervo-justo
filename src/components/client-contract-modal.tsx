@@ -89,7 +89,7 @@ function prepareContractHtmlForPrint(html: string, snapshot?: ReceiptPrintSnapsh
   let pages = Array.from(parsed.querySelectorAll<HTMLElement>(".contract-page"));
 
   // Mantém o recibo fora da redistribuição das cláusulas do contrato.
-  const receiptPage = parsed.querySelector<HTMLElement>(".receipt-page");
+  let receiptPage = parsed.querySelector<HTMLElement>(".receipt-page");
   if (receiptPage) receiptPage.remove();
 
   // Remove os cabeçalhos antigos do contrato; cada página receberá um novo.
@@ -320,7 +320,15 @@ function prepareContractHtmlForPrint(html: string, snapshot?: ReceiptPrintSnapsh
   }
   pages = newPages;
 
+  // Mantém o recibo original; se o HTML salvo não o trouxer, reconstrói
+  // a página 4 usando os dados financeiros persistidos na ficha do cliente.
+  if (!receiptPage) receiptPage = buildReceiptFromSnapshot();
   if (receiptPage) {
+    receiptPage.style.setProperty("display", "block", "important");
+    receiptPage.style.setProperty("visibility", "visible", "important");
+    receiptPage.style.setProperty("opacity", "1", "important");
+    receiptPage.style.setProperty("break-before", "page", "important");
+    receiptPage.style.setProperty("page-break-before", "always", "important");
     const receiptParent = pages[0]?.parentElement ?? parsed.body;
     receiptParent.appendChild(receiptPage);
   }
@@ -344,7 +352,8 @@ function prepareContractHtmlForPrint(html: string, snapshot?: ReceiptPrintSnapsh
     ".contract-page p { font-family:Calibri,Arial,sans-serif !important; font-size:13pt !important; line-height:1.5 !important; text-align:justify !important; margin:0 0 14px !important; }",
     ".contract-page .center { text-align:center !important; }",
     ".contract-page .sign { line-height:1.5 !important; }",
-    ".receipt-page { break-before:page !important; page-break-before:always !important; }",
+    ".receipt-page { display:block !important; position:static !important; visibility:visible !important; opacity:1 !important; break-before:page !important; page-break-before:always !important; }",
+    ".receipt-copy { display:block !important; visibility:visible !important; opacity:1 !important; break-inside:avoid !important; page-break-inside:avoid !important; }",
     "}",
   ].join(" ");
   parsed.head.appendChild(printFix);
@@ -540,7 +549,13 @@ type SavedContract = {
   parcelas_vencimentos: string[] | null;
   contrato_html: string;
   dados_snapshot: {
+    contratante?: {
+      nome?: string | null;
+      cpf_cnpj?: string | null;
+    };
     contrato?: {
+      entrada_valor?: number | string | null;
+      entrada_data?: string | null;
       entrada_metodo_pagamento?: string | null;
       recibo_entrada_incluido?: boolean;
     };
@@ -614,7 +629,7 @@ export function ClientContractsHistory({ clientId }: { clientId: string }) {
             <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
               <div><p className="text-sm font-semibold">{c.objeto_servico}</p><p className="text-xs text-muted-foreground">Assinado em {brDate(c.data_assinatura)} · Honorários totais: {formatBRL(total)}</p></div>
               <div className="flex flex-col gap-2 sm:min-w-48">
-                <Button size="sm" variant="outline" onClick={()=>openPrintDocument(prepareContractHtmlForPrint(c.contrato_html), { pageSize: "A4" })}><Printer className="mr-2 h-4 w-4"/>{reciboIncluido?"Reimprimir contrato e recibo":"Reimprimir contrato"}</Button>
+                <Button size="sm" variant="outline" onClick={()=>openPrintDocument(prepareContractHtmlForPrint(c.contrato_html,c.dados_snapshot), { pageSize: "A4" })}><Printer className="mr-2 h-4 w-4"/>{reciboIncluido?"Reimprimir contrato e recibo":"Reimprimir contrato"}</Button>
                 {perms.isLeadership&&<Button size="sm" variant="destructive" onClick={()=>setContractToDelete(c)}><Trash2 className="mr-2 h-4 w-4"/>Borrar contrato</Button>}
               </div>
             </div>
