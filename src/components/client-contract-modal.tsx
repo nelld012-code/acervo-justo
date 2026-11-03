@@ -71,6 +71,91 @@ function currencyWords(value:number): string {
   return result;
 }
 
+// Normaliza tanto contratos novos quanto HTMLs antigos já salvos no histórico.
+function prepareContractHtmlForPrint(html: string) {
+  if (typeof DOMParser === "undefined") return html;
+
+  const parsed = new DOMParser().parseFromString(html, "text/html");
+  const pages = Array.from(parsed.querySelectorAll<HTMLElement>(".contract-page"));
+  const legacyHeader = parsed.querySelector<HTMLElement>("header.header");
+
+  // Contratos antigos tinham um único cabeçalho fixo fora das páginas.
+  // Reposiciona uma cópia no início de cada página para que nunca vá para o rodapé.
+  if (legacyHeader && pages.length > 0 && !legacyHeader.closest(".contract-page")) {
+    pages.forEach((page) => {
+      const header = legacyHeader.cloneNode(true) as HTMLElement;
+      header.className = "contract-header";
+      page.insertBefore(header, page.firstChild);
+    });
+    legacyHeader.remove();
+  }
+
+  // Garante que os cabeçalhos dos contratos novos também sejam o primeiro elemento.
+  pages.forEach((page) => {
+    const header = page.querySelector<HTMLElement>(":scope > .contract-header");
+    if (header) page.insertBefore(header, page.firstChild);
+    page.classList.remove("is-last-contract-page");
+  });
+  if (pages.length > 0) pages[pages.length - 1].classList.add("is-last-contract-page");
+
+  const printFix = parsed.createElement("style");
+  printFix.setAttribute("data-contract-print-fix", "true");
+  printFix.textContent = `
+    @media print {
+      @page { size: A4 portrait; margin: 14mm 22mm 18mm !important; }
+      html, body { margin: 0 !important; padding: 0 !important; background: #fff !important; }
+      body { font-family: Calibri, Arial, sans-serif !important; font-size: 12pt !important; line-height: 1.5 !important; }
+      .contract-page {
+        display: block !important;
+        position: relative !important;
+        width: auto !important;
+        min-height: 0 !important;
+        margin: 0 !important;
+        break-after: page !important;
+        page-break-after: always !important;
+      }
+      .contract-page.is-last-contract-page { break-after: auto !important; page-break-after: auto !important; }
+      .contract-page > .contract-header {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        justify-content: center !important;
+        padding: 4mm 8mm !important;
+        text-align: center !important;
+        position: static !important;
+        top: auto !important;
+        left: auto !important;
+        right: auto !important;
+        width: 100% !important;
+        min-height: 25mm !important;
+        margin: 0 0 7mm !important;
+        break-inside: avoid !important;
+        page-break-inside: avoid !important;
+        background: #0F1729 !important;
+        color: #fff !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+      .contract-page > .contract-header .sys { font-size: 9pt !important; letter-spacing: 1.2px !important; color: #C7CFE6 !important; }
+      .contract-page > .contract-header .brand { font-size: 15pt !important; letter-spacing: 1px !important; color: #fff !important; margin: 1mm 0 !important; }
+      .contract-page > .contract-header .doc-title { font-size: 10pt !important; letter-spacing: .4px !important; color: #B8C7FF !important; }
+      .contract-page p {
+        font-family: Calibri, Arial, sans-serif !important;
+        font-size: 12pt !important;
+        line-height: 1.5 !important;
+        text-align: justify !important;
+        margin: 0 0 14px !important;
+      }
+      .contract-page .center { text-align: center !important; }
+      .contract-page .sign { line-height: 1.5 !important; }
+      .receipt-page { break-before: page !important; page-break-before: always !important; }
+    }
+  `;
+  parsed.head.appendChild(printFix);
+
+  return "<!doctype html>\\n" + parsed.documentElement.outerHTML;
+}
+
 function contractHtml(f:Form, dates:string[], numeroProcesso?: string | null) {
   const entrada=Number(f.entrada_valor||0), total=Number(f.honorarios_total||0), parcela=Number(f.parcela_valor||0);
   const pagamento = "Em remuneração pelos serviços profissionais ora contratados serão devidos honorários advocatícios no importe de "+formatBRL(total)+" ("+currencyWords(total)+"). "+
@@ -236,7 +321,7 @@ export function ClientContractModal({ client, onClose, onSaved }: Props) {
       const {error:saveError}=await (supabase as any).from("client_contracts").insert({client_id:client.id,objeto_servico:form.objeto_servico,representado_nome:form.representado_nome,honorarios_total:total,entrada_valor:entry,entrada_data:entry>0?form.entrada_data:null,parcelas_quantidade:count,parcela_valor:installment,parcelas_vencimentos:dates,cidade_assinatura:form.cidade_assinatura,data_assinatura:form.data_assinatura,testemunha_1:form.testemunha_1||null,testemunha_2:form.testemunha_2||null,contrato_html:html,dados_snapshot:snapshot,created_by:userData.user.id});
       if(saveError) throw saveError;
       onSaved();
-      const opened = openPrintDocument(html);
+      const opened = openPrintDocument(prepareContractHtmlForPrint(html));
       if (!opened) toast.error("Contrato salvo, mas não foi possível abrir a impressão. Reabra pela ficha do cliente.");
       else toast.success(entry>0 ? "Contrato e recibo da entrada (2 vias) preparados para impressão." : "Contrato salvo e preparado para impressão.");
       onClose();
@@ -333,7 +418,7 @@ export function ClientContractsHistory({ clientId }: { clientId: string }) {
             <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
               <div><p className="text-sm font-semibold">{c.objeto_servico}</p><p className="text-xs text-muted-foreground">Assinado em {brDate(c.data_assinatura)} · Honorários totais: {formatBRL(total)}</p></div>
               <div className="flex flex-col gap-2 sm:min-w-48">
-                <Button size="sm" variant="outline" onClick={()=>openPrintDocument(c.contrato_html)}><Printer className="mr-2 h-4 w-4"/>{reciboIncluido?"Reimprimir contrato e recibo":"Reimprimir contrato"}</Button>
+                <Button size="sm" variant="outline" onClick={()=>openPrintDocument(prepareContractHtmlForPrint(c.contrato_html))}><Printer className="mr-2 h-4 w-4"/>{reciboIncluido?"Reimprimir contrato e recibo":"Reimprimir contrato"}</Button>
                 {perms.isLeadership&&<Button size="sm" variant="destructive" onClick={()=>setContractToDelete(c)}><Trash2 className="mr-2 h-4 w-4"/>Borrar contrato</Button>}
               </div>
             </div>
