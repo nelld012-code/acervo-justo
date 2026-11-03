@@ -353,7 +353,21 @@ function prepareContractHtmlForPrint(html: string, snapshot?: ReceiptPrintSnapsh
     ".contract-page .center { text-align:center !important; }",
     ".contract-page .sign { line-height:1.5 !important; }",
     ".receipt-page { display:block !important; position:static !important; visibility:visible !important; opacity:1 !important; break-before:page !important; page-break-before:always !important; }",
-    ".receipt-copy { display:block !important; visibility:visible !important; opacity:1 !important; break-inside:avoid !important; page-break-inside:avoid !important; }",
+    ".receipt-copy { display:block !important; visibility:visible !important; opacity:1 !important; border:1px solid #CBD5E1 !important; padding:4mm 5mm !important; margin:0 0 5mm !important; break-inside:avoid !important; page-break-inside:avoid !important; font-size:10pt !important; line-height:1.25 !important; }",
+    /* Restaura o formato compacto anterior do recibo; as regras gerais do contrato não devem ampliá-lo. */
+    ".receipt-copy .contract-header { min-height:18mm !important; margin:0 0 4mm !important; padding:2mm 5mm !important; }",
+    ".receipt-copy .contract-header .brand { font-size:12pt !important; }",
+    ".receipt-copy .contract-header .doc-title { font-size:9pt !important; }",
+    ".receipt-copy .receipt-data { display:grid !important; grid-template-columns:1fr 1fr !important; gap:2mm 5mm !important; }",
+    ".receipt-copy .receipt-label { display:block !important; font-size:8pt !important; color:#475569 !important; }",
+    ".receipt-copy .receipt-field strong { display:block !important; font-size:9.5pt !important; }",
+    ".receipt-copy .receipt-amount { grid-column:1/-1 !important; border:1px solid #CBD5E1 !important; padding:2mm !important; font-size:13pt !important; font-weight:700 !important; }",
+    ".receipt-copy .receipt-declaration { display:block !important; text-align:justify !important; margin:3mm 0 !important; font-size:9pt !important; line-height:1.35 !important; }",
+    ".receipt-copy .receipt-signatures { display:grid !important; grid-template-columns:1fr 1fr !important; gap:8mm !important; margin-top:6mm !important; }",
+    ".receipt-copy .receipt-sign .line { border-top:1px solid #334155 !important; margin-bottom:1mm !important; }",
+    ".receipt-copy .receipt-sign strong, .receipt-copy .receipt-sign small { display:block !important; text-align:center !important; }",
+    ".receipt-copy .receipt-sign strong { font-size:8.5pt !important; }",
+    ".receipt-copy .receipt-sign small { font-size:7.5pt !important; color:#475569 !important; }",
     "}",
   ].join(" ");
   parsed.head.appendChild(printFix);
