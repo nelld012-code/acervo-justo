@@ -76,22 +76,76 @@ function prepareContractHtmlForPrint(html: string) {
   if (typeof DOMParser === "undefined") return html;
 
   const parsed = new DOMParser().parseFromString(html, "text/html");
-  const pages = Array.from(parsed.querySelectorAll<HTMLElement>(".contract-page"));
+  let pages = Array.from(parsed.querySelectorAll<HTMLElement>(".contract-page"));
 
-  // Remove cabeçalhos antigos somente do contrato (nunca do recibo).
+  // Mantém o recibo fora da redistribuição das cláusulas do contrato.
+  const receiptPage = parsed.querySelector<HTMLElement>(".receipt-page");
+  if (receiptPage) receiptPage.remove();
+
+  // Remove os cabeçalhos antigos do contrato; cada página receberá um novo.
   Array.from(
     parsed.body.querySelectorAll<HTMLElement>("header, .header, .contract-header"),
   )
     .filter((element) => !element.closest(".receipt-page"))
     .forEach((element) => element.remove());
 
-  // Remove o marcador literal "\\n" que aparecia como conteúdo no topo do PDF.
-  Array.from(parsed.body.querySelectorAll<HTMLElement>("p")).forEach((paragraph) => {
-    const value = paragraph.textContent?.trim() ?? "";
-    if (value === "\\n" || value === "") paragraph.remove();
+  // Contratos antigos foram salvos com blocos longos demais na primeira seção.
+  // Reúne os parágrafos e redistribui em 4 / 5 / restante, para que o segundo
+  // cabeçalho comece realmente no alto da segunda folha impressa.
+  let contentHost: HTMLElement;
+  if (pages.length > 0) {
+    contentHost = pages[0].parentElement ?? parsed.body;
+  } else {
+    contentHost =
+      parsed.querySelector<HTMLElement>("main.content, main, .content") ?? parsed.body;
+
+    const directElements = Array.from(contentHost.children).filter((element) =>
+      !element.matches("script, style, link, meta, title, .receipt-page"),
+    );
+    if (
+      directElements.length === 1 &&
+      directElements[0].matches("div, article, section") &&
+      directElements[0].querySelector("p")
+    ) {
+      contentHost = directElements[0] as HTMLElement;
+    }
+  }
+
+  const existingPages = new Set(pages);
+  const contentElements = Array.from(contentHost.children).filter((element) =>
+    !element.matches("script, style, link, meta, title, header, .header, .contract-header, .receipt-page") &&
+    !existingPages.has(element as HTMLElement),
+  );
+
+  const blocks: HTMLElement[][] = [];
+  contentElements.forEach((element) => {
+    const current = element as HTMLElement;
+    if (current.classList.contains("sign") && blocks.length > 0) {
+      // Assinaturas permanecem junto ao parágrafo de data imediatamente anterior.
+      blocks[blocks.length - 1].push(current);
+    } else {
+      blocks.push([current]);
+    }
   });
 
-  const createHeader = () => {
+  // Se o HTML já tinha seções, coleta também seus filhos antes de removê-las.
+  if (pages.length > 0) {
+    pages.forEach((page) => {
+      Array.from(page.children).forEach((element) => {
+        const current = element as HTMLElement;
+        if (current.matches("header, .header, .contract-header")) return;
+        if (current.classList.contains("sign") && blocks.length > 0) {
+          blocks[blocks.length - 1].push(current);
+        } else {
+          blocks.push([current]);
+        }
+      });
+    });
+  }
+
+  // As três páginas ficam balanceadas: introdução + primeiras cláusulas,
+  // cláusulas intermediárias na página 2, e cláusulas finais/assinaturas na 3.
+  const makeHeader = () => {
     const header = parsed.createElement("div");
     header.className = "contract-header";
     header.setAttribute("role", "banner");
@@ -100,33 +154,17 @@ function prepareContractHtmlForPrint(html: string) {
       '<div class="brand">J DIMAS GONÇALVES</div>',
       '<div class="doc-title">CONTRATO DE PRESTAÇÃO DE SERVIÇOS ADVOCATÍCIOS</div>',
     ].join("");
-
     header.style.cssText = [
-      "display:flex!important",
-      "position:static!important",
-      "float:none!important",
-      "clear:both!important",
-      "transform:none!important",
-      "visibility:visible!important",
-      "opacity:1!important",
-      "flex-direction:column!important",
-      "align-items:center!important",
-      "justify-content:center!important",
-      "width:100%!important",
-      "min-height:25mm!important",
-      "height:auto!important",
-      "box-sizing:border-box!important",
-      "margin:0 0 7mm!important",
-      "padding:4mm 8mm!important",
-      "text-align:center!important",
-      "background:#0F1729!important",
-      "color:#fff!important",
-      "-webkit-print-color-adjust:exact!important",
-      "print-color-adjust:exact!important",
-      "break-inside:avoid!important",
+      "display:flex!important", "position:static!important", "float:none!important",
+      "clear:both!important", "transform:none!important", "visibility:visible!important",
+      "opacity:1!important", "flex-direction:column!important", "align-items:center!important",
+      "justify-content:center!important", "width:100%!important", "min-height:25mm!important",
+      "height:auto!important", "box-sizing:border-box!important", "margin:0 0 7mm!important",
+      "padding:4mm 8mm!important", "text-align:center!important", "background:#0F1729!important",
+      "color:#fff!important", "-webkit-print-color-adjust:exact!important",
+      "print-color-adjust:exact!important", "break-inside:avoid!important",
       "page-break-inside:avoid!important",
     ].join(";");
-
     const system = header.querySelector<HTMLElement>(".sys")!;
     system.style.cssText = "font-size:9pt!important;letter-spacing:1.2px!important;color:#C7CFE6!important;font-weight:400!important";
     const brand = header.querySelector<HTMLElement>(".brand")!;
@@ -136,16 +174,37 @@ function prepareContractHtmlForPrint(html: string) {
     return header;
   };
 
-  if (pages.length > 0) {
-    // Em documentos com páginas, o cabeçalho entra antes do primeiro texto
-    // de cada seção, no fluxo normal da própria página.
-    pages.forEach((page) => page.insertBefore(createHeader(), page.firstChild));
+  const parent = pages.length > 0 ? pages[0].parentElement ?? contentHost : contentHost;
+  const firstOldPage = pages[0] ?? null;
+  const newPages: HTMLElement[] = [];
+  const firstEnd = Math.min(4, blocks.length);
+  const secondEnd = Math.min(9, blocks.length);
+  const ranges: Array<[number, number]> = [
+    [0, firstEnd],
+    [firstEnd, secondEnd],
+    [secondEnd, blocks.length],
+  ];
+
+  ranges.forEach(([from, to], index) => {
+    const page = parsed.createElement("section");
+    page.className = "contract-page";
+    page.appendChild(makeHeader());
+    blocks.slice(from, to).forEach((block) => block.forEach((element) => page.appendChild(element)));
+    page.classList.toggle("is-last-contract-page", index === 2);
+    newPages.push(page);
+  });
+
+  if (firstOldPage) {
+    newPages.forEach((page) => parent.insertBefore(page, firstOldPage));
+    pages.forEach((page) => page.remove());
   } else {
-    // Compatibilidade com contratos antigos que não tinham .contract-page:
-    // o cabeçalho entra diretamente no início do documento, antes do texto.
-    const contentHost =
-      parsed.querySelector<HTMLElement>("main.content, main, .content") ?? parsed.body;
-    contentHost.insertBefore(createHeader(), contentHost.firstChild);
+    contentHost.replaceChildren(...newPages);
+  }
+  pages = newPages;
+
+  if (receiptPage) {
+    const receiptParent = pages[0]?.parentElement ?? parsed.body;
+    receiptParent.appendChild(receiptPage);
   }
 
   const printFix = parsed.createElement("style");
@@ -161,9 +220,9 @@ function prepareContractHtmlForPrint(html: string) {
     ".contract-header .sys { font-size:9pt !important; letter-spacing:1.2px !important; color:#C7CFE6 !important; font-weight:400 !important; }",
     ".contract-header .brand { font-size:15pt !important; letter-spacing:1px !important; color:#fff !important; font-weight:700 !important; margin:1mm 0 !important; }",
     ".contract-header .doc-title { font-size:10pt !important; letter-spacing:.4px !important; color:#B8C7FF !important; font-weight:700 !important; }",
-    ".contract-page p, main.content p, body > p { font-family:Calibri,Arial,sans-serif !important; font-size:13pt !important; line-height:1.5 !important; text-align:justify !important; margin:0 0 14px !important; }",
-    ".contract-page .center, main.content .center { text-align:center !important; }",
-    ".contract-page .sign, main.content .sign { line-height:1.5 !important; }",
+    ".contract-page p { font-family:Calibri,Arial,sans-serif !important; font-size:13pt !important; line-height:1.5 !important; text-align:justify !important; margin:0 0 14px !important; }",
+    ".contract-page .center { text-align:center !important; }",
+    ".contract-page .sign { line-height:1.5 !important; }",
     ".receipt-page { break-before:page !important; page-break-before:always !important; }",
     "}",
   ].join(" ");
