@@ -16,7 +16,6 @@ const groups = [
     { title: "Mensagens", url: "/mensagens", icon: MessagesSquare, need: "all" },
   ] },
   { title: "Relacionamento", items: [
-    { title: "CRM", url: "/crm", icon: Handshake, need: "crm" },
     { title: "Contatos", url: "/clientes", icon: Users, need: "all" },
     { title: "Contratos", url: "/clientes", icon: FileSignature, need: "all" },
     { title: "Assistentes Jurídicos", url: "/assistentes-juridicos", icon: Bot, need: "legal" },
@@ -29,6 +28,7 @@ const groups = [
   ] },
   { title: "Gestão", items: [
     { title: "Financeiro", url: "/financeiro", icon: Wallet, need: "finance" },
+    { title: "CRM", url: "/crm", icon: Handshake, need: "crm" },
   ] },
   { title: "Documentos", items: [
     { title: "Enviar Documento", url: "/upload", icon: Upload, need: "documents" },
