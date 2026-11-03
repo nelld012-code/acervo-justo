@@ -187,8 +187,10 @@ function prepareContractHtmlForPrint(html: string) {
 
   ranges.forEach(([from, to], index) => {
     const page = parsed.createElement("section");
-    page.className = "contract-page";
-    page.appendChild(makeHeader());
+    page.className = index === 1 ? "contract-page contract-page-second" : "contract-page";
+    const pageHeader = makeHeader();
+    if (index === 1) pageHeader.classList.add("contract-header-page-2");
+    page.insertBefore(pageHeader, page.firstChild);
     blocks.slice(from, to).forEach((block) => block.forEach((element) => page.appendChild(element)));
     page.classList.toggle("is-last-contract-page", index === 2);
     newPages.push(page);
@@ -216,6 +218,9 @@ function prepareContractHtmlForPrint(html: string) {
     "body { width:auto !important; font-family:Calibri,Arial,sans-serif !important; font-size:13pt !important; line-height:1.5 !important; -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; }",
     ".contract-page { display:block !important; position:static !important; float:none !important; width:auto !important; min-height:0 !important; height:auto !important; margin:0 !important; padding:0 !important; break-after:page !important; page-break-after:always !important; }",
     ".contract-page.is-last-contract-page { break-after:auto !important; page-break-after:auto !important; }",
+    /* Somente a segunda página recebe reforço de quebra e visibilidade do cabeçalho. */
+    ".contract-page-second { break-before:page !important; page-break-before:always !important; }",
+    ".contract-page-second > .contract-header-page-2 { display:flex !important; position:static !important; visibility:visible !important; opacity:1 !important; margin-top:0 !important; margin-bottom:7mm !important; break-after:avoid !important; page-break-after:avoid !important; }",
     ".contract-header { display:flex !important; position:static !important; float:none !important; clear:both !important; transform:none !important; visibility:visible !important; opacity:1 !important; flex-direction:column !important; align-items:center !important; justify-content:center !important; width:100% !important; min-height:25mm !important; height:auto !important; margin:0 0 7mm !important; padding:4mm 8mm !important; box-sizing:border-box !important; text-align:center !important; background:#0F1729 !important; color:#fff !important; break-inside:avoid !important; page-break-inside:avoid !important; -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; }",
     ".contract-header .sys { font-size:9pt !important; letter-spacing:1.2px !important; color:#C7CFE6 !important; font-weight:400 !important; }",
     ".contract-header .brand { font-size:15pt !important; letter-spacing:1px !important; color:#fff !important; font-weight:700 !important; margin:1mm 0 !important; }",
