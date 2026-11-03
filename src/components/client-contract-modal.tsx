@@ -78,49 +78,86 @@ function prepareContractHtmlForPrint(html: string) {
   const parsed = new DOMParser().parseFromString(html, "text/html");
   const pages = Array.from(parsed.querySelectorAll<HTMLElement>(".contract-page"));
 
-  // Busca el encabezado del estudio incluso en documentos antiguos, aunque
-  // esté fuera de las secciones o tenga la clase CSS histórica "header".
-  const outsideHeaders = Array.from(
+  // Se eliminan tanto los encabezados nuevos como los formatos antiguos
+  // (header fijo/global). Luego se reconstruye uno limpio por cada página.
+  const oldHeaders = Array.from(
     parsed.body.querySelectorAll<HTMLElement>("header, .header, .contract-header"),
-  ).filter((element) =>
-    !element.closest(".contract-page, .receipt-page") &&
-    /J DIMAS GONÇALVES/i.test(element.textContent ?? ""),
-  );
-  const legacyHeader = outsideHeaders[0] ?? null;
+  ).filter((element) => !element.closest(".receipt-page"));
 
-  pages.forEach((page) => {
-    let header = page.querySelector<HTMLElement>(
-      ":scope > header, :scope > .header, :scope > .contract-header",
-    );
+  oldHeaders.forEach((header) => header.remove());
 
-    if (!header) {
-      header = page.querySelector<HTMLElement>("header, .header, .contract-header");
-    }
-    if (!header && legacyHeader) {
-      header = legacyHeader.cloneNode(true) as HTMLElement;
-    }
+  const makeHeader = () => {
+    const header = parsed.createElement("div");
+    header.className = "contract-header";
+    header.setAttribute("role", "banner");
 
-    if (header) {
-      header.classList.remove("header");
-      header.classList.add("contract-header");
-      header.removeAttribute("style");
-      header.style.setProperty("position", "absolute", "important");
-      header.style.setProperty("top", "0", "important");
-      header.style.setProperty("bottom", "auto", "important");
-      header.style.setProperty("left", "0", "important");
-      header.style.setProperty("right", "0", "important");
-      page.style.setProperty("position", "relative", "important");
-      page.style.setProperty("padding-top", "32mm", "important");
-      page.insertBefore(header, page.firstChild);
-    }
-  });
+    const system = parsed.createElement("div");
+    system.className = "sys";
+    system.textContent = "Sistema de Gestão Judicial";
 
-  // Elimina los encabezados globales viejos para que no vuelvan a imprimirse
-  // en su antigua posición fija, normalmente al pie de la hoja.
-  outsideHeaders.forEach((header) => header.remove());
+    const brand = parsed.createElement("div");
+    brand.className = "brand";
+    brand.textContent = "J DIMAS GONÇALVES";
+
+    const title = parsed.createElement("div");
+    title.className = "doc-title";
+    title.textContent = "CONTRATO DE PRESTAÇÃO DE SERVIÇOS ADVOCATÍCIOS";
+
+    header.append(system, brand, title);
+
+    // Estilos inline en flujo normal: el encabezado ocupa espacio real
+    // antes del texto y no depende de position: fixed/absolute.
+    const styles: Array<[string, string]> = [
+      ["display", "flex"],
+      ["position", "static"],
+      ["float", "none"],
+      ["clear", "both"],
+      ["transform", "none"],
+      ["visibility", "visible"],
+      ["opacity", "1"],
+      ["flex-direction", "column"],
+      ["align-items", "center"],
+      ["justify-content", "center"],
+      ["width", "100%"],
+      ["min-height", "25mm"],
+      ["height", "auto"],
+      ["box-sizing", "border-box"],
+      ["margin", "0 0 7mm"],
+      ["padding", "4mm 8mm"],
+      ["text-align", "center"],
+      ["background", "#0F1729"],
+      ["color", "#fff"],
+      ["-webkit-print-color-adjust", "exact"],
+      ["print-color-adjust", "exact"],
+      ["break-inside", "avoid"],
+      ["page-break-inside", "avoid"],
+    ];
+    styles.forEach(([name, value]) => header.style.setProperty(name, value, "important"));
+
+    const systemStyles: Array<[string, string]> = [
+      ["font-size", "9pt"], ["letter-spacing", "1.2px"], ["color", "#C7CFE6"], ["font-weight", "400"],
+    ];
+    systemStyles.forEach(([name, value]) => system.style.setProperty(name, value, "important"));
+
+    const brandStyles: Array<[string, string]> = [
+      ["font-size", "15pt"], ["letter-spacing", "1px"], ["color", "#fff"], ["font-weight", "700"], ["margin", "1mm 0"],
+    ];
+    brandStyles.forEach(([name, value]) => brand.style.setProperty(name, value, "important"));
+
+    const titleStyles: Array<[string, string]> = [
+      ["font-size", "10pt"], ["letter-spacing", ".4px"], ["color", "#B8C7FF"], ["font-weight", "700"],
+    ];
+    titleStyles.forEach(([name, value]) => title.style.setProperty(name, value, "important"));
+
+    return header;
+  };
 
   pages.forEach((page, index) => {
+    page.style.setProperty("position", "static", "important");
+    page.style.setProperty("padding-top", "0", "important");
+    page.style.setProperty("margin-top", "0", "important");
     page.classList.toggle("is-last-contract-page", index === pages.length - 1);
+    page.insertBefore(makeHeader(), page.firstChild);
   });
 
   const printFix = parsed.createElement("style");
@@ -139,11 +176,13 @@ function prepareContractHtmlForPrint(html: string) {
       }
       .contract-page {
         display: block !important;
-        position: relative !important;
+        position: static !important;
+        float: none !important;
         width: auto !important;
         min-height: 0 !important;
+        height: auto !important;
         margin: 0 !important;
-        padding: 32mm 0 0 !important;
+        padding: 0 !important;
         break-after: page !important;
         page-break-after: always !important;
       }
@@ -153,18 +192,25 @@ function prepareContractHtmlForPrint(html: string) {
       }
       .contract-page > .contract-header {
         display: flex !important;
-        position: absolute !important;
-        top: 0 !important;
+        position: static !important;
+        top: auto !important;
         bottom: auto !important;
-        left: 0 !important;
-        right: 0 !important;
+        left: auto !important;
+        right: auto !important;
+        float: none !important;
+        clear: both !important;
+        transform: none !important;
+        visibility: visible !important;
+        opacity: 1 !important;
         flex-direction: column !important;
         align-items: center !important;
         justify-content: center !important;
         width: 100% !important;
         min-height: 25mm !important;
-        margin: 0 !important;
+        height: auto !important;
+        margin: 0 0 7mm !important;
         padding: 4mm 8mm !important;
+        box-sizing: border-box !important;
         text-align: center !important;
         background: #0F1729 !important;
         color: #fff !important;
@@ -174,13 +220,13 @@ function prepareContractHtmlForPrint(html: string) {
         print-color-adjust: exact !important;
       }
       .contract-page > .contract-header .sys {
-        font-size: 9pt !important; letter-spacing: 1.2px !important; color: #C7CFE6 !important;
+        font-size: 9pt !important; letter-spacing: 1.2px !important; color: #C7CFE6 !important; font-weight: 400 !important;
       }
       .contract-page > .contract-header .brand {
-        font-size: 15pt !important; letter-spacing: 1px !important; color: #fff !important; margin: 1mm 0 !important;
+        font-size: 15pt !important; letter-spacing: 1px !important; color: #fff !important; font-weight: 700 !important; margin: 1mm 0 !important;
       }
       .contract-page > .contract-header .doc-title {
-        font-size: 10pt !important; letter-spacing: .4px !important; color: #B8C7FF !important;
+        font-size: 10pt !important; letter-spacing: .4px !important; color: #B8C7FF !important; font-weight: 700 !important;
       }
       .contract-page p {
         font-family: Calibri, Arial, sans-serif !important;
@@ -196,7 +242,7 @@ function prepareContractHtmlForPrint(html: string) {
   `;
   parsed.head.appendChild(printFix);
 
-  return "<!doctype html>\n" + parsed.documentElement.outerHTML;
+  return "<!doctype html>\\n" + parsed.documentElement.outerHTML;
 }
 
 function contractHtml(f:Form, dates:string[], numeroProcesso?: string | null) {
