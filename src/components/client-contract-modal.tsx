@@ -91,9 +91,50 @@ function contractHtml(f:Form, dates:string[]) {
   p.push("<p><b>Cláusula Décima -</b> Elegem as partes o foro da Comarca de Belo Horizonte (MG) para dirimir controvérsias que possam surgir do presente contrato, podendo o Advogado optar pelo foro de residência do Contratante.</p>");
   p.push("<p>E por estarem assim justos e contratados, assinam o presente em 02 (duas) vias de igual forma e teor, na presença de duas testemunhas, para que possa produzir todos os seus efeitos de direito.</p>");
   p.push("<p class='center'>"+esc(f.cidade_assinatura)+", "+brDate(f.data_assinatura)+".</p><div class='sign'>Contratante:<br>"+esc(f.nome)+"<br>______________________________________________<br><br>Contratado:<br>JOAQUIM DIMAS GONÇALVES<br>______________________________________________<br><br>Testemunhas:<br>"+esc(f.testemunha_1)+" ______________________________<br>"+esc(f.testemunha_2)+" ______________________________</div>");
-  return "<!doctype html><html lang='pt-BR'><head><meta charset='utf-8'><title>Contrato - "+esc(f.nome)+"</title><style>@page{size:A4;margin:38mm 22mm 22mm}body{font-family:'Times New Roman',serif;font-size:12pt;line-height:1.5;color:#222}.header{position:fixed;top:-29mm;left:-22mm;right:-22mm;box-sizing:border-box;text-align:center;background:#0F1729;padding:7mm 10mm 5mm;font-family:Arial,sans-serif;font-weight:700;print-color-adjust:exact;-webkit-print-color-adjust:exact}.header div:first-child{font-size:10pt;color:#C7CFE6}.header div:nth-child(2){font-size:16pt;letter-spacing:1px;color:#FFFFFF}.header div:last-child{font-size:11pt;color:#B8C7FF}.content p{text-align:justify;text-indent:1.1cm;margin:0 0 15px}.center{text-align:center!important;margin-top:25px!important}.sign{margin-top:30px;line-height:1.45;page-break-inside:avoid}</style></head><body><header class='header'><div>Sistema de Gestão Judicial</div><div>J DIMAS GONÇALVES</div><div>CONTRATO DE PRESTAÇÃO DE SERVIÇOS ADVOCATÍCIOS</div></header><main class='content'>"+p.join("")+"</main></body></html>";
+  const pageOne = p.slice(0, 6).join("");
+  const pageTwo = p.slice(6, 11).join("");
+  const pageThree = p.slice(11).join("");
+  return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Contrato - ${esc(f.nome)}</title>
+<style>
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:#fff;color:#222}
+  body{font-family:Calibri,Arial,sans-serif;font-size:12pt;line-height:1.35;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  @page{size:A4 portrait;margin:39mm 22mm 18mm}
+  .header{
+    position:fixed;top:-30mm;left:-22mm;right:-22mm;height:28mm;
+    display:flex;flex-direction:column;justify-content:center;align-items:center;
+    box-sizing:border-box;padding:4mm 10mm;text-align:center;
+    background:#0F1729;color:#fff;font-family:Calibri,Arial,sans-serif;
+    font-weight:700;-webkit-print-color-adjust:exact;print-color-adjust:exact;
+  }
+  .header .sys{font-size:9pt;letter-spacing:1.2px;color:#C7CFE6;font-weight:400}
+  .header .brand{font-size:15pt;letter-spacing:1px;color:#fff;margin:1mm 0}
+  .header .doc-title{font-size:10pt;letter-spacing:.4px;color:#B8C7FF}
+  .contract-page{width:100%;break-after:page;page-break-after:always}
+  .contract-page:last-child{break-after:auto;page-break-after:auto}
+  .content p{text-align:justify;text-indent:10mm;margin:0 0 10px;orphans:3;widows:3}
+  .content .center{text-align:center;text-indent:0;margin-top:6mm;margin-bottom:8mm}
+  .sign{margin-top:7mm;line-height:1.35;break-inside:avoid;page-break-inside:avoid}
+  @media screen{
+    body{max-width:210mm;margin:0 auto;padding:39mm 22mm 18mm}
+    .header{position:fixed;top:0;left:0;right:0;width:100%;height:30mm}
+    .contract-page{min-height:240mm}
+  }
+</style></head><body>
+<header class="header">
+  <div class="sys">Sistema de Gestão Judicial</div>
+  <div class="brand">J DIMAS GONÇALVES</div>
+  <div class="doc-title">CONTRATO DE PRESTAÇÃO DE SERVIÇOS ADVOCATÍCIOS</div>
+</header>
+<main class="content">
+  <section class="contract-page">${pageOne}</section>
+  <section class="contract-page">${pageTwo}</section>
+  <section class="contract-page">${pageThree}</section>
+</main>
+</body></html>`;
 }
-
 export function ClientContractModal({ client, onClose, onSaved }: Props) {
   const [form,setForm]=useState<Form|null>(null);
   const [saving,setSaving]=useState(false);
