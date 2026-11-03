@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { openPrintDocument } from "@/lib/print-doc";
@@ -180,6 +181,7 @@ function AssistentesJuridicosPage() {
   const [attachmentName, setAttachmentName] = useState("");
   const [attachmentText, setAttachmentText] = useState("");
   const [readingAttachment, setReadingAttachment] = useState(false);
+  const [privacyOpen, setPrivacyOpen] = useState(false);
 
   const selected = SPECIALTIES.find((item) => item.id === specialty) ?? SPECIALTIES[0];
 
@@ -303,25 +305,35 @@ function AssistentesJuridicosPage() {
             Quatro especialidades para organizar casos, elaborar minutas e revisar documentos.
           </p>
         </div>
-        <Button variant="outline" onClick={newService} disabled={sending}>
-          <RefreshCw className="mr-2 h-4 w-4" />Novo atendimento
-        </Button>
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            aria-label="Privacidade e armazenamento local"
+            title="Privacidade e armazenamento local"
+            onClick={() => setPrivacyOpen(true)}
+          >
+            <ShieldCheck className="h-4 w-4 text-sky-600" />
+          </Button>
+          <Button variant="outline" onClick={newService} disabled={sending}>
+            <RefreshCw className="mr-2 h-4 w-4" />Novo atendimento
+          </Button>
+        </div>
       </div>
 
-      <Card className="border-sky-500/30 bg-sky-500/5">
-        <CardContent className="flex gap-3 p-4">
-          <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-sky-600" />
-          <div className="space-y-1 text-sm">
-            <p className="font-semibold">Privacidade e armazenamento local</p>
-            <p className="text-muted-foreground">
-              As conversas ficam apenas na memória desta página e não são gravadas no banco de dados.
-              Ao fechar ou atualizar a página, elas desaparecem. Baixe o rascunho para continuar em outro computador.
-              Evite enviar CPF, RG, endereço, dados médicos ou informações sigilosas desnecessárias.
-              O texto final precisa ser conferido pelo advogado responsável.
-            </p>
-          </div>
-        </CardContent>
-      </Card>
+
+
+      <Dialog open={privacyOpen} onOpenChange={setPrivacyOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Privacidade e armazenamento local</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm leading-6 text-muted-foreground">
+            As conversas ficam apenas na memória desta página e não são gravadas no banco de dados. Ao fechar ou atualizar a página, elas desaparecem. Baixe o rascunho para continuar em outro computador. Evite enviar CPF, RG, endereço, dados médicos ou informações sigilosas desnecessárias. O texto final precisa ser conferido pelo advogado responsável.
+          </p>
+        </DialogContent>
+      </Dialog>
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {SPECIALTIES.map((item) => {
