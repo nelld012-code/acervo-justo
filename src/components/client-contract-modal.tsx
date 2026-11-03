@@ -179,12 +179,12 @@ function prepareContractHtmlForPrint(html: string) {
   const newPages: HTMLElement[] = [];
   // Distribuição equilibrada do contrato: introdução e cláusulas iniciais,
   // cláusulas intermediárias e cláusulas finais/assinaturas.
-  const firstEnd = Math.min(5, blocks.length);
-  const secondEnd = Math.min(10, blocks.length);
+  // Página 1: introdução até a cláusula quinta (inclui duas cláusulas
+  // que antes estavam na página 2). Página 2: todo o restante do contrato.
+  const firstEnd = Math.min(8, blocks.length);
   const ranges: Array<[number, number]> = [
     [0, firstEnd],
-    [firstEnd, secondEnd],
-    [secondEnd, blocks.length],
+    [firstEnd, blocks.length],
   ];
 
   ranges.forEach(([from, to], index) => {
@@ -194,7 +194,7 @@ function prepareContractHtmlForPrint(html: string) {
     if (index === 1) pageHeader.classList.add("contract-header-page-2");
     page.insertBefore(pageHeader, page.firstChild);
     blocks.slice(from, to).forEach((block) => block.forEach((element) => page.appendChild(element)));
-    page.classList.toggle("is-last-contract-page", index === 2);
+    page.classList.toggle("is-last-contract-page", index === ranges.length - 1);
     newPages.push(page);
   });
 
