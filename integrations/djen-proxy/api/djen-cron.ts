@@ -3,6 +3,18 @@ const PAGE_SIZE = 100;
 const MAX_PAGES = 10;
 const LOOKBACK_DAYS = 3;
 
+type VercelRequest = {
+  method?: string;
+  headers: Record<string, string | string[] | undefined>;
+  query?: Record<string, string | string[] | undefined>;
+};
+
+type VercelResponse = {
+  setHeader: (name: string, value: string) => void;
+  status: (code: number) => VercelResponse;
+  json: (body: unknown) => void;
+};
+
 function dateInSaoPaulo(now: Date): string {
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone: "America/Sao_Paulo",
@@ -27,7 +39,7 @@ function safeEqual(a: string, b: string): boolean {
   return diff === 0;
 }
 
-export default async function handler(req: any, res: any) {
+export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader("Cache-Control", "no-store");
 
   if (req.method !== "GET") {
