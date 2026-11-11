@@ -95,7 +95,9 @@ export default async function handler(req: any, res: any) {
       });
     }
 
-    const sink = await fetch(`${acervoUrl}/api/public/djen-sync`, {
+    const dryRun = String(req.query?.dryRun ?? "") === "1";
+    const sinkUrl = `${acervoUrl}/api/public/djen-sync${dryRun ? "?dryRun=1" : ""}`;
+    const sink = await fetch(sinkUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
