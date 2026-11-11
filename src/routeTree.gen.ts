@@ -17,10 +17,10 @@ import { Route as AuthenticatedTarefasRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedSearchRouteImport } from './routes/_authenticated/search'
 import { Route as AuthenticatedRecepcaoRouteImport } from './routes/_authenticated/recepcao'
 import { Route as AuthenticatedPrazosRouteImport } from './routes/_authenticated/prazos'
-import { Route as AuthenticatedIntimacoesRouteImport } from './routes/_authenticated/intimacoes'
 import { Route as AuthenticatedPerfilRouteImport } from './routes/_authenticated/perfil'
 import { Route as AuthenticatedMyDocumentsRouteImport } from './routes/_authenticated/my-documents'
 import { Route as AuthenticatedMensagensRouteImport } from './routes/_authenticated/mensagens'
+import { Route as AuthenticatedIntimacoesRouteImport } from './routes/_authenticated/intimacoes'
 import { Route as AuthenticatedFinanceiroRouteImport } from './routes/_authenticated/financeiro'
 import { Route as AuthenticatedDistribuicaoRouteImport } from './routes/_authenticated/distribuicao'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
@@ -30,6 +30,7 @@ import { Route as AuthenticatedBancoTarefasRouteImport } from './routes/_authent
 import { Route as AuthenticatedAuditRouteImport } from './routes/_authenticated/audit'
 import { Route as AuthenticatedAudienciasRouteImport } from './routes/_authenticated/audiencias'
 import { Route as AuthenticatedAssistentesJuridicosRouteImport } from './routes/_authenticated/assistentes-juridicos'
+import { Route as ApiPublicDjenSyncRouteImport } from './routes/api/public/djen-sync'
 
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
@@ -70,11 +71,6 @@ const AuthenticatedPrazosRoute = AuthenticatedPrazosRouteImport.update({
   path: '/prazos',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const AuthenticatedIntimacoesRoute = AuthenticatedIntimacoesRouteImport.update({
-  id: '/intimacoes',
-  path: '/intimacoes',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
 const AuthenticatedPerfilRoute = AuthenticatedPerfilRouteImport.update({
   id: '/perfil',
   path: '/perfil',
@@ -89,6 +85,11 @@ const AuthenticatedMyDocumentsRoute =
 const AuthenticatedMensagensRoute = AuthenticatedMensagensRouteImport.update({
   id: '/mensagens',
   path: '/mensagens',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedIntimacoesRoute = AuthenticatedIntimacoesRouteImport.update({
+  id: '/intimacoes',
+  path: '/intimacoes',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedFinanceiroRoute = AuthenticatedFinanceiroRouteImport.update({
@@ -139,6 +140,11 @@ const AuthenticatedAssistentesJuridicosRoute =
     path: '/assistentes-juridicos',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const ApiPublicDjenSyncRoute = ApiPublicDjenSyncRouteImport.update({
+  id: '/api/public/djen-sync',
+  path: '/api/public/djen-sync',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -152,15 +158,16 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/distribuicao': typeof AuthenticatedDistribuicaoRoute
   '/financeiro': typeof AuthenticatedFinanceiroRoute
+  '/intimacoes': typeof AuthenticatedIntimacoesRoute
   '/mensagens': typeof AuthenticatedMensagensRoute
   '/my-documents': typeof AuthenticatedMyDocumentsRoute
   '/perfil': typeof AuthenticatedPerfilRoute
   '/prazos': typeof AuthenticatedPrazosRoute
-  '/intimacoes': typeof AuthenticatedIntimacoesRoute
   '/recepcao': typeof AuthenticatedRecepcaoRoute
   '/search': typeof AuthenticatedSearchRoute
   '/tarefas': typeof AuthenticatedTarefasRoute
   '/upload': typeof AuthenticatedUploadRoute
+  '/api/public/djen-sync': typeof ApiPublicDjenSyncRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -174,6 +181,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/distribuicao': typeof AuthenticatedDistribuicaoRoute
   '/financeiro': typeof AuthenticatedFinanceiroRoute
+  '/intimacoes': typeof AuthenticatedIntimacoesRoute
   '/mensagens': typeof AuthenticatedMensagensRoute
   '/my-documents': typeof AuthenticatedMyDocumentsRoute
   '/perfil': typeof AuthenticatedPerfilRoute
@@ -182,6 +190,7 @@ export interface FileRoutesByTo {
   '/search': typeof AuthenticatedSearchRoute
   '/tarefas': typeof AuthenticatedTarefasRoute
   '/upload': typeof AuthenticatedUploadRoute
+  '/api/public/djen-sync': typeof ApiPublicDjenSyncRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -197,6 +206,7 @@ export interface FileRoutesById {
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/distribuicao': typeof AuthenticatedDistribuicaoRoute
   '/_authenticated/financeiro': typeof AuthenticatedFinanceiroRoute
+  '/_authenticated/intimacoes': typeof AuthenticatedIntimacoesRoute
   '/_authenticated/mensagens': typeof AuthenticatedMensagensRoute
   '/_authenticated/my-documents': typeof AuthenticatedMyDocumentsRoute
   '/_authenticated/perfil': typeof AuthenticatedPerfilRoute
@@ -205,6 +215,7 @@ export interface FileRoutesById {
   '/_authenticated/search': typeof AuthenticatedSearchRoute
   '/_authenticated/tarefas': typeof AuthenticatedTarefasRoute
   '/_authenticated/upload': typeof AuthenticatedUploadRoute
+  '/api/public/djen-sync': typeof ApiPublicDjenSyncRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -220,15 +231,16 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/distribuicao'
     | '/financeiro'
+    | '/intimacoes'
     | '/mensagens'
     | '/my-documents'
     | '/perfil'
     | '/prazos'
-    | '/intimacoes'
     | '/recepcao'
     | '/search'
     | '/tarefas'
     | '/upload'
+    | '/api/public/djen-sync'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -242,6 +254,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/distribuicao'
     | '/financeiro'
+    | '/intimacoes'
     | '/mensagens'
     | '/my-documents'
     | '/perfil'
@@ -250,6 +263,7 @@ export interface FileRouteTypes {
     | '/search'
     | '/tarefas'
     | '/upload'
+    | '/api/public/djen-sync'
   id:
     | '__root__'
     | '/'
@@ -264,21 +278,23 @@ export interface FileRouteTypes {
     | '/_authenticated/dashboard'
     | '/_authenticated/distribuicao'
     | '/_authenticated/financeiro'
+    | '/_authenticated/intimacoes'
     | '/_authenticated/mensagens'
     | '/_authenticated/my-documents'
     | '/_authenticated/perfil'
     | '/_authenticated/prazos'
-    | '/_authenticated/intimacoes'
     | '/_authenticated/recepcao'
     | '/_authenticated/search'
     | '/_authenticated/tarefas'
     | '/_authenticated/upload'
+    | '/api/public/djen-sync'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
+  ApiPublicDjenSyncRoute: typeof ApiPublicDjenSyncRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -339,13 +355,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPrazosRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/intimacoes': {
-      id: '/_authenticated/intimacoes'
-      path: '/intimacoes'
-      fullPath: '/intimacoes'
-      preLoaderRoute: typeof AuthenticatedIntimacoesRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
     '/_authenticated/perfil': {
       id: '/_authenticated/perfil'
       path: '/perfil'
@@ -365,6 +374,13 @@ declare module '@tanstack/react-router' {
       path: '/mensagens'
       fullPath: '/mensagens'
       preLoaderRoute: typeof AuthenticatedMensagensRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/intimacoes': {
+      id: '/_authenticated/intimacoes'
+      path: '/intimacoes'
+      fullPath: '/intimacoes'
+      preLoaderRoute: typeof AuthenticatedIntimacoesRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/financeiro': {
@@ -430,6 +446,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAssistentesJuridicosRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/api/public/djen-sync': {
+      id: '/api/public/djen-sync'
+      path: '/api/public/djen-sync'
+      fullPath: '/api/public/djen-sync'
+      preLoaderRoute: typeof ApiPublicDjenSyncRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -443,11 +466,11 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedDistribuicaoRoute: typeof AuthenticatedDistribuicaoRoute
   AuthenticatedFinanceiroRoute: typeof AuthenticatedFinanceiroRoute
+  AuthenticatedIntimacoesRoute: typeof AuthenticatedIntimacoesRoute
   AuthenticatedMensagensRoute: typeof AuthenticatedMensagensRoute
   AuthenticatedMyDocumentsRoute: typeof AuthenticatedMyDocumentsRoute
   AuthenticatedPerfilRoute: typeof AuthenticatedPerfilRoute
   AuthenticatedPrazosRoute: typeof AuthenticatedPrazosRoute
-  AuthenticatedIntimacoesRoute: typeof AuthenticatedIntimacoesRoute
   AuthenticatedRecepcaoRoute: typeof AuthenticatedRecepcaoRoute
   AuthenticatedSearchRoute: typeof AuthenticatedSearchRoute
   AuthenticatedTarefasRoute: typeof AuthenticatedTarefasRoute
@@ -465,11 +488,11 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedDistribuicaoRoute: AuthenticatedDistribuicaoRoute,
   AuthenticatedFinanceiroRoute: AuthenticatedFinanceiroRoute,
+  AuthenticatedIntimacoesRoute: AuthenticatedIntimacoesRoute,
   AuthenticatedMensagensRoute: AuthenticatedMensagensRoute,
   AuthenticatedMyDocumentsRoute: AuthenticatedMyDocumentsRoute,
   AuthenticatedPerfilRoute: AuthenticatedPerfilRoute,
   AuthenticatedPrazosRoute: AuthenticatedPrazosRoute,
-  AuthenticatedIntimacoesRoute: AuthenticatedIntimacoesRoute,
   AuthenticatedRecepcaoRoute: AuthenticatedRecepcaoRoute,
   AuthenticatedSearchRoute: AuthenticatedSearchRoute,
   AuthenticatedTarefasRoute: AuthenticatedTarefasRoute,
@@ -483,6 +506,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
+  ApiPublicDjenSyncRoute: ApiPublicDjenSyncRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
