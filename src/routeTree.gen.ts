@@ -17,6 +17,7 @@ import { Route as AuthenticatedTarefasRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedSearchRouteImport } from './routes/_authenticated/search'
 import { Route as AuthenticatedRecepcaoRouteImport } from './routes/_authenticated/recepcao'
 import { Route as AuthenticatedPrazosRouteImport } from './routes/_authenticated/prazos'
+import { Route as AuthenticatedIntimacoesRouteImport } from './routes/_authenticated/intimacoes'
 import { Route as AuthenticatedPerfilRouteImport } from './routes/_authenticated/perfil'
 import { Route as AuthenticatedMyDocumentsRouteImport } from './routes/_authenticated/my-documents'
 import { Route as AuthenticatedMensagensRouteImport } from './routes/_authenticated/mensagens'
@@ -66,6 +67,11 @@ const AuthenticatedRecepcaoRoute = AuthenticatedRecepcaoRouteImport.update({
 const AuthenticatedPrazosRoute = AuthenticatedPrazosRouteImport.update({
   id: '/prazos',
   path: '/prazos',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedIntimacoesRoute = AuthenticatedIntimacoesRouteImport.update({
+  id: '/intimacoes',
+  path: '/intimacoes',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedPerfilRoute = AuthenticatedPerfilRouteImport.update({
@@ -142,6 +148,8 @@ export interface FileRoutesByFullPath {
   '/my-documents': typeof AuthenticatedMyDocumentsRoute
   '/perfil': typeof AuthenticatedPerfilRoute
   '/prazos': typeof AuthenticatedPrazosRoute
+  '/intimacoes': typeof AuthenticatedIntimacoesRoute
+  '/intimacoes': typeof AuthenticatedIntimacoesRoute
   '/recepcao': typeof AuthenticatedRecepcaoRoute
   '/search': typeof AuthenticatedSearchRoute
   '/tarefas': typeof AuthenticatedTarefasRoute
@@ -206,6 +214,7 @@ export interface FileRouteTypes {
     | '/my-documents'
     | '/perfil'
     | '/prazos'
+    | '/intimacoes'
     | '/recepcao'
     | '/search'
     | '/tarefas'
@@ -247,6 +256,7 @@ export interface FileRouteTypes {
     | '/_authenticated/my-documents'
     | '/_authenticated/perfil'
     | '/_authenticated/prazos'
+    | '/_authenticated/intimacoes'
     | '/_authenticated/recepcao'
     | '/_authenticated/search'
     | '/_authenticated/tarefas'
@@ -315,6 +325,13 @@ declare module '@tanstack/react-router' {
       path: '/prazos'
       fullPath: '/prazos'
       preLoaderRoute: typeof AuthenticatedPrazosRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/intimacoes': {
+      id: '/_authenticated/intimacoes'
+      path: '/intimacoes'
+      fullPath: '/intimacoes'
+      preLoaderRoute: typeof AuthenticatedIntimacoesRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/perfil': {
@@ -410,6 +427,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedMyDocumentsRoute: typeof AuthenticatedMyDocumentsRoute
   AuthenticatedPerfilRoute: typeof AuthenticatedPerfilRoute
   AuthenticatedPrazosRoute: typeof AuthenticatedPrazosRoute
+  AuthenticatedIntimacoesRoute: typeof AuthenticatedIntimacoesRoute
   AuthenticatedRecepcaoRoute: typeof AuthenticatedRecepcaoRoute
   AuthenticatedSearchRoute: typeof AuthenticatedSearchRoute
   AuthenticatedTarefasRoute: typeof AuthenticatedTarefasRoute
@@ -429,6 +447,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedMyDocumentsRoute: AuthenticatedMyDocumentsRoute,
   AuthenticatedPerfilRoute: AuthenticatedPerfilRoute,
   AuthenticatedPrazosRoute: AuthenticatedPrazosRoute,
+  AuthenticatedIntimacoesRoute: AuthenticatedIntimacoesRoute,
   AuthenticatedRecepcaoRoute: AuthenticatedRecepcaoRoute,
   AuthenticatedSearchRoute: AuthenticatedSearchRoute,
   AuthenticatedTarefasRoute: AuthenticatedTarefasRoute,
