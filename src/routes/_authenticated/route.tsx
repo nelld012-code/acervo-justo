@@ -12,9 +12,16 @@ import { useProfile, CARGO_LABELS } from "@/hooks/use-profile";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
-  beforeLoad: async () => {
+  beforeLoad: async ({ location }) => {
     const { data, error } = await supabase.auth.getUser();
     if (error || !data.user) throw redirect({ to: "/auth" });
+    const { data: profile } = await supabase.from("profiles").select("cargo").eq("id", data.user.id).maybeSingle();
+    if (profile?.cargo === "secretaria") {
+      const allowed = ["/dashboard", "/recepcao", "/mensagens", "/clientes", "/assistentes-juridicos", "/crm", "/financeiro"];
+      if (!allowed.some((path) => location.pathname === path || location.pathname.startsWith(`${path}/`))) {
+        throw redirect({ to: "/dashboard" });
+      }
+    }
     return { user: data.user };
   },
   component: AuthenticatedLayout,
@@ -89,9 +96,9 @@ function HeaderActions() {
   return (
     <div className="ml-auto flex shrink-0 flex-col items-end">
       <div className="flex items-center gap-1 sm:gap-2">
-        <Link to="/perfil" className="inline-flex h-9 items-center gap-1.5 rounded-md px-2 text-sm font-medium text-foreground transition-colors hover:bg-muted sm:px-3" title="Perfil" aria-label="Abrir perfil">
+        {cargo !== "secretaria" && <Link to="/perfil" className="inline-flex h-9 items-center gap-1.5 rounded-md px-2 text-sm font-medium text-foreground transition-colors hover:bg-muted sm:px-3" title="Perfil" aria-label="Abrir perfil">
           <UserCircle className="h-4 w-4" /><span>Perfil</span>
-        </Link>
+        </Link>}
         <Button variant="ghost" size="sm" onClick={() => void sair()} className="h-9 gap-1.5 px-2 text-sm font-medium text-foreground hover:bg-muted sm:px-3" title="Sair" aria-label="Sair do sistema">
           <LogOut className="h-4 w-4" /><span>Sair</span>
         </Button>

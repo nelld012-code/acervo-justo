@@ -117,6 +117,7 @@ export function AppSidebar() {
       <SidebarContent className="gap-0 px-2 py-3">
         <SidebarGroup className="p-0"><SidebarGroupLabel className="px-3 pb-2 pt-3 text-[10px] font-bold uppercase tracking-[0.16em] text-sidebar-foreground/40">Navegação</SidebarGroupLabel><SidebarGroupContent><SidebarMenu className="gap-1">
           {groups.map((group) => {
+            if (perms.cargo === "secretaria" && !["Início", "Relacionamento", "Gestão"].includes(group.title)) return null;
             const visible = group.items.filter((item) => menuItemVisible(item, perms));
             if (!visible.length) return null;
             const isActiveGroup = visible.some((item) => pathname === item.url);
