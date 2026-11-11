@@ -67,7 +67,7 @@ function extensaoDe(file: File) {
 
 function MensagensPage() {
   const queryClient = useQueryClient();
-  const { perms, profile } = useProfile();
+  const { perms } = useProfile();
   const [meuId, setMeuId] = useState<string | null>(null);
   const [selecionado, setSelecionado] = useState<Contato | null>(null);
   const [texto, setTexto] = useState("");
@@ -91,31 +91,6 @@ function MensagensPage() {
       return (data ?? []) as Contato[];
     },
     staleTime: 60_000,
-  });
-
-  const adminMensagensQuery = useQuery({
-    queryKey: ["admin-all-messages"],
-    enabled: perms.isAdmin,
-    queryFn: async () => {
-      // Carrega todas as mensagens que ainda fazem parte do histórico de 60 dias.
-      // A paginação evita que mensagens fiquem ocultas por um limite fixo de registros.
-      const tamanhoPagina = 500;
-      const todas: Mensagem[] = [];
-      for (let inicio = 0; ; inicio += tamanhoPagina) {
-        const { data, error } = await supabase
-          .from("messages")
-          .select("id, sender_id, recipient_id, body, read_at, created_at, attachment_path, attachment_name, attachment_type, attachment_size, expires_at")
-          .gt("expires_at", new Date().toISOString())
-          .order("created_at", { ascending: false })
-          .range(inicio, inicio + tamanhoPagina - 1);
-        if (error) throw error;
-        const lote = (data ?? []) as Mensagem[];
-        todas.push(...lote);
-        if (lote.length < tamanhoPagina) break;
-      }
-      return todas;
-    },
-    staleTime: 30_000,
   });
 
   const naoLidasQuery = useQuery({
@@ -155,7 +130,6 @@ function MensagensPage() {
       .on("postgres_changes", { event: "*", schema: "public", table: "messages" }, () => {
         queryClient.invalidateQueries({ queryKey: ["messages-unread"] });
         queryClient.invalidateQueries({ queryKey: ["messages-thread"] });
-        queryClient.invalidateQueries({ queryKey: ["admin-all-messages"] });
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
@@ -282,8 +256,6 @@ function MensagensPage() {
   }
 
   const contatos = contatosQuery.data ?? [];
-  const nomesUsuarios = new Map(contatos.map((c) => [c.id, c.nome || "Sem nome"]));
-  if (profile?.id) nomesUsuarios.set(profile.id, profile.nome || "Administrador");
 
   return (
     <div className="w-full max-w-full space-y-4 p-3 sm:p-4">
@@ -296,30 +268,6 @@ function MensagensPage() {
         )}
       </div>
 
-      {perms.isAdmin && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Todas as mensagens dos usuários</CardTitle>
-            <CardDescription>Visão administrativa de todas as mensagens enviadas e recebidas pelos usuários que ainda estão disponíveis no histórico de 60 dias.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {adminMensagensQuery.isLoading && <p className="text-sm text-muted-foreground">Carregando mensagens...</p>}
-            {adminMensagensQuery.isError && <p className="text-sm text-destructive">Não foi possível carregar todas as mensagens. Verifique a política de acesso administrativo.</p>}
-            {!adminMensagensQuery.isLoading && !adminMensagensQuery.isError && !(adminMensagensQuery.data ?? []).length && <p className="text-sm text-muted-foreground">Nenhuma mensagem no período.</p>}
-            {(adminMensagensQuery.data ?? []).map((m) => (
-              <div key={m.id} className="space-y-2 rounded-lg border p-3">
-                <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
-                  <span className="font-semibold text-foreground">{nomesUsuarios.get(m.sender_id) ?? "Usuário"} → {nomesUsuarios.get(m.recipient_id) ?? "Usuário"}</span>
-                  <span>{formatHora(m.created_at)}</span>
-                </div>
-                {m.body && <p className="whitespace-pre-wrap break-words text-sm">{m.body}</p>}
-                {m.attachment_path && <MessageAttachment path={m.attachment_path} name={m.attachment_name} type={m.attachment_type} size={m.attachment_size} minha={false} />}
-                {!m.read_at && <Badge variant="outline">Não lida pelo destinatário</Badge>}
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      )}
       <div className="grid gap-4 lg:grid-cols-[300px_1fr]">
         <Card className={selecionado ? "hidden lg:block" : ""}>
           <CardHeader className="pb-3">
@@ -368,51 +316,6 @@ function MensagensPage() {
             </div>
           </CardHeader>
           <CardContent className="space-y-3">
-            <ScrollArea className="h-[45vh] rounded-md border p-3 lg:h-[55vh]">
-              {!selecionado && <p className="text-sm text-muted-foreground">Selecione um usuário para iniciar a conversa.</p>}
-              {selecionado && conversaQuery.isLoading && <p className="text-sm text-muted-foreground">Carregando mensagens...</p>}
-              {selecionado && !conversaQuery.isLoading && !(conversaQuery.data ?? []).length && (
-                <p className="text-sm text-muted-foreground">Nenhuma mensagem ainda. Envie a primeira.</p>
-              )}
-              <div className="space-y-2">
-                {(conversaQuery.data ?? []).map((m) => {
-                  const minha = m.sender_id === meuId;
-                  return (
-                    <div key={m.id} className={`group flex items-center gap-1 ${minha ? "justify-end" : "justify-start"}`}>
-                      {minha && (
-                        <div className="flex shrink-0 items-center gap-0.5 opacity-60 transition-opacity group-hover:opacity-100">
-                          <Button variant="ghost" size="icon" className="h-7 w-7" aria-label="Copiar mensagem" onClick={() => void copiar(m.body)}>
-                            <Copy className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" aria-label="Excluir mensagem" onClick={() => void excluir(m)}>
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                        </div>
-                      )}
-                      <div className={`max-w-[85%] space-y-2 rounded-lg px-3 py-2 text-sm ${minha ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
-                        {m.attachment_path && (
-                          <MessageAttachment
-                            path={m.attachment_path}
-                            name={m.attachment_name}
-                            type={m.attachment_type}
-                            size={m.attachment_size}
-                            minha={minha}
-                          />
-                        )}
-                        {m.body && <p className="whitespace-pre-wrap break-words">{m.body}</p>}
-                        <p className={`mt-1 text-[11px] ${minha ? "text-primary-foreground/70" : "text-muted-foreground"}`}>{formatHora(m.created_at)}</p>
-                      </div>
-                      {!minha && (
-                        <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 opacity-60 transition-opacity group-hover:opacity-100" aria-label="Copiar mensagem" onClick={() => void copiar(m.body)}>
-                          <Copy className="h-3.5 w-3.5" />
-                        </Button>
-                      )}
-                    </div>
-                  );
-                })}
-                <div ref={fimRef} />
-              </div>
-            </ScrollArea>
             {arquivo && (
               <div className="flex items-center gap-3 rounded-md border p-2">
                 {previa ? (
@@ -479,6 +382,51 @@ function MensagensPage() {
                 <span className="ml-2 hidden sm:inline">Enviar</span>
               </Button>
             </form>
+            <ScrollArea className="h-[45vh] rounded-md border p-3 lg:h-[55vh]">
+              {!selecionado && <p className="text-sm text-muted-foreground">Selecione um usuário para iniciar a conversa.</p>}
+              {selecionado && conversaQuery.isLoading && <p className="text-sm text-muted-foreground">Carregando mensagens...</p>}
+              {selecionado && !conversaQuery.isLoading && !(conversaQuery.data ?? []).length && (
+                <p className="text-sm text-muted-foreground">Nenhuma mensagem ainda. Envie a primeira.</p>
+              )}
+              <div className="space-y-2">
+                {(conversaQuery.data ?? []).map((m) => {
+                  const minha = m.sender_id === meuId;
+                  return (
+                    <div key={m.id} className={`group flex items-center gap-1 ${minha ? "justify-end" : "justify-start"}`}>
+                      {minha && (
+                        <div className="flex shrink-0 items-center gap-0.5 opacity-60 transition-opacity group-hover:opacity-100">
+                          <Button variant="ghost" size="icon" className="h-7 w-7" aria-label="Copiar mensagem" onClick={() => void copiar(m.body)}>
+                            <Copy className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" aria-label="Excluir mensagem" onClick={() => void excluir(m)}>
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      )}
+                      <div className={`max-w-[85%] space-y-2 rounded-lg px-3 py-2 text-sm ${minha ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
+                        {m.attachment_path && (
+                          <MessageAttachment
+                            path={m.attachment_path}
+                            name={m.attachment_name}
+                            type={m.attachment_type}
+                            size={m.attachment_size}
+                            minha={minha}
+                          />
+                        )}
+                        {m.body && <p className="whitespace-pre-wrap break-words">{m.body}</p>}
+                        <p className={`mt-1 text-[11px] ${minha ? "text-primary-foreground/70" : "text-muted-foreground"}`}>{formatHora(m.created_at)}</p>
+                      </div>
+                      {!minha && (
+                        <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 opacity-60 transition-opacity group-hover:opacity-100" aria-label="Copiar mensagem" onClick={() => void copiar(m.body)}>
+                          <Copy className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                    </div>
+                  );
+                })}
+                <div ref={fimRef} />
+              </div>
+            </ScrollArea>
           </CardContent>
         </Card>
       </div>
