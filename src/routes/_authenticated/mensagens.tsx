@@ -11,7 +11,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Progress } from "@/components/ui/progress";
 import { ArrowLeft, Copy, Loader2, MessagesSquare, Paperclip, Send, Smile, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
-import { CARGO_LABELS, type Cargo } from "@/hooks/use-profile";
+import { CARGO_LABELS, type Cargo, useProfile } from "@/hooks/use-profile";
 import {
   MessageAttachment,
   TAMANHO_MAX_ANEXO,
@@ -67,6 +67,7 @@ function extensaoDe(file: File) {
 
 function MensagensPage() {
   const queryClient = useQueryClient();
+  const { perms, profile } = useProfile();
   const [meuId, setMeuId] = useState<string | null>(null);
   const [selecionado, setSelecionado] = useState<Contato | null>(null);
   const [texto, setTexto] = useState("");
@@ -90,6 +91,22 @@ function MensagensPage() {
       return (data ?? []) as Contato[];
     },
     staleTime: 60_000,
+  });
+
+  const adminMensagensQuery = useQuery({
+    queryKey: ["admin-all-messages"],
+    enabled: perms.isAdmin,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("messages")
+        .select("id, sender_id, recipient_id, body, read_at, created_at, attachment_path, attachment_name, attachment_type, attachment_size, expires_at")
+        .gt("expires_at", new Date().toISOString())
+        .order("created_at", { ascending: false })
+        .limit(300);
+      if (error) throw error;
+      return (data ?? []) as Mensagem[];
+    },
+    staleTime: 30_000,
   });
 
   const naoLidasQuery = useQuery({
@@ -255,11 +272,14 @@ function MensagensPage() {
   }
 
   const contatos = contatosQuery.data ?? [];
+  const nomesUsuarios = new Map(contatos.map((c) => [c.id, c.nome || "Sem nome"]));
+  if (profile?.id) nomesUsuarios.set(profile.id, profile.nome || "Administrador");
 
   return (
     <div className="w-full max-w-full space-y-4 p-3 sm:p-4">
       <div>
         <h1 className="flex items-center gap-2 text-2xl font-semibold"><MessagesSquare className="h-6 w-6" /> Mensagens</h1>
+        <p className="mt-1 text-xs text-muted-foreground">As mensagens internas podem ser visualizadas pela administração do sistema.</p>
         {totalNaoLidas > 0 && (
           <p className="text-sm text-muted-foreground">
             <span className="font-medium text-foreground">{totalNaoLidas} não lida(s).</span>
@@ -267,6 +287,30 @@ function MensagensPage() {
         )}
       </div>
 
+      {perms.isAdmin && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Todas as mensagens dos usuários</CardTitle>
+            <CardDescription>Visão administrativa das mensagens enviadas e recebidas pelos usuários nos últimos 60 dias. Exibindo até 300 registros mais recentes.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {adminMensagensQuery.isLoading && <p className="text-sm text-muted-foreground">Carregando mensagens...</p>}
+            {adminMensagensQuery.isError && <p className="text-sm text-destructive">Não foi possível carregar todas as mensagens. Verifique a política de acesso administrativo.</p>}
+            {!adminMensagensQuery.isLoading && !adminMensagensQuery.isError && !(adminMensagensQuery.data ?? []).length && <p className="text-sm text-muted-foreground">Nenhuma mensagem no período.</p>}
+            {(adminMensagensQuery.data ?? []).map((m) => (
+              <div key={m.id} className="space-y-2 rounded-lg border p-3">
+                <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+                  <span className="font-semibold text-foreground">{nomesUsuarios.get(m.sender_id) ?? "Usuário"} → {nomesUsuarios.get(m.recipient_id) ?? "Usuário"}</span>
+                  <span>{formatHora(m.created_at)}</span>
+                </div>
+                {m.body && <p className="whitespace-pre-wrap break-words text-sm">{m.body}</p>}
+                {m.attachment_path && <MessageAttachment path={m.attachment_path} name={m.attachment_name} type={m.attachment_type} size={m.attachment_size} minha={false} />}
+                {!m.read_at && <Badge variant="outline">Não lida pelo destinatário</Badge>}
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
       <div className="grid gap-4 lg:grid-cols-[300px_1fr]">
         <Card className={selecionado ? "hidden lg:block" : ""}>
           <CardHeader className="pb-3">
