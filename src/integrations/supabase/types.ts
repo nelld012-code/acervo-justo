@@ -130,6 +130,80 @@ export type Database = {
           },
         ]
       }
+      client_contracts: {
+        Row: {
+          cidade_assinatura: string
+          client_id: string
+          contrato_html: string
+          created_at: string
+          created_by: string | null
+          dados_snapshot: Json
+          data_assinatura: string
+          entrada_data: string | null
+          entrada_valor: number
+          honorarios_total: number
+          id: string
+          objeto_servico: string
+          parcela_valor: number
+          parcelas_quantidade: number
+          parcelas_vencimentos: Json
+          representado_nome: string | null
+          testemunha_1: string | null
+          testemunha_2: string | null
+          updated_at: string
+        }
+        Insert: {
+          cidade_assinatura?: string
+          client_id: string
+          contrato_html: string
+          created_at?: string
+          created_by?: string | null
+          dados_snapshot: Json
+          data_assinatura?: string
+          entrada_data?: string | null
+          entrada_valor?: number
+          honorarios_total: number
+          id?: string
+          objeto_servico: string
+          parcela_valor?: number
+          parcelas_quantidade?: number
+          parcelas_vencimentos?: Json
+          representado_nome?: string | null
+          testemunha_1?: string | null
+          testemunha_2?: string | null
+          updated_at?: string
+        }
+        Update: {
+          cidade_assinatura?: string
+          client_id?: string
+          contrato_html?: string
+          created_at?: string
+          created_by?: string | null
+          dados_snapshot?: Json
+          data_assinatura?: string
+          entrada_data?: string | null
+          entrada_valor?: number
+          honorarios_total?: number
+          id?: string
+          objeto_servico?: string
+          parcela_valor?: number
+          parcelas_quantidade?: number
+          parcelas_vencimentos?: Json
+          representado_nome?: string | null
+          testemunha_1?: string | null
+          testemunha_2?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_contracts_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clients: {
         Row: {
           bairro: string | null
@@ -225,80 +299,6 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
-      }
-      client_contracts: {
-        Row: {
-          cidade_assinatura: string
-          client_id: string
-          contrato_html: string
-          created_at: string
-          created_by: string | null
-          data_assinatura: string
-          dados_snapshot: Json
-          entrada_data: string | null
-          entrada_valor: number
-          honorarios_total: number
-          id: string
-          objeto_servico: string
-          parcela_valor: number
-          parcelas_quantidade: number
-          parcelas_vencimentos: Json
-          representado_nome: string | null
-          testemunha_1: string | null
-          testemunha_2: string | null
-          updated_at: string
-        }
-        Insert: {
-          cidade_assinatura?: string
-          client_id: string
-          contrato_html: string
-          created_at?: string
-          created_by?: string | null
-          data_assinatura?: string
-          dados_snapshot: Json
-          entrada_data?: string | null
-          entrada_valor?: number
-          honorarios_total: number
-          id?: string
-          objeto_servico: string
-          parcela_valor?: number
-          parcelas_quantidade?: number
-          parcelas_vencimentos?: Json
-          representado_nome?: string | null
-          testemunha_1?: string | null
-          testemunha_2?: string | null
-          updated_at?: string
-        }
-        Update: {
-          cidade_assinatura?: string
-          client_id?: string
-          contrato_html?: string
-          created_at?: string
-          created_by?: string | null
-          data_assinatura?: string
-          dados_snapshot?: Json
-          entrada_data?: string | null
-          entrada_valor?: number
-          honorarios_total?: number
-          id?: string
-          objeto_servico?: string
-          parcela_valor?: number
-          parcelas_quantidade?: number
-          parcelas_vencimentos?: Json
-          representado_nome?: string | null
-          testemunha_1?: string | null
-          testemunha_2?: string | null
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "client_contracts_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       crm_activities: {
         Row: {
