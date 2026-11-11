@@ -1,23 +1,42 @@
 # Acervo Justo — DJEN Brazil proxy
 
-This small Vercel project is the scheduled, Brazil-region collector for the public CNJ Comunica API. It is intentionally separate from the Lovable app backend so the CNJ request originates in São Paulo.
+This small Vercel project collects the public CNJ Comunica API from a Vercel Function pinned to São Paulo (`gru1`). It forwards the original CNJ items to the protected server-side receiver in Acervo Justo. The UI, database, and Prazos remain in the existing Lovable project.
 
-## Vercel project setup
+## Safe test deployment (no production cron)
 
-1. Import the GitHub repository `nelld012-code/acervo-justo` into Vercel.
+1. Import GitHub repository `nelld012-code/acervo-justo` into Vercel.
 2. Set **Root Directory** to `integrations/djen-proxy`.
-3. Keep the production branch set to `feature/djen-brazil-cron` during testing. Do not enable the production cron until the Lovable receiver and database migration are ready.
-4. The included `vercel.json` pins functions to São Paulo (`gru1`) and declares a daily cron at **09:00 UTC (06:00 in Brasília)**.
-5. Configure these Production environment variables:
-   - `CRON_SECRET`: a long random secret. Vercel sends it as `Authorization: Bearer <CRON_SECRET>` for each cron invocation.
-   - `DJEN_SYNC_SECRET`: a separate long random secret that must match `DJEN_CRON_SECRET` in Lovable Cloud.
+3. Keep the Vercel Production Branch on `main`. Deploy `feature/djen-brazil-cron` as a **Preview deployment** only.
+4. The included `vercel.json` pins all functions to São Paulo (`gru1`). Vercel documents `gru1` as São Paulo, Brazil.
+5. Configure these **Preview** environment variables:
+   - `CRON_SECRET`: a long random secret; the function compares it with the incoming `Authorization: Bearer ...` header.
+   - `DJEN_SYNC_SECRET`: a second independent random secret; later it must match `DJEN_CRON_SECRET` in Lovable Cloud.
    - `ACERVO_JUSTO_URL`: `https://acervo-justo.lovable.app`.
-6. Deploy a preview first and test `/api/health`; the `region` field must report `gru1`.
-7. Only after the Lovable receiver has its secret configured and the database migration is verified, merge the integration branch to the Vercel production branch and enable the daily cron.
+6. Deploy a Preview and open `/api/health`; the response must report `region: "gru1"`.
+7. Invoke `/api/djen-cron?dryRun=1` using a POSTMAN/curl request with the bearer secret. This performs a real CNJ read from São Paulo and asks Acervo Justo's receiver for dry-run mapping only. It must not write to the database.
+8. Do **not** add a Vercel Cron schedule or switch the production branch for this test.
+
+## Production activation (after backup, migration and secret setup)
+
+Only after the Lovable database backup is verified, the new DJEN tables and RLS policies have been applied, the receiver has `DJEN_CRON_SECRET` configured, and a successful dry-run has been observed:
+
+1. Add a Vercel Cron entry in `vercel.json`:
+   ```json
+   { "crons": [{ "path": "/api/djen-cron", "schedule": "0 9 * * *" }] }
+   ```
+2. This means 09:00 UTC = 06:00 in Brasília (UTC−3), every day.
+3. Merge the tested branch to `main` and deploy production. Vercel Cron Jobs run only on production deployments.
+4. Check the first run's result before treating the automation as operational.
+
+## Environment variables and security
+
+- Generate and store secrets in the Vercel and Lovable dashboards. Never paste `service_role`, `CRON_SECRET`, or `DJEN_SYNC_SECRET` in chat, source code, or a URL.
+- `CRON_SECRET` is for Vercel's cron invocation. `DJEN_SYNC_SECRET` is the shared secret only between Vercel and the Acervo Justo server receiver.
+- The server receiver is the only process that uses Supabase service-role credentials.
+- The collector does not calculate procedural deadlines and does not log communication text.
 
 ## Endpoints
 
-- `GET /api/health`: non-sensitive region and health check.
-- `GET /api/djen-cron`: protected scheduled job. It only accepts Vercel Cron's bearer secret, queries OAB/MG 37610, reads up to 10 pages of 100 items over the previous three days, and POSTs the raw items to the Lovable receiver.
-
-No credentials or CNJ data are written to logs by this project. It does not calculate procedural deadlines.
+- `GET /api/health`: non-sensitive service and region check.
+- `GET /api/djen-cron`: protected read-and-forward job; never writes to Supabase directly.
+- `GET /api/djen-cron?dryRun=1`: protected real CNJ read + dry-run in the receiver; no DB writes.
