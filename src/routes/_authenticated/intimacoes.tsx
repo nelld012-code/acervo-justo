@@ -38,6 +38,8 @@ type Intimacao = {
   prazo_id: string | null;
 };
 
+// Supabase query builder is dynamically typed until the DJEN migration is applied.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabase as any;
 const dataBR = (value: string | null) =>
   value ? new Date(value.length === 10 ? value + "T12:00:00" : value).toLocaleDateString("pt-BR") : "—";
@@ -83,7 +85,7 @@ function IntimacoesPage() {
     retry: false,
   });
 
-  const itens = query.data ?? [];
+  const itens = useMemo(() => query.data ?? [], [query.data]);
   const filtradas = useMemo(() => itens.filter((item) => {
     const matchesStatus = filtro === "todas" || item.status === filtro;
     const haystack = [item.numero_processo, item.sigla_tribunal, item.orgao, item.texto,
