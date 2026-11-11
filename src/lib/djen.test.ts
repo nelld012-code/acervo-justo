@@ -1,3 +1,4 @@
+// @ts-ignore vitest roda via bunx
 import { describe, expect, it } from "vitest";
 import { deduplicar, hashComunicacao, mapearComunicacao } from "./djen";
 
