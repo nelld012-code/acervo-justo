@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { BellRing, CalendarDays, FileText, Printer, Search, ShieldCheck, Eye, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { useProfile } from "@/hooks/use-profile";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -62,6 +63,8 @@ function imprimir(titulo: string, conteudo: string) {
 
 function IntimacoesPage() {
   const qc = useQueryClient();
+  const { cargo } = useProfile();
+  const podeCriarPrazo = ["administrador", "advogado", "secretaria"].includes(cargo);
   const [busca, setBusca] = useState("");
   const [filtro, setFiltro] = useState("todas");
   const [selecionada, setSelecionada] = useState<Intimacao | null>(null);
@@ -256,7 +259,7 @@ function IntimacoesPage() {
           <div className="mt-4 flex flex-wrap gap-2">
             <Button size="sm" variant="outline" onClick={() => setSelecionada(item)}><Eye className="mr-1 h-4 w-4" />Ver detalhes</Button>
             {item.status === "nova" && <Button size="sm" variant="outline" onClick={() => void marcarRevisada(item)}><ShieldCheck className="mr-1 h-4 w-4" />Marcar como revisada</Button>}
-            {item.status === "revisada" && <Button size="sm" onClick={() => abrirCriacaoPrazo(item)}><CalendarDays className="mr-1 h-4 w-4" />Criar prazo</Button>}
+            {item.status === "revisada" && podeCriarPrazo && <Button size="sm" onClick={() => abrirCriacaoPrazo(item)}><CalendarDays className="mr-1 h-4 w-4" />Criar prazo</Button>}
             <Button size="sm" variant="ghost" onClick={() => imprimirFicha(item)}><Printer className="mr-1 h-4 w-4" />Imprimir ficha</Button>
           </div>
         </div>)}
