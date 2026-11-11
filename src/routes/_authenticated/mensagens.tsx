@@ -97,14 +97,23 @@ function MensagensPage() {
     queryKey: ["admin-all-messages"],
     enabled: perms.isAdmin,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("messages")
-        .select("id, sender_id, recipient_id, body, read_at, created_at, attachment_path, attachment_name, attachment_type, attachment_size, expires_at")
-        .gt("expires_at", new Date().toISOString())
-        .order("created_at", { ascending: false })
-        .limit(300);
-      if (error) throw error;
-      return (data ?? []) as Mensagem[];
+      // Carrega todas as mensagens que ainda fazem parte do histórico de 60 dias.
+      // A paginação evita que mensagens fiquem ocultas por um limite fixo de registros.
+      const tamanhoPagina = 500;
+      const todas: Mensagem[] = [];
+      for (let inicio = 0; ; inicio += tamanhoPagina) {
+        const { data, error } = await supabase
+          .from("messages")
+          .select("id, sender_id, recipient_id, body, read_at, created_at, attachment_path, attachment_name, attachment_type, attachment_size, expires_at")
+          .gt("expires_at", new Date().toISOString())
+          .order("created_at", { ascending: false })
+          .range(inicio, inicio + tamanhoPagina - 1);
+        if (error) throw error;
+        const lote = (data ?? []) as Mensagem[];
+        todas.push(...lote);
+        if (lote.length < tamanhoPagina) break;
+      }
+      return todas;
     },
     staleTime: 30_000,
   });
@@ -146,6 +155,7 @@ function MensagensPage() {
       .on("postgres_changes", { event: "*", schema: "public", table: "messages" }, () => {
         queryClient.invalidateQueries({ queryKey: ["messages-unread"] });
         queryClient.invalidateQueries({ queryKey: ["messages-thread"] });
+        queryClient.invalidateQueries({ queryKey: ["admin-all-messages"] });
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
@@ -290,7 +300,7 @@ function MensagensPage() {
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-base">Todas as mensagens dos usuários</CardTitle>
-            <CardDescription>Visão administrativa das mensagens enviadas e recebidas pelos usuários nos últimos 60 dias. Exibindo até 300 registros mais recentes.</CardDescription>
+            <CardDescription>Visão administrativa de todas as mensagens enviadas e recebidas pelos usuários que ainda estão disponíveis no histórico de 60 dias.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             {adminMensagensQuery.isLoading && <p className="text-sm text-muted-foreground">Carregando mensagens...</p>}
