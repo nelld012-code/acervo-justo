@@ -1,43 +1,107 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { DJEN_OAB, DJEN_URL, deduplicar, type DjenItem } from "@/lib/djen";
+import { deduplicar, type DjenItem } from "@/lib/djen";
 
-const MAX_PAGINAS = 20;
-const dia = (d: Date) => d.toISOString().slice(0, 10);
+function autorizado(request: Request) {
+  const secret = process.env.DJEN_CRON_SECRET ?? "";
+  const recebido = request.headers.get("x-cron-secret") ?? "";
+  if (!secret || !recebido || secret.length !== recebido.length) return false;
 
-function autorizado(req: Request) {
-  const secret = process.env["DJEN_CRON_SECRET"];
-  const got = req.headers.get("x-cron-secret") ?? "";
-  if (!secret || got.length !== secret.length) return false;
-  let diff = 0; for (let i = 0; i < secret.length; i++) diff |= secret.charCodeAt(i) ^ got.charCodeAt(i);
+  let diff = 0;
+  for (let index = 0; index < secret.length; index++) {
+    diff |= secret.charCodeAt(index) ^ recebido.charCodeAt(index);
+  }
   return diff === 0;
 }
 
 export const Route = createFileRoute("/api/public/djen-sync")({
-  server: { handlers: { POST: async ({ request }) => {
-    if (!autorizado(request)) return new Response("Unauthorized", { status: 401 });
-    const dryRun = new URL(request.url).searchParams.get("dryRun") === "1";
-    const fim = new Date(); const inicio = new Date(fim.getTime() - 3 * 86400000);
-    const itens: DjenItem[] = []; let erro: string | null = null;
-    try {
-      for (let pagina = 1; pagina <= MAX_PAGINAS; pagina++) {
-        const q = new URLSearchParams({ ...DJEN_OAB, dataDisponibilizacaoInicio: dia(inicio), dataDisponibilizacaoFim: dia(fim), pagina: String(pagina), itensPorPagina: "100" });
-        const res = await fetch(`${DJEN_URL}?${q}`, { headers: { accept: "application/json" } });
-        if (!res.ok) throw new Error(`CNJ HTTP ${res.status}`);
-        const body = (await res.json()) as { items?: DjenItem[] };
-        const page = body.items ?? []; itens.push(...page);
-        if (page.length < 100) break;
-      }
-    } catch (e) { erro = e instanceof Error ? e.message : String(e); }
-    const rows = await deduplicar(itens);
-    if (dryRun) return Response.json({ dryRun: true, encontrados: itens.length, unicos: rows.length, erro, amostra: rows.slice(0, 2).map(({ payload: _p, ...r }) => r) });
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const db = supabaseAdmin as unknown as { from: (t: string) => any };
-    let inseridos = 0;
-    if (!erro && rows.length) {
-      const { data, error } = await db.from("intimacoes_djen").upsert(rows, { onConflict: "hash", ignoreDuplicates: true }).select("id");
-      if (error) erro = error.message; else inseridos = data?.length ?? 0;
-    }
-    await db.from("djen_sync_runs").insert({ inicio: dia(inicio), fim: dia(fim), encontrados: itens.length, inseridos, erro, finished_at: new Date().toISOString() });
-    return Response.json({ encontrados: itens.length, inseridos, erro }, { status: erro ? 502 : 200 });
-  } } },
+  server: {
+    handlers: {
+      POST: async ({ request }) => {
+        if (!autorizado(request)) return new Response("Unauthorized", { status: 401 });
+
+        let body: {
+          items?: DjenItem[];
+          total?: number;
+          dataInicio?: string;
+          dataFim?: string;
+          origem?: string;
+          coletadoEm?: string;
+        };
+
+        try {
+          body = await request.json();
+        } catch {
+          return Response.json({ error: "Invalid JSON body" }, { status: 400 });
+        }
+
+        if (!Array.isArray(body.items) || body.items.length > 1000) {
+          return Response.json({ error: "Expected an items array with at most 1000 entries" }, { status: 400 });
+        }
+
+        const rows = await deduplicar(body.items);
+        const rawCount = Number(body.total ?? body.items.length);
+        const total = Number.isFinite(rawCount) && rawCount >= 0 ? rawCount : body.items.length;
+
+        // Dry-run is available only to the trusted Brazil-region collector.
+        if (new URL(request.url).searchParams.get("dryRun") === "1") {
+          return Response.json({
+            dryRun: true,
+            recebidos: body.items.length,
+            unicos: rows.length,
+            totalCNJ: total,
+            periodo: { inicio: body.dataInicio ?? null, fim: body.dataFim ?? null },
+            amostra: rows.slice(0, 3).map(({ payload: _payload, ...row }) => row),
+          });
+        }
+
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const db = supabaseAdmin as unknown as {
+          from: (table: string) => {
+            upsert: (values: unknown[], options: { onConflict: string; ignoreDuplicates: boolean }) => {
+              select: (columns: string) => Promise<{ data: Array<{ id: string }> | null; error: { message: string } | null }>;
+            };
+            insert: (value: Record<string, unknown>) => Promise<{ error: { message: string } | null }>;
+          };
+        };
+
+        let inserted = 0;
+        let errorMessage: string | null = null;
+
+        if (rows.length > 0) {
+          const { data, error } = await db
+            .from("intimacoes_djen")
+            .upsert(rows, { onConflict: "hash", ignoreDuplicates: true })
+            .select("id");
+
+          if (error) errorMessage = error.message;
+          else inserted = data?.length ?? 0;
+        }
+
+        const logError = await db.from("djen_sync_runs").insert({
+          inicio: body.dataInicio ?? null,
+          fim: body.dataFim ?? null,
+          encontrados: body.items.length,
+          total_cnj: total,
+          inseridos: inserted,
+          erro: errorMessage,
+          origem: body.origem ?? "vercel-gru1",
+          finished_at: new Date().toISOString(),
+        });
+
+        if (logError.error && !errorMessage) errorMessage = logError.error.message;
+
+        return Response.json(
+          {
+            ok: errorMessage === null,
+            recebidos: body.items.length,
+            unicos: rows.length,
+            totalCNJ: total,
+            inseridos: inserted,
+            erro: errorMessage,
+          },
+          { status: errorMessage ? 502 : 200 },
+        );
+      },
+    },
+  },
 });
