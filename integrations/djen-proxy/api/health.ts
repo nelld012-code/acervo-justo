@@ -1,3 +1,5 @@
+declare const process: { env: Record<string, string | undefined> };
+
 type VercelResponse = {
   setHeader: (name: string, value: string) => void;
   status: (code: number) => VercelResponse;
