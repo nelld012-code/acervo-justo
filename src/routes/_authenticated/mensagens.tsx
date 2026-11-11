@@ -279,7 +279,6 @@ function MensagensPage() {
     <div className="w-full max-w-full space-y-4 p-3 sm:p-4">
       <div>
         <h1 className="flex items-center gap-2 text-2xl font-semibold"><MessagesSquare className="h-6 w-6" /> Mensagens</h1>
-        <p className="mt-1 text-xs text-muted-foreground">As mensagens internas podem ser visualizadas pela administração do sistema.</p>
         {totalNaoLidas > 0 && (
           <p className="text-sm text-muted-foreground">
             <span className="font-medium text-foreground">{totalNaoLidas} não lida(s).</span>
@@ -473,6 +472,7 @@ function MensagensPage() {
           </CardContent>
         </Card>
       </div>
+      <p className="border-t pt-3 text-xs text-muted-foreground">Aviso: as mensagens e os anexos enviados pelo sistema podem ser consultados pela administração para fins de gestão e segurança.</p>
     </div>
   );
 }
