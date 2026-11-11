@@ -13,7 +13,12 @@ This small Vercel project collects the public CNJ Comunica API from a Vercel Fun
    - `DJEN_SYNC_SECRET`: a second independent random secret; later it must match `DJEN_CRON_SECRET` in Lovable Cloud.
    - `ACERVO_JUSTO_URL`: `https://acervo-justo.lovable.app`.
 6. Deploy a Preview and open `/api/health`; the response must report `region: "gru1"`.
-7. Invoke `/api/djen-cron?dryRun=1` using a POSTMAN/curl request with the bearer secret. This performs a real CNJ read from São Paulo and asks Acervo Justo's receiver for dry-run mapping only. It must not write to the database.
+7. Invoke `/api/djen-cron?dryRun=1` using a request with the bearer secret. This performs a real CNJ read from São Paulo and asks Acervo Justo's receiver for dry-run mapping only. It must not write to the database. In Windows PowerShell, after saving the two secrets as environment variables (do not paste them into chat), run:
+   ```powershell
+   $env:CRON_SECRET = Read-Host "CRON_SECRET"
+   $env:VERCEL_PREVIEW_URL = Read-Host "Vercel Preview URL"
+   Invoke-RestMethod -Headers @{ Authorization = "Bearer $env:CRON_SECRET" } -Uri "$env:VERCEL_PREVIEW_URL/api/djen-cron?dryRun=1"
+   ```
 8. Do **not** add a Vercel Cron schedule or switch the production branch for this test.
 
 ## Production activation (after backup, migration and secret setup)
