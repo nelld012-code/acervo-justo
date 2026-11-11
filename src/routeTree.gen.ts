@@ -149,7 +149,6 @@ export interface FileRoutesByFullPath {
   '/perfil': typeof AuthenticatedPerfilRoute
   '/prazos': typeof AuthenticatedPrazosRoute
   '/intimacoes': typeof AuthenticatedIntimacoesRoute
-  '/intimacoes': typeof AuthenticatedIntimacoesRoute
   '/recepcao': typeof AuthenticatedRecepcaoRoute
   '/search': typeof AuthenticatedSearchRoute
   '/tarefas': typeof AuthenticatedTarefasRoute
