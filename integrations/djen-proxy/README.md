@@ -6,7 +6,7 @@ This small Vercel project collects the public CNJ Comunica API from a Vercel Fun
 
 1. Import GitHub repository `nelld012-code/acervo-justo` into Vercel.
 2. Set **Root Directory** to `integrations/djen-proxy`.
-3. Keep the Vercel Production Branch on `main`. Deploy `feature/djen-brazil-cron` as a **Preview deployment** only.
+3. Keep the Vercel Production Branch on `main`. Deploy `feature/djen-proxy-isolated` as a **Preview deployment** only.
 4. The included `vercel.json` pins all functions to São Paulo (`gru1`). Vercel documents `gru1` as São Paulo, Brazil.
 5. Configure these **Preview** environment variables:
    - `CRON_SECRET`: a long random secret; the function compares it with the incoming `Authorization: Bearer ...` header.
