@@ -53,6 +53,7 @@ export default async function handler(req: any, res: any) {
   let total = 0;
 
   try {
+    let paginasEsgotadas = false;
     for (let pagina = 1; pagina <= MAX_PAGES; pagina++) {
       const params = new URLSearchParams({
         numeroOab: "37610",
@@ -83,10 +84,13 @@ export default async function handler(req: any, res: any) {
       total = Number(body.count ?? total);
       items.push(...pageItems);
 
-      if (pageItems.length < PAGE_SIZE || (total > 0 && items.length >= total)) break;
+      if (pageItems.length < PAGE_SIZE || (total > 0 && items.length >= total)) {
+        paginasEsgotadas = true;
+        break;
+      }
     }
 
-    if (total > items.length) {
+    if (!paginasEsgotadas || total > items.length) {
       return res.status(502).json({
         error: "Pagination limit reached; refusing an incomplete sync",
         total,
