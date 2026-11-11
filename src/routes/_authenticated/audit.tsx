@@ -70,7 +70,7 @@ function AuditPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("profiles")
-        .select("id, nome, cargo")
+        .select("id, nome")
         .order("nome", { ascending: true });
       if (error) throw error;
       return (data ?? []) as UsuarioAudit[];
@@ -194,7 +194,7 @@ function AuditPage() {
             <Card>
               <CardContent className="flex items-center gap-3 p-4">
                 <div className="rounded-lg bg-primary/10 p-2 text-primary"><MessagesSquare className="h-5 w-5" /></div>
-                <div><p className="text-xs text-muted-foreground">Mensagens no histórico</p><p className="text-2xl font-semibold tabular-nums">{mensagens.length}</p></div>
+                <div><p className="text-xs text-muted-foreground">Mensagens no histórico</p><p className="text-2xl font-semibold tabular-nums">{mensagensQuery.isLoading ? "—" : mensagens.length}</p></div>
               </CardContent>
             </Card>
             <Card>
