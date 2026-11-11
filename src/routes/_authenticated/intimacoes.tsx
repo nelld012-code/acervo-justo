@@ -4,7 +4,6 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { BellRing, CalendarDays, FileText, Printer, Search, ShieldCheck, Eye, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { useProfile } from "@/hooks/use-profile";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -63,7 +62,6 @@ function imprimir(titulo: string, conteudo: string) {
 
 function IntimacoesPage() {
   const qc = useQueryClient();
-  const { perms } = useProfile();
   const [busca, setBusca] = useState("");
   const [filtro, setFiltro] = useState("todas");
   const [selecionada, setSelecionada] = useState<Intimacao | null>(null);
