@@ -9,7 +9,7 @@ import { MessageAttachment } from "@/components/message-attachment";
 import { useProfile } from "@/hooks/use-profile";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { MessagesSquare, Paperclip, Send, Inbox } from "lucide-react";
+import { MessagesSquare, Paperclip, Inbox } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/audit")({
   head: () => ({ meta: [{ title: "Auditoria - Gestão Judicial" }] }),
