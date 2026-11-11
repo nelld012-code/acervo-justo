@@ -28,6 +28,7 @@ import { Route as AuthenticatedClientesRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedBancoTarefasRouteImport } from './routes/_authenticated/banco-tarefas'
 import { Route as AuthenticatedAuditRouteImport } from './routes/_authenticated/audit'
 import { Route as AuthenticatedAudienciasRouteImport } from './routes/_authenticated/audiencias'
+import { Route as AuthenticatedAssistentesJuridicosRouteImport } from './routes/_authenticated/assistentes-juridicos'
 
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
@@ -126,10 +127,17 @@ const AuthenticatedAudienciasRoute = AuthenticatedAudienciasRouteImport.update({
   path: '/audiencias',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedAssistentesJuridicosRoute =
+  AuthenticatedAssistentesJuridicosRouteImport.update({
+    id: '/assistentes-juridicos',
+    path: '/assistentes-juridicos',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/assistentes-juridicos': typeof AuthenticatedAssistentesJuridicosRoute
   '/audiencias': typeof AuthenticatedAudienciasRoute
   '/audit': typeof AuthenticatedAuditRoute
   '/banco-tarefas': typeof AuthenticatedBancoTarefasRoute
@@ -150,6 +158,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/assistentes-juridicos': typeof AuthenticatedAssistentesJuridicosRoute
   '/audiencias': typeof AuthenticatedAudienciasRoute
   '/audit': typeof AuthenticatedAuditRoute
   '/banco-tarefas': typeof AuthenticatedBancoTarefasRoute
@@ -172,6 +181,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
+  '/_authenticated/assistentes-juridicos': typeof AuthenticatedAssistentesJuridicosRoute
   '/_authenticated/audiencias': typeof AuthenticatedAudienciasRoute
   '/_authenticated/audit': typeof AuthenticatedAuditRoute
   '/_authenticated/banco-tarefas': typeof AuthenticatedBancoTarefasRoute
@@ -194,6 +204,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
+    | '/assistentes-juridicos'
     | '/audiencias'
     | '/audit'
     | '/banco-tarefas'
@@ -214,6 +225,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/auth'
+    | '/assistentes-juridicos'
     | '/audiencias'
     | '/audit'
     | '/banco-tarefas'
@@ -235,6 +247,7 @@ export interface FileRouteTypes {
     | '/'
     | '/_authenticated'
     | '/auth'
+    | '/_authenticated/assistentes-juridicos'
     | '/_authenticated/audiencias'
     | '/_authenticated/audit'
     | '/_authenticated/banco-tarefas'
@@ -394,10 +407,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAudienciasRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/assistentes-juridicos': {
+      id: '/_authenticated/assistentes-juridicos'
+      path: '/assistentes-juridicos'
+      fullPath: '/assistentes-juridicos'
+      preLoaderRoute: typeof AuthenticatedAssistentesJuridicosRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedAssistentesJuridicosRoute: typeof AuthenticatedAssistentesJuridicosRoute
   AuthenticatedAudienciasRoute: typeof AuthenticatedAudienciasRoute
   AuthenticatedAuditRoute: typeof AuthenticatedAuditRoute
   AuthenticatedBancoTarefasRoute: typeof AuthenticatedBancoTarefasRoute
@@ -417,6 +438,8 @@ interface AuthenticatedRouteRouteChildren {
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedAssistentesJuridicosRoute:
+    AuthenticatedAssistentesJuridicosRoute,
   AuthenticatedAudienciasRoute: AuthenticatedAudienciasRoute,
   AuthenticatedAuditRoute: AuthenticatedAuditRoute,
   AuthenticatedBancoTarefasRoute: AuthenticatedBancoTarefasRoute,
