@@ -40,13 +40,13 @@ export async function sha256(text: string) {
   return [...new Uint8Array(buffer)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
-/** Prioriza o hash nativo do CNJ; usa o id e, por último, campos normalizados. */
+/** O id da comunicação é a chave principal; usa o hash CNJ e campos como fallback. */
 export async function hashComunicacao(item: DjenItem) {
-  const cnjHash = stringOrNull(item.hash);
-  if (cnjHash) return cnjHash;
-
   const id = stringOrNull(item.id);
   if (id) return sha256(`djen:${id}`);
+
+  const cnjHash = stringOrNull(item.hash);
+  if (cnjHash) return cnjHash;
 
   const processo = stringOrNull(
     item.numeroprocessocommascara,
