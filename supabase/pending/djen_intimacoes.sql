@@ -96,9 +96,25 @@ BEGIN
     RAISE EXCEPTION 'Uma intimação já convertida não pode voltar de status';
   END IF;
 
+  IF OLD.status = 'revisada'
+     AND NEW.status NOT IN ('revisada', 'convertida_em_prazo') THEN
+    RAISE EXCEPTION 'Uma intimação revisada não pode voltar para nova';
+  END IF;
+
   IF NEW.status = 'revisada'
      AND (NEW.revisada_por IS NULL OR NEW.revisada_em IS NULL) THEN
     RAISE EXCEPTION 'A revisão exige usuário e data';
+  END IF;
+
+  IF OLD.status = 'nova' AND NEW.status = 'revisada'
+     AND NEW.revisada_por IS DISTINCT FROM auth.uid() THEN
+    RAISE EXCEPTION 'A revisão deve ser registrada pelo usuário autenticado';
+  END IF;
+
+  IF OLD.status = 'revisada' AND NEW.status = 'convertida_em_prazo'
+     AND ROW(NEW.revisada_por, NEW.revisada_em)
+         IS DISTINCT FROM ROW(OLD.revisada_por, OLD.revisada_em) THEN
+    RAISE EXCEPTION 'Não é permitido alterar os dados de revisão na conversão';
   END IF;
 
   IF NEW.status = 'convertida_em_prazo' AND NEW.prazo_id IS NULL THEN
