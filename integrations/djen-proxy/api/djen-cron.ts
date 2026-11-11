@@ -1,3 +1,5 @@
+declare const process: { env: Record<string, string | undefined> };
+
 const CNJ_URL = "https://comunicaapi.pje.jus.br/api/v1/comunicacao";
 const PAGE_SIZE = 100;
 const MAX_PAGES = 10;
