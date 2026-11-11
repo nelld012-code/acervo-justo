@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { LayoutDashboard, Upload, Search, FolderOpen, ClipboardList, Scale, Users, Wallet, ConciergeBell, CalendarClock, ChevronDown, FileBarChart2, MessagesSquare, Gavel, FileText, Handshake, Bot, FileSignature } from "lucide-react";
+import { LayoutDashboard, Upload, Search, FolderOpen, ClipboardList, Scale, Users, Wallet, ConciergeBell, CalendarClock, BellRing, ChevronDown, FileBarChart2, MessagesSquare, Gavel, FileText, Handshake, Bot, FileSignature } from "lucide-react";
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarHeader, useSidebar } from "@/components/ui/sidebar";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { supabase } from "@/integrations/supabase/client";
@@ -25,6 +25,7 @@ const groups = [
     { title: "Audiências", url: "/audiencias", icon: Gavel, need: "all" },
     { title: "Banco de tarefas", url: "/banco-tarefas", icon: ClipboardList, need: "all" },
     { title: "Prazos", url: "/prazos", icon: CalendarClock, need: "all" },
+    { title: "Intimações DJEN", url: "/intimacoes", icon: BellRing, need: "all" },
   ] },
   { title: "Gestão", items: [
     { title: "Financeiro", url: "/financeiro", icon: Wallet, need: "finance" },
