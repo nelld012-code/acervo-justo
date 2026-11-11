@@ -498,14 +498,15 @@ function contractHtml(f:Form, dates:string[], numeroProcesso?: string | null) {
 </main>
 </body></html>`;
 }
-export function ClientContractModal({ client, onClose, onSaved }: Props) {
-  const [form,setForm]=useState<Form|null>(null);
+export function ClientContractModal({ client: clientProp, onClose, onSaved }: Props) {
+  const [formState,setForm]=useState<Form|null>(null);
   const [saving,setSaving]=useState(false);
   const [dates,setDates]=useState<string[]>([]);
-  useEffect(()=>{ if(client) setForm(initial(client)); else setForm(null); },[client?.id]);
-  const count=Math.max(0,Math.min(120,Number(form?.parcelas_quantidade||0)));
-  useEffect(()=>{ setDates(monthlyDates(form?.primeiro_vencimento||"",count)); },[form?.primeiro_vencimento,count]);
-  if (!client || !form) return null;
+  useEffect(()=>{ if(clientProp) setForm(initial(clientProp)); else setForm(null); },[clientProp?.id]);
+  const count=Math.max(0,Math.min(120,Number(formState?.parcelas_quantidade||0)));
+  useEffect(()=>{ setDates(monthlyDates(formState?.primeiro_vencimento||"",count)); },[formState?.primeiro_vencimento,count]);
+  if (!clientProp || !formState) return null;
+  const client=clientProp; const form=formState;
   const set=(key:keyof Form,value:string)=>setForm(old=>old?({...old,[key]:value}):old);
   const total=Number(form.honorarios_total||0), entry=Number(form.entrada_valor||0), installment=Number(form.parcela_valor||0);
   const sum=Math.round((entry+installment*count)*100)/100;
