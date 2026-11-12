@@ -166,20 +166,32 @@ CREATE POLICY "Staff review intimacoes" ON public.intimacoes_djen FOR UPDATE TO 
 CREATE POLICY "Admins view sync runs" ON public.djen_sync_runs FOR SELECT TO authenticated
   USING (private.has_cargo(auth.uid(), ARRAY['administrador']));
 
-CREATE FUNCTION public.intimacoes_protect() RETURNS trigger LANGUAGE plpgsql SET search_path = public AS $$
+CREATE FUNCTION public.intimacoes_protect() RETURNS trigger LANGUAGE plpgsql SET search_path = public AS $
 BEGIN
-  IF (NEW.hash, NEW.texto, NEW.payload, NEW.djen_id, NEW.numero_processo, NEW.data_disponibilizacao)
-     IS DISTINCT FROM (OLD.hash, OLD.texto, OLD.payload, OLD.djen_id, OLD.numero_processo, OLD.data_disponibilizacao) THEN
-    RAISE EXCEPTION 'Conteúdo original da intimação não pode ser alterado';
+  -- Todos os campos recebidos do CNJ são imutáveis após a ingestão.
+  -- Apenas status, auditoria da revisão e o vínculo inicial com o borrador pueden cambiar.
+  IF (NEW.hash, NEW.djen_id, NEW.numero_processo, NEW.sigla_tribunal, NEW.orgao,
+      NEW.tipo_comunicacao, NEW.tipo_documento, NEW.meio, NEW.data_disponibilizacao,
+      NEW.link, NEW.destinatarios, NEW.advogados, NEW.texto, NEW.payload)
+     IS DISTINCT FROM
+     (OLD.hash, OLD.djen_id, OLD.numero_processo, OLD.sigla_tribunal, OLD.orgao,
+      OLD.tipo_comunicacao, OLD.tipo_documento, OLD.meio, OLD.data_disponibilizacao,
+      OLD.link, OLD.destinatarios, OLD.advogados, OLD.texto, OLD.payload) THEN
+    RAISE EXCEPTION 'O conteúdo original da intimação DJEN não pode ser alterado.';
   END IF;
-  IF OLD.prazo_id IS NOT NULL AND NEW.prazo_id IS NOT NULL AND NEW.prazo_id <> OLD.prazo_id THEN
-    RAISE EXCEPTION 'Intimação já vinculada a outro prazo';
+
+  -- Depois de vinculado na ingestão, o prazo não pode ser removido nem trocado.
+  IF OLD.prazo_id IS NOT NULL AND NEW.prazo_id IS DISTINCT FROM OLD.prazo_id THEN
+    RAISE EXCEPTION 'O vínculo da intimação com o prazo não pode ser removido ou alterado.';
   END IF;
-  IF NEW.status = 'convertida_em_prazo' AND NEW.prazo_id IS NULL AND OLD.prazo_id IS NULL THEN
-    RAISE EXCEPTION 'Conversão exige prazo_id';
+
+  IF NEW.status = 'convertida_em_prazo' AND NEW.prazo_id IS NULL THEN
+    RAISE EXCEPTION 'Conversão exige prazo_id.';
   END IF;
-  NEW.updated_at := now(); RETURN NEW;
-END $$;
+
+  NEW.updated_at := now();
+  RETURN NEW;
+END $;
 CREATE TRIGGER intimacoes_protect_trg BEFORE UPDATE ON public.intimacoes_djen
   FOR EACH ROW EXECUTE FUNCTION public.intimacoes_protect();
 
