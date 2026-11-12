@@ -11,4 +11,5 @@
 - [x] Inspeção segura (backup, extensões, RLS de prazos, teste CNJ)
 - [x] Código de mapeamento/hash, rota de sincronização (dry-run) e migração pendente — NÃO aplicados
 - [ ] Aplicar migração e cron — bloqueado: backup não verificável por mim, pg_net ausente, CNJ bloqueia acesso fora do Brasil
-- [ ] Ligar a página /intimacoes aos dados reais e ação "Criar prazo" — depende da migração
+- [x] Código: recebimento protegido, rascunho automático em Prazos, confirmação humana, testes
+- [ ] Aplicar supabase/pending/20261112150000_djen_intimacoes.sql — aguarda aprovação do responsável

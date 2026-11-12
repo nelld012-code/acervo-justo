@@ -9,3 +9,4 @@
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
 - Root route reloads the page once (30s sessionStorage guard) on stale chunk-load errors, because tabs opened before a publish otherwise show the error screen.
+- DJEN ingest is all-or-nothing via SQL function djen_ingest (service_role only); drafts in prazos use dedupe_key 'djen:<hash>' so they never collide with manual prazos.
