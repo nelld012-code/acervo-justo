@@ -79,16 +79,6 @@ function json(body: unknown, status = 200): Response {
       "Cache-Control": "no-store",
     },
   });
-
-Deno.serve(async (request: Request) => {
-  try {
-    return await djenSyncHandler(request);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    console.error("[djen-sync] Erro nao tratado:", message);
-    return json({ error: "Falha interna ao executar a sincronizacao DJEN." }, 500);
-  }
-});
 }
 
 function safeEqual(expected: string, received: string): boolean {
@@ -318,5 +308,15 @@ const djenSyncHandler = withSupabase({ auth: "none" }, async (request: Request, 
       error: message,
       bancoAlterado: false,
     }, 502);
+  }
+});
+
+Deno.serve(async (request: Request) => {
+  try {
+    return await djenSyncHandler(request);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error("[djen-sync] Erro nao tratado:", message);
+    return json({ error: "Falha interna ao executar a sincronizacao DJEN." }, 500);
   }
 });
