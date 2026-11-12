@@ -29,7 +29,7 @@ La rama `backup/djen-supabase-native-before-hardening-20261112` conserva código
 
 ### 2. Aplicar el SQL del módulo DJEN
 
-En el proyecto Lovable abre **More → Database → Manage → SQL editor**. No pegues todavía el archivo completo de la migración: la lectura actual demuestra que las tablas DJEN, los campos y las funciones principales ya existen y que las 581 filas de `prazos` deben conservarse. Primero compara la definición exacta de columnas, índices, triggers, funciones, políticas RLS y permisos con `supabase/migrations/20261112150000_djen_intimacoes.sql`. Luego ejecuta solamente las sentencias faltantes, comenzando por instalar `pg_net` con:
+En el proyecto Lovable abre **More → Database → Manage → SQL editor**. No pegues todavía el archivo completo de la migración: la lectura actual demuestra que las tablas DJEN, los campos y las funciones principales ya existen y que las 581 filas de `prazos` deben conservarse. Primero compara la definición exacta de columnas, índices, triggers, funciones, políticas RLS y permisos con `supabase/migrations/20261112150000_djen_intimacoes.sql`. El SQL fue ajustado para conservar el comportamiento de duplicados manuales que está activo hoy: una inserción duplicada se ignora y una actualización que crea duplicado se rechaza; solo se agregan las restricciones propias de los borradores DJEN. La nueva versión también endurece la protección del texto original de las intimaciones y valida que cada comunicación quede vinculada a un borrador. Luego ejecuta las sentencias faltantes, comenzando por instalar `pg_net` con:
 
 ~~~sql
 CREATE EXTENSION IF NOT EXISTS pg_net;
@@ -98,7 +98,7 @@ BEGIN
   ELSE
     PERFORM vault.update_secret(v_id, 'PEGA_AQUI_O_MESMO_DJEN_CRON_SECRET', 'djen_cron_secret', 'Segredo compartilhado entre pg_cron e a Edge Function DJEN');
   END IF;
-END $$7667
+END $;
 
 Si alguno de esos nombres ya existe en Vault, no crees una segunda copia con otro nombre. Actualiza el secreto existente en Vault y conserva exactamente los nombres indicados.
 
