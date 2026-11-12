@@ -8,7 +8,7 @@ Este flujo sustituye integralmente el colector Vercel. La coleta corre en una Su
 - supabase/config.toml define verify_jwt = false solo para esta función. La función valida obligatoriamente el header x-cron-secret.
 - La coleta consulta OAB/MG 37.610 en los últimos 7 días y recorre la paginación. Si la respuesta queda incompleta, aborta sin grabar.
 - La función llama a public.djen_ingest usando la clave secreta disponible únicamente en el runtime de Supabase.
-- El SQL de tablas, políticas, funciones y vínculo con Prazos permanece en supabase/pending/20261112150000_djen_intimacoes.sql; aún debe aplicarse a la base de producción.
+- El SQL de tablas, políticas, funciones y vínculo con Prazos permanece en supabase/migrations/20261112150000_djen_intimacoes.sql; aún debe aplicarse a la base de producción.
 - No se calcula ninguna fecha límite automáticamente. Cada comunicación crea un borrador sin vencimiento ni recordatorios hasta la revisión humana.
 
 ## Orden seguro de activación
@@ -21,7 +21,7 @@ Antes de aplicar el SQL pendiente, crea/descarga un backup de la base de producc
 
 En Supabase Dashboard, abre SQL Editor y ejecuta el contenido completo de:
 
-supabase/pending/20261112150000_djen_intimacoes.sql
+supabase/migrations/20261112150000_djen_intimacoes.sql
 
 Este SQL crea intimacoes_djen, djen_sync_runs, los vínculos de borrador en prazos, las políticas RLS y las funciones djen_ingest / djen_confirmar_prazo.
 
