@@ -25,7 +25,7 @@ const groups = [
     { title: "Audiências", url: "/audiencias", icon: Gavel, need: "all" },
     { title: "Banco de tarefas", url: "/banco-tarefas", icon: ClipboardList, need: "all" },
     { title: "Prazos", url: "/prazos", icon: CalendarClock, need: "all" },
-    { title: "Intimações DJEN", url: "/intimacoes", icon: BellRing, need: "all" },
+    { title: "Intimações DJEN", url: "/intimacoes", icon: BellRing, need: "legal" },
   ] },
   { title: "Gestão", items: [
     { title: "Financeiro", url: "/financeiro", icon: Wallet, need: "finance" },
