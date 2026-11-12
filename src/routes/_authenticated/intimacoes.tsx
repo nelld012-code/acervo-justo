@@ -54,7 +54,7 @@ function IntimacoesPage() {
     }
 
     const itens = filtradas.map((item) => {
-      const texto = item.texto.replace(/<[^>]*>/g, " ").replace(/\\s+/g, " ").trim();
+      const texto = item.texto.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
       return "<article class=\"item\">" +
         "<div class=\"top\"><strong>" + escapeHtml(item.numero_processo) + "</strong><span>" + escapeHtml(br(item.data_disponibilizacao)) + "</span></div>" +
         "<p><b>Tribunal / Órgão:</b> " + escapeHtml([item.sigla_tribunal, item.orgao].filter(Boolean).join(" · ")) + "</p>" +
@@ -81,10 +81,15 @@ function IntimacoesPage() {
     win.document.open();
     win.document.write(html);
     win.document.close();
-    win.addEventListener("load", () => {
+    let printed = false;
+    const print = () => {
+      if (printed || win.closed) return;
+      printed = true;
       win.focus();
       win.print();
-    }, { once: true });
+    };
+    win.addEventListener("load", print, { once: true });
+    win.setTimeout(print, 500);
   }
 
   const revisar = useMutation({ mutationFn: async (id: string) => {
