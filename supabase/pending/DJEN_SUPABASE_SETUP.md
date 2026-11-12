@@ -67,7 +67,7 @@ En Supabase Dashboard, ve a Database → Extensions y confirma que estén habili
 - pg_net
 - supabase_vault (Vault)
 
-En SQL Editor, ejecuta el bloque siguiente reemplazando los dos marcadores. Usa la clave publishable del proyecto (o la antigua anon si el proyecto aún no tiene clave publishable). El secreto DJEN debe ser exactamente el mismo valor configurado como DJEN_CRON_SECRET en el paso anterior.
+En SQL Editor, ejecuta el bloque siguiente reemplazando los dos marcadores. Usa la clave publishable del proyecto (o la antigua anon si el proyecto aún no tiene clave publishable). Esta clave solo identifica al proyecto; la función exige además el encabezado secreto DJEN_CRON_SECRET, por lo que la clave pública por sí sola no permite ejecutar la coleta.
 
 ~~~sql
 select vault.create_secret(
@@ -106,11 +106,6 @@ select net.http_post(
       from vault.decrypted_secrets
       where name = 'djen_publishable_key'
     ),
-    'Authorization', 'Bearer ' || (
-      select decrypted_secret
-      from vault.decrypted_secrets
-      where name = 'djen_publishable_key'
-    ),
     'x-cron-secret', (
       select decrypted_secret
       from vault.decrypted_secrets
@@ -130,7 +125,7 @@ from net._http_response
 where id = PEGA_AQUI_EL_REQUEST_ID;
 ~~~
 
-El resultado esperado tiene status_code = 200, dryRun = true y bancoAlterado = false. `pg_net` es asíncrono: el primer SELECT devuelve un request_id y la respuesta debe consultarse después en net._http_response. Si hay error, no crees el cron todavía.
+El resultado esperado tiene status_code = 200, dryRun = true y bancoAlterado = false. La función valida DJEN_CRON_SECRET en el header x-cron-secret; la clave publishable no es suficiente para ejecutar la sincronización. `pg_net` es asíncrono: el primer SELECT devuelve un request_id y la respuesta debe consultarse después en net._http_response. Si hay error, no crees el cron todavía.
 
 ### 7. Hacer una primera sincronización real
 
@@ -173,11 +168,6 @@ select cron.schedule(
       headers := jsonb_build_object(
         'Content-Type', 'application/json',
         'apikey', (
-          select decrypted_secret
-          from vault.decrypted_secrets
-          where name = 'djen_publishable_key'
-        ),
-        'Authorization', 'Bearer ' || (
           select decrypted_secret
           from vault.decrypted_secrets
           where name = 'djen_publishable_key'
