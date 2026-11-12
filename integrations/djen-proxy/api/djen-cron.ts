@@ -132,6 +132,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         dryRun: true,
         region: process.env.VERCEL_REGION ?? "unknown",
         oab: "MG 37610",
+        escopo: "Nacional — todos os tribunais integrados ao DJEN que publiquem comunicações destinadas à OAB/MG 37610",
         dataInicio: inicio,
         dataFim: fim,
         totalCNJ: total,
