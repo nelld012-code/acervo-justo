@@ -42,10 +42,11 @@ function IntimacoesPage() {
   const q = useQuery({ queryKey: ["intimacoes_djen"], queryFn: async () => {
     const { data, error } = await db.from("intimacoes_djen").select("id,numero_processo,sigla_tribunal,orgao,tipo_comunicacao,data_disponibilizacao,link,texto,status,prazo_id").order("data_disponibilizacao", { ascending: false }).limit(1000);
     if (error) throw new Error(error.message); return data as Intimacao[];
-  } });
+  }, refetchInterval: 5 * 60 * 1000, refetchOnWindowFocus: true });
 
   const filtradas = useMemo(() => (q.data ?? []).filter((i) => [i.numero_processo, i.sigla_tribunal, i.orgao, i.texto].join(" ").toLowerCase().includes(busca.toLowerCase())), [q.data, busca]);
   const pagina = filtradas.slice(pag * PAGE, pag * PAGE + PAGE);
+  const novas = (q.data ?? []).filter((i) => i.status === "nova").length;
 
   function imprimirLista() {
     if (!filtradas.length) {
@@ -107,7 +108,7 @@ function IntimacoesPage() {
     <div><div className="flex items-center gap-2"><BellRing className="h-6 w-6 text-primary" /><h1 className="text-2xl font-bold tracking-tight">Intimações DJEN</h1></div>
       <p className="mt-1 text-sm text-muted-foreground">Busca nacional · OAB/MG 37.610 · Joaquim Dimas Gonçalves</p></div>
     <Card>
-      <CardHeader className="pb-3"><div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><CardTitle className="text-base">Comunicações</CardTitle><div className="flex flex-col gap-2 sm:flex-row"><Button size="sm" variant="outline" onClick={imprimirLista} disabled={!filtradas.length}><Printer className="mr-2 h-4 w-4" />Imprimir lista</Button><div className="relative w-full sm:max-w-xs"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input value={busca} onChange={(e) => { setBusca(e.target.value); setPag(0); }} placeholder="Buscar processo, tribunal ou texto..." className="pl-9" /></div></div></div></CardHeader>
+      <CardHeader className="pb-3"><div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div className="flex items-center gap-2"><CardTitle className="text-base">Comunicações</CardTitle><Badge variant={novas > 0 ? "default" : "secondary"}>{novas} nova(s)</Badge></div><div className="flex flex-col gap-2 sm:flex-row"><Button size="sm" variant="outline" onClick={imprimirLista} disabled={!filtradas.length}><Printer className="mr-2 h-4 w-4" />Imprimir lista</Button><div className="relative w-full sm:max-w-xs"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input value={busca} onChange={(e) => { setBusca(e.target.value); setPag(0); }} placeholder="Buscar processo, tribunal ou texto..." className="pl-9" /></div></div></div></CardHeader>
       <CardContent className="space-y-3">
         {q.isLoading && <p className="py-8 text-center text-sm text-muted-foreground">Carregando…</p>}
         {q.isError && <p className="py-8 text-center text-sm text-muted-foreground">Módulo DJEN ainda não ativado no banco de dados.</p>}
