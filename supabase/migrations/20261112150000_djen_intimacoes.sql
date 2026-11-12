@@ -87,7 +87,6 @@ CREATE TABLE IF NOT EXISTS public.intimacoes_djen (
 CREATE INDEX IF NOT EXISTS intimacoes_djen_data_idx ON public.intimacoes_djen (data_disponibilizacao DESC);
 CREATE INDEX IF NOT EXISTS intimacoes_djen_status_idx ON public.intimacoes_djen (status);
 CREATE INDEX IF NOT EXISTS intimacoes_djen_processo_idx ON public.intimacoes_djen (numero_processo);
-CREATE UNIQUE INDEX IF NOT EXISTS intimacoes_djen_hash_unique_idx ON public.intimacoes_djen (hash);
 CREATE UNIQUE INDEX IF NOT EXISTS prazos_djen_hash_unique_idx ON public.prazos (djen_hash) WHERE djen_hash IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS public.djen_sync_runs (
