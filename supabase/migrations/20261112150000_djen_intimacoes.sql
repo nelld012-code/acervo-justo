@@ -179,7 +179,7 @@ CREATE POLICY "Staff review intimacoes" ON public.intimacoes_djen FOR UPDATE TO 
 CREATE POLICY "Admins view sync runs" ON public.djen_sync_runs FOR SELECT TO authenticated
   USING (private.has_cargo(auth.uid(), ARRAY['administrador']));
 
-CREATE OR REPLACE FUNCTION public.intimacoes_protect() RETURNS trigger LANGUAGE plpgsql SET search_path = public AS $
+CREATE OR REPLACE FUNCTION public.intimacoes_protect() RETURNS trigger LANGUAGE plpgsql SET search_path = public AS $$
 BEGIN
   -- Todos os campos recebidos do CNJ são imutáveis após a ingestão.
   -- Apenas status, auditoria da revisão e o vínculo inicial com o borrador pueden cambiar.
@@ -204,7 +204,7 @@ BEGIN
 
   NEW.updated_at := now();
   RETURN NEW;
-END $;
+END $$;
 DROP TRIGGER IF EXISTS intimacoes_protect_trg ON public.intimacoes_djen;
 CREATE TRIGGER intimacoes_protect_trg BEFORE UPDATE ON public.intimacoes_djen
   FOR EACH ROW EXECUTE FUNCTION public.intimacoes_protect();
