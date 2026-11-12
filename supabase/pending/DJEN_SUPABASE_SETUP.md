@@ -212,7 +212,7 @@ limit 10;
 ## Seguridad y comportamiento
 
 - No guardes la clave secreta del Supabase, DJEN_CRON_SECRET ni secretos de Vault en GitHub, Lovable, un .env público o el navegador.
-- La clave publishable enviada por Cron identifica el proyecto; el secreto x-cron-secret protege la invocación. El SDK `@supabase/server` crea el cliente administrativo dentro del runtime; nunca coloques `service_role` ni `sb_secret` en GitHub, Vault, Lovable o el navegador.
+- La clave publishable enviada por Cron identifica el proyecto; el secreto x-cron-secret protege la invocación. `@supabase/supabase-js` usa la variable reservada `SUPABASE_SECRET_KEYS` que Supabase inyecta solo en el runtime; nunca coloques `service_role` ni `sb_secret` en GitHub, Vault, Lovable o el navegador.
 - El colector usa por ahora solamente OAB/MG 37.610. Las OAB de otros abogados podrán agregarse después de confirmarlas.
 - La búsqueda retrospectiva de 7 días reduce el riesgo de perder publicaciones tras una falla; la deduplicación evita repeticiones.
 - El sistema no interpreta ni fija plazos procesales por sí solo. El colaborador revisa el texto de la intimación y confirma la fecha límite en el módulo Intimações DJEN.
