@@ -9,7 +9,7 @@ COMMENT ON COLUMN public.prazos.djen_hash IS 'Hash da comunicação DJEN de orig
 COMMENT ON COLUMN public.prazos.revisao_pendente IS 'Rascunho criado automaticamente pelo DJEN; só sai deste estado via djen_confirmar_prazo.';
 
 CREATE OR REPLACE FUNCTION public.prazo_identity_key(p_nome text, p_processo text, p_data date, p_djen_hash text)
-RETURNS text LANGUAGE sql IMMUTABLE SET search_path = public AS $$
+RETURNS text LANGUAGE sql STABLE SET search_path = public AS $$
   SELECT CASE WHEN p_djen_hash IS NOT NULL THEN 'djen:' || p_djen_hash
     ELSE public.prazo_normalize_identity(p_nome) || '|' || public.prazo_normalize_identity(coalesce(p_processo, '')) || '|' || coalesce(p_data::text, '<null>') END
 $$;
