@@ -1,4 +1,4 @@
-import { withSupabase } from "npm:@supabase/server@1.9.2";
+import { createClient } from "npm:@supabase/supabase-js@2";
 
 // Supabase Edge Function — DJEN nacional para OAB/MG 37.610.
 // Executada pelo Supabase Cron. Cria apenas rascunhos; nunca calcula prazo automaticamente.
@@ -124,7 +124,7 @@ async function recordSyncFailure(
   }
 }
 
-const djenSyncHandler = withSupabase({ auth: "none" }, async (request: Request, ctx) => {
+async function djenSyncHandler(request: Request): Promise<Response> {
   if (request.method !== "POST") {
     return json({ error: "Metodo nao permitido." }, 405);
   }
@@ -135,10 +135,22 @@ const djenSyncHandler = withSupabase({ auth: "none" }, async (request: Request, 
     return json({ error: "Nao autorizado." }, 401);
   }
 
-  const admin = ctx.supabaseAdmin as AdminDb;
-  if (!admin) {
-    return json({ error: "Cliente administrativo do Supabase indisponivel." }, 503);
+  const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
+  const secretKeysRaw = Deno.env.get("SUPABASE_SECRET_KEYS") ?? "{}";
+  let secretKeys: Record<string, string> = {};
+  try {
+    secretKeys = JSON.parse(secretKeysRaw) as Record<string, string>;
+  } catch {
+    return json({ error: "Configuracao de chaves internas do Supabase invalida." }, 503);
   }
+  const adminKey = secretKeys.default ?? Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+  if (!supabaseUrl || !adminKey) {
+    return json({ error: "Configuracao interna do Supabase incompleta." }, 503);
+  }
+
+  const admin = createClient(supabaseUrl, adminKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  }) as unknown as AdminDb;
 
   const endDate = todayInSaoPaulo();
   const startDate = shiftDate(endDate, -LOOKBACK_DAYS);
@@ -309,8 +321,7 @@ const djenSyncHandler = withSupabase({ auth: "none" }, async (request: Request, 
       bancoAlterado: false,
     }, 502);
   }
-});
-
+}
 Deno.serve(async (request: Request) => {
   try {
     return await djenSyncHandler(request);
