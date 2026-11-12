@@ -161,10 +161,10 @@ ALTER TABLE public.djen_sync_runs ENABLE ROW LEVEL SECURITY;
 
 -- Mesmos cargos que podem editar prazos. Sem INSERT/DELETE para usuários.
 CREATE POLICY "Staff view intimacoes" ON public.intimacoes_djen FOR SELECT TO authenticated
-  USING (private.has_cargo(auth.uid(), ARRAY['administrador','advogado','secretaria']));
+  USING (private.has_cargo(auth.uid(), ARRAY['administrador','advogado','secretaria','assistente']));
 CREATE POLICY "Staff review intimacoes" ON public.intimacoes_djen FOR UPDATE TO authenticated
-  USING (private.has_cargo(auth.uid(), ARRAY['administrador','advogado','secretaria']))
-  WITH CHECK (private.has_cargo(auth.uid(), ARRAY['administrador','advogado','secretaria']));
+  USING (private.has_cargo(auth.uid(), ARRAY['administrador','advogado','secretaria','assistente']))
+  WITH CHECK (private.has_cargo(auth.uid(), ARRAY['administrador','advogado','secretaria','assistente']));
 CREATE POLICY "Admins view sync runs" ON public.djen_sync_runs FOR SELECT TO authenticated
   USING (private.has_cargo(auth.uid(), ARRAY['administrador']));
 
