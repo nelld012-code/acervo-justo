@@ -203,6 +203,9 @@ RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE it jsonb; v_int uuid; v_prazo uuid; v_ins int := 0; v_dr int := 0; v_nome text;
 BEGIN
   FOR it IN SELECT * FROM jsonb_array_elements(p_items) LOOP
+    v_int := NULL;
+    v_prazo := NULL;
+
     INSERT INTO public.intimacoes_djen (hash, djen_id, numero_processo, sigla_tribunal, orgao, tipo_comunicacao,
       tipo_documento, meio, data_disponibilizacao, link, destinatarios, advogados, texto, payload)
     VALUES (it->>'hash', (it->>'djen_id')::bigint, it->>'numero_processo', it->>'sigla_tribunal', it->>'orgao',
@@ -218,7 +221,14 @@ BEGIN
     RETURNING id INTO v_prazo;
     IF v_prazo IS NULL THEN
       SELECT id INTO v_prazo FROM public.prazos WHERE djen_hash = it->>'hash' LIMIT 1;
-    ELSE v_dr := v_dr + 1; END IF;
+    ELSE
+      v_dr := v_dr + 1;
+    END IF;
+
+    IF v_prazo IS NULL THEN
+      RAISE EXCEPTION 'Não foi possível localizar o rascunho de prazo da intimação DJEN %.', it->>'hash';
+    END IF;
+
     UPDATE public.intimacoes_djen SET prazo_id = v_prazo WHERE id = v_int;
   END LOOP;
   INSERT INTO public.djen_sync_runs (inicio, fim, origem, encontrados, inseridos, rascunhos, finished_at)
