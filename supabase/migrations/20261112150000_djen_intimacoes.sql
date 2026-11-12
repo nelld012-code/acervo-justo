@@ -229,7 +229,7 @@ BEGIN
     v_nome := 'DJEN · ' || coalesce(it->>'tipo_comunicacao', 'Comunicação') || ' · ' || coalesce(it->>'sigla_tribunal', '—');
     INSERT INTO public.prazos (nome, numero_processo, parte, advogado, data_limite, observacao, lembrete_ativo,
       repetir_alerta_diariamente, status, djen_hash, revisao_pendente)
-    VALUES (v_nome, it->>'numero_processo', '', NULL, NULL, it->>'observacao', false, false, 'Em andamento', it->>'hash', true)
+    VALUES (v_nome, it->>'numero_processo', 'Pendente de identificação', NULL, NULL, it->>'observacao', false, false, 'Em andamento', it->>'hash', true)
     RETURNING id INTO v_prazo;
     IF v_prazo IS NULL THEN
       SELECT id INTO v_prazo FROM public.prazos WHERE djen_hash = it->>'hash' LIMIT 1;
