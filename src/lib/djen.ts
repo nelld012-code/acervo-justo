@@ -1,4 +1,5 @@
 // Mapeamento e deduplicação de comunicações DJEN (CNJ). Sem cálculo de vencimentos.
+import { z } from "zod";
 export const DJEN_URL = "https://comunicaapi.pje.jus.br/api/v1/comunicacao";
 export const DJEN_OAB = { numeroOab: "37610", ufOab: "MG" } as const;
 
@@ -53,7 +54,6 @@ export async function deduplicar(itens: DjenItem[]) {
 }
 
 // ---------- Recebimento /api/public/djen-sync ----------
-import { z } from "zod";
 
 export const SyncPayloadSchema = z.object({
   items: z.array(z.record(z.unknown())).max(5000),
