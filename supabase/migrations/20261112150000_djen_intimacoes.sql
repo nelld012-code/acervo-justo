@@ -151,7 +151,7 @@ CREATE TABLE public.djen_sync_runs (
   rascunhos int NOT NULL DEFAULT 0, erro text
 );
 
-REVOKE ALL ON public.intimacoes_djen, public.djen_sync_runs FROM PUBLIC, anon;
+REVOKE ALL ON public.intimacoes_djen, public.djen_sync_runs FROM PUBLIC, anon, authenticated;
 GRANT SELECT ON public.intimacoes_djen, public.djen_sync_runs TO authenticated;
 -- Os usuários podem apenas marcar/revisar; não podem editar metadados da fonte nem remover vínculos.
 GRANT UPDATE (status, revisada_por, revisada_em) ON public.intimacoes_djen TO authenticated;
