@@ -6,7 +6,7 @@ Este flujo sustituye el colector Vercel por una Edge Function alojada en el back
 
 - El colector está en supabase/functions/djen-sync/index.ts.
 - supabase/config.toml define verify_jwt = false solo para esta función. La función valida obligatoriamente el header x-cron-secret.
-- La coleta consulta OAB/MG 37.610 en los últimos 7 días y recorre la paginación. Si la respuesta queda incompleta, aborta sin grabar.
+- La coleta consulta OAB/MG 37.610 en los últimos 7 días y recorre la paginación. Si la respuesta queda incompleta, no importa intimaciones ni crea Prazos; solo registra el error técnico en `djen_sync_runs`.
 - La función usa `@supabase/supabase-js` y obtiene la clave administrativa exclusivamente del entorno del backend (`SUPABASE_SECRET_KEYS` o, como compatibilidad con el backend integrado, `SUPABASE_SERVICE_ROLE_KEY`). La clave nunca pasa por el navegador ni se guarda en GitHub o Vault.
 - La lectura de solo consulta del 12/11/2026 confirmó: 581 filas en `public.prazos`; tablas `intimacoes_djen` y `djen_sync_runs` creadas pero vacías; columnas DJEN de `prazos` y funciones DJEN existentes; `pg_cron` y Vault instalados; `pg_net` ausente; ningún job DJEN programado.
 - Por ello, **no ejecutes a ciegas la migración completa**: compara primero el esquema real y aplica solo lo que falte. La integración de GitHub no ejecuta automáticamente todas las migraciones al fusionar el PR.
@@ -29,14 +29,18 @@ La rama `backup/djen-supabase-native-before-hardening-20261112` conserva código
 
 ### 2. Aplicar el SQL del módulo DJEN
 
-En el proyecto Lovable abre **More → Database → Manage → SQL editor**. No pegues todavía el archivo completo de la migración: la lectura actual demuestra que las tablas DJEN, los campos y las funciones principales ya existen y que las 581 filas de `prazos` deben conservarse. Primero compara la definición exacta de columnas, índices, triggers, funciones, políticas RLS y permisos con `supabase/migrations/20261112150000_djen_intimacoes.sql`. El SQL fue ajustado para conservar el comportamiento de duplicados manuales que está activo hoy: una inserción duplicada se ignora y una actualización que crea duplicado se rechaza; solo se agregan las restricciones propias de los borradores DJEN. La nueva versión también endurece la protección del texto original de las intimaciones y valida que cada comunicación quede vinculada a un borrador. Luego ejecuta las sentencias faltantes, comenzando por instalar `pg_net` con:
+En el proyecto Lovable abre **More → Database → Manage → SQL editor**. La lectura del 12/11/2026 confirmó que las tablas DJEN, sus columnas principales, los triggers y las políticas ya existen, pero algunas funciones activas son versiones anteriores a las del PR. El historial `supabase_migrations.schema_migrations` tampoco registra esta migración DJEN: que el archivo esté en GitHub o que el PR se fusione no significa que se ejecute en la base.
 
-~~~sql
-CREATE EXTENSION IF NOT EXISTS pg_net;
-~~~
+Después de descargar y verificar el respaldo del paso 1, compara el archivo `supabase/migrations/20261112150000_djen_intimacoes.sql` y ejecútalo en el SQL editor de Lovable. Está preparado para esta base real:
 
-En la configuración estándar de Supabase, esta extensión crea el esquema `net`, que es donde viven `net.http_post` y `net._http_response`. No la instales en el esquema `extensions`. La migración de GitHub fue corregida para reflejarlo. Si alguna sentencia falla, detente y consulta el estado antes de reintentarlo; no elimines ni recrees tablas, ni modifiques los 581 registros manuales existentes.
+- Usa `ADD COLUMN IF NOT EXISTS`, `CREATE TABLE IF NOT EXISTS` y `CREATE INDEX IF NOT EXISTS`; no elimina ni recrea las tablas ni las 581 filas existentes.
+- Actualiza con `CREATE OR REPLACE` las funciones activas de ingestión y protección de intimaciones, que todavía eran versiones anteriores.
+- Conserva el comportamiento actual de duplicados manuales de Prazos: el INSERT duplicado se ignora y un UPDATE que provocaría duplicado se rechaza. Solo añade las restricciones de los borradores DJEN.
+- Actualiza las políticas RLS para que los asistentes puedan consultar y marcar intimaciones como revisadas. La confirmación de vencimientos sigue limitada a administrador, abogado y secretaría, que son los cargos autorizados para editar Prazos.
+- Añade el índice único parcial `prazos_djen_hash_unique_idx`; la consulta de producción encontró `djen_hash` nulo en los Prazos actuales, por lo que el índice no debe colisionar con ellos.
 
+La migración instala también `pg_net` en su esquema estándar `net`, necesario para `net.http_post` y `net._http_response`. No la instales manualmente en el esquema `extensions`. Si cualquier sentencia falla o se interrumpe, detente y consulta el estado de los objetos antes de volver a ejecutar el archivo completo. No elimines ni actualices registros de Prazos existentes.
+ 
 ### 3. Publicar la Edge Function
 
 El archivo está en `supabase/functions/djen-sync/index.ts`. Como el backend pertenece a Lovable, no utilices otra organización o proyecto desde el panel personal de Supabase ni intentes desplegar sobre uno de los otros proyectos que aparecen en tu cuenta.
@@ -104,7 +108,7 @@ Si alguno de esos nombres ya existe en Vault, no crees una segunda copia con otr
 
 ### 6. Probar sin grabar datos
 
-Ejecuta en SQL Editor. Esta llamada consulta el CNJ, pero dryRun=1 impide toda escritura:
+En el SQL editor de Lovable ejecuta esta llamada. En una respuesta exitosa, `dryRun=1` consulta el CNJ pero no importa intimaciones ni crea Prazos. Si el CNJ devuelve error o la paginación está incompleta, el sistema registra solo el intento fallido en `djen_sync_runs`:
 
 ~~~sql
 select net.http_post(
@@ -164,9 +168,9 @@ Una llamada repetida no debe duplicar comunicaciones: el ID/hash del CNJ se usa 
 
 ### 8. Programar la coleta diaria a las 06:00 de Brasilia
 
-Supabase Postgres usa UTC por defecto. Confirma con show timezone;. Si devuelve UTC, 09:00 UTC equivale a 06:00 en Brasilia.
+La base activa de Acervo Justo fue consultada y devolvió `TimeZone = UTC`; por eso 09:00 UTC equivale a 06:00 en Brasilia. Confirma otra vez con `SHOW TIME ZONE;` antes de agendar.
 
-Ejecuta en SQL Editor:
+Ejecuta en el SQL editor de Lovable:
 
 ~~~sql
 select cron.schedule(
@@ -214,8 +218,8 @@ limit 10;
 
 ## Seguridad y comportamiento
 
-- No guardes la clave secreta del Supabase, DJEN_CRON_SECRET ni secretos de Vault en GitHub, Lovable, un .env público o el navegador.
-- La clave publishable enviada por Cron identifica el proyecto; el secreto x-cron-secret protege la invocación. `@supabase/supabase-js` usa la variable reservada `SUPABASE_SECRET_KEYS` que Supabase inyecta solo en el runtime; nunca coloques `service_role` ni `sb_secret` en GitHub, Vault, Lovable o el navegador.
+- No guardes claves secretas en GitHub, en `.env`, en mensajes de chat ni en el navegador. `DJEN_CRON_SECRET` debe existir únicamente como secreto de backend en **Lovable → More → Settings → Secrets** y en **Vault** para que Cron pueda invocar la función.
+- La clave publishable identifica el proyecto; `x-cron-secret` protege la invocación. La Edge Function utiliza `SUPABASE_SECRET_KEYS` si está disponible y tiene compatibilidad con `SUPABASE_SERVICE_ROLE_KEY`, que Lovable inyecta en el runtime. Nunca coloques `service_role` ni `sb_secret` en GitHub, Vault, `.env` o el navegador.
 - El colector usa por ahora solamente OAB/MG 37.610. Las OAB de otros abogados podrán agregarse después de confirmarlas.
 - La búsqueda retrospectiva de 7 días reduce el riesgo de perder publicaciones tras una falla; la deduplicación evita repeticiones.
 - El sistema no interpreta ni fija plazos procesales por sí solo. El colaborador revisa el texto de la intimación y confirma la fecha límite en el módulo Intimações DJEN.
