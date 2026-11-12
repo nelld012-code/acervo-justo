@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { BellRing, Search } from "lucide-react";
+import { BellRing, Printer, Search } from "lucide-react";
 import { planoConfirmacao } from "@/lib/djen";
 
 export const Route = createFileRoute("/_authenticated/intimacoes")({
@@ -23,6 +23,15 @@ const db = supabase as unknown as { from: (t: string) => any; rpc: (f: string, a
 const STATUS: Record<string, string> = { nova: "Nova", revisada: "Revisada", convertida_em_prazo: "Convertida em prazo" };
 const br = (d: string | null) => (d ? d.split("-").reverse().join("/") : "—");
 const PAGE = 8;
+
+function escapeHtml(value: unknown): string {
+  return String(value ?? "—")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
 
 function IntimacoesPage() {
   const qc = useQueryClient();
@@ -37,6 +46,46 @@ function IntimacoesPage() {
 
   const filtradas = useMemo(() => (q.data ?? []).filter((i) => [i.numero_processo, i.sigla_tribunal, i.orgao, i.texto].join(" ").toLowerCase().includes(busca.toLowerCase())), [q.data, busca]);
   const pagina = filtradas.slice(pag * PAGE, pag * PAGE + PAGE);
+
+  function imprimirLista() {
+    if (!filtradas.length) {
+      toast.error("Não há comunicações para imprimir.");
+      return;
+    }
+
+    const itens = filtradas.map((item) => {
+      const texto = item.texto.replace(/<[^>]*>/g, " ").replace(/\\s+/g, " ").trim();
+      return "<article class=\"item\">" +
+        "<div class=\"top\"><strong>" + escapeHtml(item.numero_processo) + "</strong><span>" + escapeHtml(br(item.data_disponibilizacao)) + "</span></div>" +
+        "<p><b>Tribunal / Órgão:</b> " + escapeHtml([item.sigla_tribunal, item.orgao].filter(Boolean).join(" · ")) + "</p>" +
+        "<p><b>Comunicação:</b> " + escapeHtml(item.tipo_comunicacao) + "</p>" +
+        "<p><b>Status:</b> " + escapeHtml(STATUS[item.status] ?? item.status) + "</p>" +
+        "<p class=\"texto\">" + escapeHtml(texto || "Texto não informado.") + "</p>" +
+        (item.link ? "<p class=\"link\"><b>Link oficial:</b> " + escapeHtml(item.link) + "</p>" : "") +
+        "</article>";
+    }).join("");
+
+    const html = "<!doctype html><html lang=\"pt-BR\"><head><meta charset=\"utf-8\"><title>Intimações DJEN</title><style>" +
+      "@page{size:A4;margin:14mm}body{font-family:Arial,sans-serif;color:#111;font-size:11px;margin:0}" +
+      "h1{font-size:19px;margin:0 0 4px}.meta{color:#555;margin-bottom:16px}.item{border:1px solid #bbb;border-radius:5px;padding:10px;margin:0 0 10px;break-inside:avoid}" +
+      ".top{display:flex;justify-content:space-between;gap:12px;font-size:12px}.top span{white-space:nowrap;color:#555}p{margin:5px 0}.texto{white-space:pre-wrap;line-height:1.45}.link{font-size:9px;color:#444;overflow-wrap:anywhere}" +
+      "</style></head><body><h1>Intimações DJEN</h1>" +
+      "<div class=\"meta\">OAB/MG 37.610 · " + filtradas.length + " comunicação(ões) · Gerado em " + escapeHtml(new Date().toLocaleString("pt-BR")) + "</div>" +
+      itens + "</body></html>";
+
+    const win = window.open("", "_blank", "width=1000,height=800");
+    if (!win || !win.document) {
+      toast.error("Não foi possível abrir a impressão. Verifique o bloqueador de pop-ups.");
+      return;
+    }
+    win.document.open();
+    win.document.write(html);
+    win.document.close();
+    win.addEventListener("load", () => {
+      win.focus();
+      win.print();
+    }, { once: true });
+  }
 
   const revisar = useMutation({ mutationFn: async (id: string) => {
     const { error } = await db.from("intimacoes_djen").update({ status: "revisada", revisada_em: new Date().toISOString() }).eq("id", id).eq("status", "nova");
@@ -53,7 +102,7 @@ function IntimacoesPage() {
     <div><div className="flex items-center gap-2"><BellRing className="h-6 w-6 text-primary" /><h1 className="text-2xl font-bold tracking-tight">Intimações DJEN</h1></div>
       <p className="mt-1 text-sm text-muted-foreground">Busca nacional · OAB/MG 37.610 · Joaquim Dimas Gonçalves</p></div>
     <Card>
-      <CardHeader className="pb-3"><div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><CardTitle className="text-base">Comunicações</CardTitle><div className="relative w-full sm:max-w-xs"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input value={busca} onChange={(e) => { setBusca(e.target.value); setPag(0); }} placeholder="Buscar processo, tribunal ou texto..." className="pl-9" /></div></div></CardHeader>
+      <CardHeader className="pb-3"><div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><CardTitle className="text-base">Comunicações</CardTitle><div className="flex flex-col gap-2 sm:flex-row"><Button size="sm" variant="outline" onClick={imprimirLista} disabled={!filtradas.length}><Printer className="mr-2 h-4 w-4" />Imprimir lista</Button><div className="relative w-full sm:max-w-xs"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input value={busca} onChange={(e) => { setBusca(e.target.value); setPag(0); }} placeholder="Buscar processo, tribunal ou texto..." className="pl-9" /></div></div></div></CardHeader>
       <CardContent className="space-y-3">
         {q.isLoading && <p className="py-8 text-center text-sm text-muted-foreground">Carregando…</p>}
         {q.isError && <p className="py-8 text-center text-sm text-muted-foreground">Módulo DJEN ainda não ativado no banco de dados.</p>}
