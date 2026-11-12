@@ -98,7 +98,7 @@ BEGIN
   ELSE
     PERFORM vault.update_secret(v_id, 'PEGA_AQUI_O_MESMO_DJEN_CRON_SECRET', 'djen_cron_secret', 'Segredo compartilhado entre pg_cron e a Edge Function DJEN');
   END IF;
-END $;
+END $$;
 
 Si alguno de esos nombres ya existe en Vault, no crees una segunda copia con otro nombre. Actualiza el secreto existente en Vault y conserva exactamente los nombres indicados.
 
