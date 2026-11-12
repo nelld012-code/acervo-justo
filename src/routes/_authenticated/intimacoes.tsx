@@ -214,7 +214,7 @@ function IntimacoesPage() {
     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <div>
         <div className="flex items-center gap-2"><BellRing className="h-6 w-6 text-sky-600" /><h1 className="text-2xl font-bold tracking-tight">Intimações DJEN</h1></div>
-        <p className="mt-1 text-sm text-muted-foreground">Publicações vinculadas à OAB/MG 37.610 · Joaquim Dimas Gonçalves</p>
+        <p className="mt-1 text-sm text-muted-foreground">Busca nacional no DJEN para a OAB/MG 37.610 · Joaquim Dimas Gonçalves</p>
       </div>
       <div className="flex flex-wrap gap-2">
         <Button variant="outline" onClick={imprimirRelatorio} disabled={!filtradas.length}><Printer className="mr-2 h-4 w-4" />Imprimir relatório</Button>
@@ -223,7 +223,7 @@ function IntimacoesPage() {
     </div>
 
     <div className="rounded-lg border border-sky-300/50 bg-sky-50 px-4 py-3 text-sm text-sky-950 dark:border-sky-700/50 dark:bg-sky-950/30 dark:text-sky-100">
-      A consulta automática depende da ativação do serviço DJEN no servidor. A data de disponibilização não é, por si só, uma data de início ou vencimento de prazo.
+      A busca é nacional: consulta os tribunais integrados ao DJEN para o registro profissional OAB/MG 37.610, sem limitar as publicações ao estado de Minas Gerais. A UF/MG identifica a inscrição do advogado. A data de disponibilização não é, por si só, uma data de início ou vencimento de prazo.
     </div>
 
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
