@@ -1,6 +1,11 @@
--- DJEN — Intimações (OAB 37610/MG, busca nacional). NÃO APLICADA.
+-- DJEN — Intimações (OAB 37610/MG, busca nacional). Migração pendente de aplicação em produção.
 -- Aditiva: adiciona 2 colunas anuláveis/default em public.prazos sem reescrever linhas;
 -- para os prazos existentes (djen_hash NULL) a identidade e o comportamento ficam idênticos.
+
+-- Extensões necessárias à execução diária do coletor no próprio Supabase.
+CREATE EXTENSION IF NOT EXISTS pg_cron;
+-- pg_net cria o schema net usado por net.http_post e net._http_response.
+CREATE EXTENSION IF NOT EXISTS pg_net;
 
 -- 1) Prazos: vínculo com DJEN e marcação "Pendente de revisão" (status continua compatível com prazos_status_check).
 ALTER TABLE public.prazos ADD COLUMN IF NOT EXISTS djen_hash text;
@@ -15,6 +20,9 @@ RETURNS text LANGUAGE sql STABLE SET search_path = public AS $$
 $$;
 
 
+-- Preserva o comportamento atual do banco para duplicatas manuais:
+-- INSERT duplicado é ignorado; UPDATE que criaria duplicata gera erro.
+-- Apenas acrescenta as proteções necessárias aos rascunhos DJEN.
 CREATE OR REPLACE FUNCTION public.prazo_merge_on_insert()
 RETURNS trigger LANGUAGE plpgsql SET search_path TO 'public' AS $function$
 BEGIN
@@ -23,7 +31,6 @@ BEGIN
     RAISE EXCEPTION 'Rascunho DJEN não pode ter vencimento nem lembretes antes da revisão.';
   END IF;
   PERFORM pg_advisory_xact_lock(hashtextextended(NEW.dedupe_key, 0));
-  -- Somente aditivo: mesma identidade já existente é ignorada, sem alterar o registro existente.
   IF EXISTS (SELECT 1 FROM public.prazos WHERE dedupe_key = NEW.dedupe_key) THEN
     RETURN NULL;
   END IF;
@@ -65,7 +72,7 @@ END;
 $function$;
 
 -- 2) Comunicações DJEN (texto original e payload integral imutáveis)
-CREATE TABLE public.intimacoes_djen (
+CREATE TABLE IF NOT EXISTS public.intimacoes_djen (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   hash text NOT NULL UNIQUE CHECK (hash ~ '^[0-9a-f]{64}$'),
   djen_id bigint, numero_processo text, sigla_tribunal text, orgao text,
@@ -77,55 +84,78 @@ CREATE TABLE public.intimacoes_djen (
   prazo_id uuid UNIQUE REFERENCES public.prazos(id) ON DELETE SET NULL,
   created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now()
 );
-CREATE INDEX intimacoes_djen_data_idx ON public.intimacoes_djen (data_disponibilizacao DESC);
-CREATE INDEX intimacoes_djen_status_idx ON public.intimacoes_djen (status);
-CREATE INDEX intimacoes_djen_processo_idx ON public.intimacoes_djen (numero_processo);
+CREATE INDEX IF NOT EXISTS intimacoes_djen_data_idx ON public.intimacoes_djen (data_disponibilizacao DESC);
+CREATE INDEX IF NOT EXISTS intimacoes_djen_status_idx ON public.intimacoes_djen (status);
+CREATE INDEX IF NOT EXISTS intimacoes_djen_processo_idx ON public.intimacoes_djen (numero_processo);
+CREATE UNIQUE INDEX IF NOT EXISTS prazos_djen_hash_unique_idx ON public.prazos (djen_hash) WHERE djen_hash IS NOT NULL;
 
-CREATE TABLE public.djen_sync_runs (
+CREATE TABLE IF NOT EXISTS public.djen_sync_runs (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(), inicio date, fim date, origem text,
   started_at timestamptz NOT NULL DEFAULT now(), finished_at timestamptz,
   encontrados int NOT NULL DEFAULT 0, inseridos int NOT NULL DEFAULT 0,
   rascunhos int NOT NULL DEFAULT 0, erro text
 );
 
-GRANT SELECT, UPDATE ON public.intimacoes_djen TO authenticated;
-GRANT SELECT ON public.djen_sync_runs TO authenticated;
+REVOKE ALL ON public.intimacoes_djen, public.djen_sync_runs FROM PUBLIC, anon, authenticated;
+GRANT SELECT ON public.intimacoes_djen, public.djen_sync_runs TO authenticated;
+-- Os usuários podem apenas marcar/revisar; não podem editar metadados da fonte nem remover vínculos.
+GRANT UPDATE (status, revisada_por, revisada_em) ON public.intimacoes_djen TO authenticated;
 GRANT ALL ON public.intimacoes_djen, public.djen_sync_runs TO service_role;
 ALTER TABLE public.intimacoes_djen ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.djen_sync_runs ENABLE ROW LEVEL SECURITY;
 
 -- Mesmos cargos que podem editar prazos. Sem INSERT/DELETE para usuários.
+DROP POLICY IF EXISTS "Staff view intimacoes" ON public.intimacoes_djen;
+DROP POLICY IF EXISTS "Staff review intimacoes" ON public.intimacoes_djen;
+DROP POLICY IF EXISTS "Admins view sync runs" ON public.djen_sync_runs;
+
 CREATE POLICY "Staff view intimacoes" ON public.intimacoes_djen FOR SELECT TO authenticated
-  USING (private.has_cargo(auth.uid(), ARRAY['administrador','advogado','secretaria']));
+  USING (private.has_cargo(auth.uid(), ARRAY['administrador','advogado','secretaria','assistente']));
 CREATE POLICY "Staff review intimacoes" ON public.intimacoes_djen FOR UPDATE TO authenticated
-  USING (private.has_cargo(auth.uid(), ARRAY['administrador','advogado','secretaria']))
-  WITH CHECK (private.has_cargo(auth.uid(), ARRAY['administrador','advogado','secretaria']));
+  USING (private.has_cargo(auth.uid(), ARRAY['administrador','advogado','secretaria','assistente']))
+  WITH CHECK (private.has_cargo(auth.uid(), ARRAY['administrador','advogado','secretaria','assistente']));
 CREATE POLICY "Admins view sync runs" ON public.djen_sync_runs FOR SELECT TO authenticated
   USING (private.has_cargo(auth.uid(), ARRAY['administrador']));
 
-CREATE FUNCTION public.intimacoes_protect() RETURNS trigger LANGUAGE plpgsql SET search_path = public AS $$
+CREATE OR REPLACE FUNCTION public.intimacoes_protect() RETURNS trigger LANGUAGE plpgsql SET search_path = public AS $$
 BEGIN
-  IF (NEW.hash, NEW.texto, NEW.payload, NEW.djen_id, NEW.numero_processo, NEW.data_disponibilizacao)
-     IS DISTINCT FROM (OLD.hash, OLD.texto, OLD.payload, OLD.djen_id, OLD.numero_processo, OLD.data_disponibilizacao) THEN
-    RAISE EXCEPTION 'Conteúdo original da intimação não pode ser alterado';
+  -- Todos os campos recebidos do CNJ são imutáveis após a ingestão.
+  -- Apenas status, auditoria da revisão e o vínculo inicial com o borrador pueden cambiar.
+  IF (NEW.hash, NEW.djen_id, NEW.numero_processo, NEW.sigla_tribunal, NEW.orgao,
+      NEW.tipo_comunicacao, NEW.tipo_documento, NEW.meio, NEW.data_disponibilizacao,
+      NEW.link, NEW.destinatarios, NEW.advogados, NEW.texto, NEW.payload)
+     IS DISTINCT FROM
+     (OLD.hash, OLD.djen_id, OLD.numero_processo, OLD.sigla_tribunal, OLD.orgao,
+      OLD.tipo_comunicacao, OLD.tipo_documento, OLD.meio, OLD.data_disponibilizacao,
+      OLD.link, OLD.destinatarios, OLD.advogados, OLD.texto, OLD.payload) THEN
+    RAISE EXCEPTION 'O conteúdo original da intimação DJEN não pode ser alterado.';
   END IF;
-  IF OLD.prazo_id IS NOT NULL AND NEW.prazo_id IS NOT NULL AND NEW.prazo_id <> OLD.prazo_id THEN
-    RAISE EXCEPTION 'Intimação já vinculada a outro prazo';
+
+  -- Depois de vinculado na ingestão, o prazo não pode ser removido nem trocado.
+  IF OLD.prazo_id IS NOT NULL AND NEW.prazo_id IS DISTINCT FROM OLD.prazo_id THEN
+    RAISE EXCEPTION 'O vínculo da intimação com o prazo não pode ser removido ou alterado.';
   END IF;
-  IF NEW.status = 'convertida_em_prazo' AND NEW.prazo_id IS NULL AND OLD.prazo_id IS NULL THEN
-    RAISE EXCEPTION 'Conversão exige prazo_id';
+
+  IF NEW.status = 'convertida_em_prazo' AND NEW.prazo_id IS NULL THEN
+    RAISE EXCEPTION 'Conversão exige prazo_id.';
   END IF;
-  NEW.updated_at := now(); RETURN NEW;
+
+  NEW.updated_at := now();
+  RETURN NEW;
 END $$;
+DROP TRIGGER IF EXISTS intimacoes_protect_trg ON public.intimacoes_djen;
 CREATE TRIGGER intimacoes_protect_trg BEFORE UPDATE ON public.intimacoes_djen
   FOR EACH ROW EXECUTE FUNCTION public.intimacoes_protect();
 
 -- 3) Ingestão atômica (tudo ou nada). Só service_role.
-CREATE FUNCTION public.djen_ingest(p_items jsonb, p_inicio date, p_fim date, p_origem text)
+CREATE OR REPLACE FUNCTION public.djen_ingest(p_items jsonb, p_inicio date, p_fim date, p_origem text)
 RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE it jsonb; v_int uuid; v_prazo uuid; v_ins int := 0; v_dr int := 0; v_nome text;
 BEGIN
   FOR it IN SELECT * FROM jsonb_array_elements(p_items) LOOP
+    v_int := NULL;
+    v_prazo := NULL;
+
     INSERT INTO public.intimacoes_djen (hash, djen_id, numero_processo, sigla_tribunal, orgao, tipo_comunicacao,
       tipo_documento, meio, data_disponibilizacao, link, destinatarios, advogados, texto, payload)
     VALUES (it->>'hash', (it->>'djen_id')::bigint, it->>'numero_processo', it->>'sigla_tribunal', it->>'orgao',
@@ -137,11 +167,18 @@ BEGIN
     v_nome := 'DJEN · ' || coalesce(it->>'tipo_comunicacao', 'Comunicação') || ' · ' || coalesce(it->>'sigla_tribunal', '—');
     INSERT INTO public.prazos (nome, numero_processo, parte, advogado, data_limite, observacao, lembrete_ativo,
       repetir_alerta_diariamente, status, djen_hash, revisao_pendente)
-    VALUES (v_nome, it->>'numero_processo', '', NULL, NULL, it->>'observacao', false, false, 'Em andamento', it->>'hash', true)
+    VALUES (v_nome, it->>'numero_processo', 'Pendente de identificação', NULL, NULL, it->>'observacao', false, false, 'Em andamento', it->>'hash', true)
     RETURNING id INTO v_prazo;
     IF v_prazo IS NULL THEN
       SELECT id INTO v_prazo FROM public.prazos WHERE djen_hash = it->>'hash' LIMIT 1;
-    ELSE v_dr := v_dr + 1; END IF;
+    ELSE
+      v_dr := v_dr + 1;
+    END IF;
+
+    IF v_prazo IS NULL THEN
+      RAISE EXCEPTION 'Não foi possível localizar o rascunho de prazo da intimação DJEN %.', it->>'hash';
+    END IF;
+
     UPDATE public.intimacoes_djen SET prazo_id = v_prazo WHERE id = v_int;
   END LOOP;
   INSERT INTO public.djen_sync_runs (inicio, fim, origem, encontrados, inseridos, rascunhos, finished_at)
@@ -152,7 +189,7 @@ REVOKE ALL ON FUNCTION public.djen_ingest(jsonb, date, date, text) FROM PUBLIC, 
 GRANT EXECUTE ON FUNCTION public.djen_ingest(jsonb, date, date, text) TO service_role;
 
 -- 4) Confirmação humana: reutiliza o rascunho vinculado; nunca cria prazo. Roda com RLS do usuário.
-CREATE FUNCTION public.djen_confirmar_prazo(p_intimacao uuid, p_data_limite date, p_parte text, p_advogado text,
+CREATE OR REPLACE FUNCTION public.djen_confirmar_prazo(p_intimacao uuid, p_data_limite date, p_parte text, p_advogado text,
   p_lembrete_ativo boolean, p_antecedencia_dias int, p_repetir boolean)
 RETURNS uuid LANGUAGE plpgsql SECURITY INVOKER SET search_path = public AS $$
 DECLARE v_prazo uuid; v_hash text; n int;

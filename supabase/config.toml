@@ -2,3 +2,6 @@ project_id = "yqvfybcznlpsgoqwzrop"
 
 [functions.admin-users]
 verify_jwt = true
+
+[functions.djen-sync]
+verify_jwt = false
