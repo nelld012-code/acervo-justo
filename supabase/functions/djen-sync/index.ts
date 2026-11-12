@@ -105,6 +105,50 @@ function getDatabaseSecretKey(): string {
     ?? "";
 }
 
+function databaseHeaders(databaseSecretKey: string): Record<string, string> {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    apikey: databaseSecretKey,
+  };
+  if (databaseSecretKey.startsWith("eyJ")) {
+    headers.Authorization = "Bearer " + databaseSecretKey;
+  }
+  return headers;
+}
+
+async function recordSyncFailure(
+  supabaseUrl: string,
+  databaseSecretKey: string,
+  startDate: string,
+  endDate: string,
+  reason: string,
+  found: number,
+): Promise<void> {
+  try {
+    const endpoint = supabaseUrl.replace(/\/+$/, "") + "/rest/v1/djen_sync_runs";
+    await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        ...databaseHeaders(databaseSecretKey),
+        Prefer: "return=minimal",
+      },
+      body: JSON.stringify({
+        inicio: startDate,
+        fim: endDate,
+        origem: "supabase-edge-cron",
+        encontrados: found,
+        inseridos: 0,
+        rascunhos: 0,
+        erro: reason.slice(0, 800),
+        finished_at: new Date().toISOString(),
+      }),
+      signal: AbortSignal.timeout(8000),
+    });
+  } catch {
+    // O registro de erro nunca deve encobrir a falha original da coleta.
+  }
+}
+
 Deno.serve(async (request: Request) => {
   if (request.method !== "POST") {
     return json({ error: "Metodo nao permitido." }, 405);
@@ -147,6 +191,7 @@ Deno.serve(async (request: Request) => {
       });
 
       if (!upstream.ok) {
+        await recordSyncFailure(supabaseUrl, databaseSecretKey, startDate, endDate, "CNJ HTTP " + upstream.status, collected.length);
         return json({
           error: "A consulta ao servico do CNJ falhou.",
           upstreamStatus: upstream.status,
@@ -160,6 +205,7 @@ Deno.serve(async (request: Request) => {
       if (result.count !== undefined) {
         const reportedTotal = Number(result.count);
         if (!Number.isFinite(reportedTotal) || reportedTotal < 0) {
+          await recordSyncFailure(supabaseUrl, databaseSecretKey, startDate, endDate, "CNJ retornou quantidade invalida", collected.length);
           return json({ error: "O CNJ retornou uma quantidade invalida.", bancoAlterado: false }, 502);
         }
         total = reportedTotal;
@@ -174,6 +220,7 @@ Deno.serve(async (request: Request) => {
     }
 
     if (!paginationComplete || (total > 0 && collected.length < total)) {
+      await recordSyncFailure(supabaseUrl, databaseSecretKey, startDate, endDate, "Paginacao CNJ incompleta", collected.length);
       return json({
         error: "A paginacao do CNJ ficou incompleta; nenhum dado foi gravado.",
         totalCNJ: total,
@@ -253,15 +300,7 @@ Deno.serve(async (request: Request) => {
       });
     }
 
-    const headers: Record<string, string> = {
-      "Content-Type": "application/json",
-      apikey: databaseSecretKey,
-    };
-    // Chaves secretas sb_secret_ nao sao JWTs; Authorization so e enviado para a chave legada service_role.
-    if (databaseSecretKey.startsWith("eyJ")) {
-      headers.Authorization = "Bearer " + databaseSecretKey;
-    }
-
+    const headers = databaseHeaders(databaseSecretKey);
     const rpcUrl = supabaseUrl.replace(/\/+$/, "") + "/rest/v1/rpc/djen_ingest";
     const rpc = await fetch(rpcUrl, {
       method: "POST",
@@ -277,6 +316,7 @@ Deno.serve(async (request: Request) => {
 
     const responseText = await rpc.text();
     if (!rpc.ok) {
+      await recordSyncFailure(supabaseUrl, databaseSecretKey, startDate, endDate, "RPC djen_ingest HTTP " + rpc.status, collected.length);
       return json({
         error: "O banco recusou a importacao DJEN.",
         status: rpc.status,
@@ -304,8 +344,10 @@ Deno.serve(async (request: Request) => {
       ingest,
     });
   } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    await recordSyncFailure(supabaseUrl, databaseSecretKey, startDate, endDate, message, collected.length);
     return json({
-      error: error instanceof Error ? error.message : String(error),
+      error: message,
       bancoAlterado: false,
     }, 502);
   }
