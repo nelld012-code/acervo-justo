@@ -6,6 +6,9 @@ export type Prazo = {
   advogado: string | null;
   data_limite: string | null;
   dedupe_key: string | null;
+  /** DJEN: presentes após aplicar a migração pendente. */
+  djen_hash?: string | null;
+  revisao_pendente?: boolean;
   observacao: string | null;
   lembrete_ativo: boolean;
   antecedencia_dias: number;

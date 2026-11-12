@@ -749,7 +749,7 @@ function PrazosPage() {
                 const dias = p.data_limite ? diasRestantes(p.data_limite) : Number.NaN;
                 return <div key={p.id} className="space-y-2 p-4">
                   <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0"><p className="break-words font-medium">{p.nome}</p><p className="text-xs text-muted-foreground">{p.parte} · {p.advogado || "—"} · Limite: {brDate(p.data_limite)}</p></div>
+                    <div className="min-w-0"><p className="break-words font-medium">{p.nome}{p.revisao_pendente && <Badge variant="outline" className="ml-2 border-amber-400 text-amber-700">Pendente de revisão</Badge>}</p><p className="text-xs text-muted-foreground">{p.parte} · {p.advogado || "—"} · Limite: {brDate(p.data_limite)}</p></div>
                     <Badge variant="outline" className={`shrink-0 ${SITUACAO_CLASS[s]}`}>{SITUACAO_LABEL[s]}</Badge>
                   </div>
                   <p className="text-sm">Processo: {processoOuTraco(p.numero_processo)}</p>
@@ -777,7 +777,7 @@ function PrazosPage() {
                   : lista.length ? listaPaginada.map((p) => {
                     const s = situacaoDoPrazo(p);
                     return <TableRow key={p.id}>
-                      <TableCell className="max-w-56"><div className="truncate font-medium" title={p.nome}>{p.nome}</div></TableCell>
+                      <TableCell className="max-w-56"><div className="truncate font-medium" title={p.nome}>{p.nome}{p.revisao_pendente && <Badge variant="outline" className="ml-2 border-amber-400 text-amber-700">Pendente de revisão</Badge>}</div></TableCell>
                       <TableCell className="max-w-48 truncate">{processoOuTraco(p.numero_processo)}</TableCell>
                       <TableCell>{p.parte}</TableCell><TableCell>{p.advogado || "—"}</TableCell><TableCell>{brDate(p.data_limite)}</TableCell>
                       <TableCell>{p.status === "Concluído" ? "—" : diasRestantes(p.data_limite)}</TableCell>
@@ -815,7 +815,7 @@ function PrazosPage() {
                 <div className="flex items-start justify-between gap-3 border-b border-border pb-3">
                   <div className="min-w-0">
                     <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Nome do prazo</p>
-                    <p className="break-words text-base font-semibold text-foreground">{prazoDetalhes.nome}</p>
+                    <p className="break-words text-base font-semibold text-foreground">{prazoDetalhes.nome}{prazoDetalhes.revisao_pendente && <Badge variant="outline" className="ml-2 border-amber-400 text-amber-700">Pendente de revisão</Badge>}</p>
                   </div>
                   <Badge variant="outline" className={`shrink-0 ${SITUACAO_CLASS[s]}`}>{SITUACAO_LABEL[s]}</Badge>
                 </div>
