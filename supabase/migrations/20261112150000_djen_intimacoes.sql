@@ -2,6 +2,11 @@
 -- Aditiva: adiciona 2 colunas anuláveis/default em public.prazos sem reescrever linhas;
 -- para os prazos existentes (djen_hash NULL) a identidade e o comportamento ficam idênticos.
 
+-- Extensões necessárias à execução diária do coletor no próprio Supabase.
+CREATE SCHEMA IF NOT EXISTS extensions;
+CREATE EXTENSION IF NOT EXISTS pg_cron;
+CREATE EXTENSION IF NOT EXISTS pg_net WITH SCHEMA extensions;
+
 -- 1) Prazos: vínculo com DJEN e marcação "Pendente de revisão" (status continua compatível com prazos_status_check).
 ALTER TABLE public.prazos ADD COLUMN IF NOT EXISTS djen_hash text;
 ALTER TABLE public.prazos ADD COLUMN IF NOT EXISTS revisao_pendente boolean NOT NULL DEFAULT false;
@@ -128,7 +133,7 @@ END;
 $function$;
 
 -- 2) Comunicações DJEN (texto original e payload integral imutáveis)
-CREATE TABLE public.intimacoes_djen (
+CREATE TABLE IF NOT EXISTS public.intimacoes_djen (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   hash text NOT NULL UNIQUE CHECK (hash ~ '^[0-9a-f]{64}$'),
   djen_id bigint, numero_processo text, sigla_tribunal text, orgao text,
@@ -140,11 +145,13 @@ CREATE TABLE public.intimacoes_djen (
   prazo_id uuid UNIQUE REFERENCES public.prazos(id) ON DELETE SET NULL,
   created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now()
 );
-CREATE INDEX intimacoes_djen_data_idx ON public.intimacoes_djen (data_disponibilizacao DESC);
-CREATE INDEX intimacoes_djen_status_idx ON public.intimacoes_djen (status);
-CREATE INDEX intimacoes_djen_processo_idx ON public.intimacoes_djen (numero_processo);
+CREATE INDEX IF NOT EXISTS intimacoes_djen_data_idx ON public.intimacoes_djen (data_disponibilizacao DESC);
+CREATE INDEX IF NOT EXISTS intimacoes_djen_status_idx ON public.intimacoes_djen (status);
+CREATE INDEX IF NOT EXISTS intimacoes_djen_processo_idx ON public.intimacoes_djen (numero_processo);
+CREATE UNIQUE INDEX IF NOT EXISTS intimacoes_djen_hash_unique_idx ON public.intimacoes_djen (hash);
+CREATE UNIQUE INDEX IF NOT EXISTS prazos_djen_hash_unique_idx ON public.prazos (djen_hash) WHERE djen_hash IS NOT NULL;
 
-CREATE TABLE public.djen_sync_runs (
+CREATE TABLE IF NOT EXISTS public.djen_sync_runs (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(), inicio date, fim date, origem text,
   started_at timestamptz NOT NULL DEFAULT now(), finished_at timestamptz,
   encontrados int NOT NULL DEFAULT 0, inseridos int NOT NULL DEFAULT 0,
@@ -160,6 +167,10 @@ ALTER TABLE public.intimacoes_djen ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.djen_sync_runs ENABLE ROW LEVEL SECURITY;
 
 -- Mesmos cargos que podem editar prazos. Sem INSERT/DELETE para usuários.
+DROP POLICY IF EXISTS "Staff view intimacoes" ON public.intimacoes_djen;
+DROP POLICY IF EXISTS "Staff review intimacoes" ON public.intimacoes_djen;
+DROP POLICY IF EXISTS "Admins view sync runs" ON public.djen_sync_runs;
+
 CREATE POLICY "Staff view intimacoes" ON public.intimacoes_djen FOR SELECT TO authenticated
   USING (private.has_cargo(auth.uid(), ARRAY['administrador','advogado','secretaria','assistente']));
 CREATE POLICY "Staff review intimacoes" ON public.intimacoes_djen FOR UPDATE TO authenticated
@@ -168,7 +179,7 @@ CREATE POLICY "Staff review intimacoes" ON public.intimacoes_djen FOR UPDATE TO 
 CREATE POLICY "Admins view sync runs" ON public.djen_sync_runs FOR SELECT TO authenticated
   USING (private.has_cargo(auth.uid(), ARRAY['administrador']));
 
-CREATE FUNCTION public.intimacoes_protect() RETURNS trigger LANGUAGE plpgsql SET search_path = public AS $
+CREATE OR REPLACE FUNCTION public.intimacoes_protect() RETURNS trigger LANGUAGE plpgsql SET search_path = public AS $
 BEGIN
   -- Todos os campos recebidos do CNJ são imutáveis após a ingestão.
   -- Apenas status, auditoria da revisão e o vínculo inicial com o borrador pueden cambiar.
@@ -194,11 +205,12 @@ BEGIN
   NEW.updated_at := now();
   RETURN NEW;
 END $;
+DROP TRIGGER IF EXISTS intimacoes_protect_trg ON public.intimacoes_djen;
 CREATE TRIGGER intimacoes_protect_trg BEFORE UPDATE ON public.intimacoes_djen
   FOR EACH ROW EXECUTE FUNCTION public.intimacoes_protect();
 
 -- 3) Ingestão atômica (tudo ou nada). Só service_role.
-CREATE FUNCTION public.djen_ingest(p_items jsonb, p_inicio date, p_fim date, p_origem text)
+CREATE OR REPLACE FUNCTION public.djen_ingest(p_items jsonb, p_inicio date, p_fim date, p_origem text)
 RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE it jsonb; v_int uuid; v_prazo uuid; v_ins int := 0; v_dr int := 0; v_nome text;
 BEGIN
@@ -239,7 +251,7 @@ REVOKE ALL ON FUNCTION public.djen_ingest(jsonb, date, date, text) FROM PUBLIC, 
 GRANT EXECUTE ON FUNCTION public.djen_ingest(jsonb, date, date, text) TO service_role;
 
 -- 4) Confirmação humana: reutiliza o rascunho vinculado; nunca cria prazo. Roda com RLS do usuário.
-CREATE FUNCTION public.djen_confirmar_prazo(p_intimacao uuid, p_data_limite date, p_parte text, p_advogado text,
+CREATE OR REPLACE FUNCTION public.djen_confirmar_prazo(p_intimacao uuid, p_data_limite date, p_parte text, p_advogado text,
   p_lembrete_ativo boolean, p_antecedencia_dias int, p_repetir boolean)
 RETURNS uuid LANGUAGE plpgsql SECURITY INVOKER SET search_path = public AS $$
 DECLARE v_prazo uuid; v_hash text; n int;
