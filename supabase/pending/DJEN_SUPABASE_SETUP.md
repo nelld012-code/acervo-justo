@@ -7,7 +7,7 @@ Este flujo sustituye integralmente el colector Vercel. La coleta corre en una Su
 - El colector está en supabase/functions/djen-sync/index.ts.
 - supabase/config.toml define verify_jwt = false solo para esta función. La función valida obligatoriamente el header x-cron-secret.
 - La coleta consulta OAB/MG 37.610 en los últimos 7 días y recorre la paginación. Si la respuesta queda incompleta, aborta sin grabar.
-- La función llama a public.djen_ingest usando la clave secreta disponible únicamente en el runtime de Supabase.
+- La función usa el cliente administrativo interno de `@supabase/server` y llama a `public.djen_ingest`; no lee ni expone manualmente la clave `service_role` / `sb_secret`.
 - El SQL de tablas, políticas, funciones y vínculo con Prazos permanece en supabase/migrations/20261112150000_djen_intimacoes.sql; aún debe aplicarse a la base de producción.
 - No se calcula ninguna fecha límite automáticamente. Cada comunicación crea un borrador sin vencimiento ni recordatorios hasta la revisión humana.
 
@@ -201,7 +201,7 @@ limit 10;
 ## Seguridad y comportamiento
 
 - No guardes la clave secreta del Supabase, DJEN_CRON_SECRET ni secretos de Vault en GitHub, Lovable, un .env público o el navegador.
-- La clave publishable enviada por Cron identifica el proyecto; el secreto x-cron-secret protege la invocación. La clave de acceso al banco se lee solo dentro de la Edge Function.
+- La clave publishable enviada por Cron identifica el proyecto; el secreto x-cron-secret protege la invocación. El SDK `@supabase/server` crea el cliente administrativo dentro del runtime; nunca coloques `service_role` ni `sb_secret` en GitHub, Vault, Lovable o el navegador.
 - El colector usa por ahora solamente OAB/MG 37.610. Las OAB de otros abogados podrán agregarse después de confirmarlas.
 - La búsqueda retrospectiva de 7 días reduce el riesgo de perder publicaciones tras una falla; la deduplicación evita repeticiones.
 - El sistema no interpreta ni fija plazos procesales por sí solo. El colaborador revisa el texto de la intimación y confirma la fecha límite en el módulo Intimações DJEN.
