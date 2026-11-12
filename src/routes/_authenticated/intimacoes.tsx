@@ -19,7 +19,7 @@ export const Route = createFileRoute("/_authenticated/intimacoes")({
 });
 
 type Intimacao = { id: string; numero_processo: string | null; sigla_tribunal: string | null; orgao: string | null; tipo_comunicacao: string | null; data_disponibilizacao: string | null; link: string | null; texto: string; status: string; prazo_id: string | null };
-const db = supabase as unknown as { from: (t: string) => any; rpc: (f: string, a: unknown) => any };
+const db = supabase as unknown as { from: (t: string) => ReturnType<typeof supabase.from>; rpc: typeof supabase.rpc };
 const STATUS: Record<string, string> = { nova: "Nova", revisada: "Revisada", convertida_em_prazo: "Convertida em prazo" };
 const br = (d: string | null) => (d ? d.split("-").reverse().join("/") : "—");
 const PAGE = 8;
