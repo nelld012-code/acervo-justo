@@ -7,7 +7,7 @@ Este flujo sustituye integralmente el colector Vercel. La coleta corre en una Su
 - El colector está en supabase/functions/djen-sync/index.ts.
 - supabase/config.toml define verify_jwt = false solo para esta función. La función valida obligatoriamente el header x-cron-secret.
 - La coleta consulta OAB/MG 37.610 en los últimos 7 días y recorre la paginación. Si la respuesta queda incompleta, aborta sin grabar.
-- La función usa el cliente administrativo interno de `@supabase/server` y llama a `public.djen_ingest`; no lee ni expone manualmente la clave `service_role` / `sb_secret`.
+- La función usa `@supabase/supabase-js` y obtiene la clave administrativa desde `SUPABASE_SECRET_KEYS`, variable inyectada por Supabase en el runtime. La clave nunca pasa por el navegador ni se guarda en GitHub o Vault.
 - El SQL de tablas, políticas, funciones y vínculo con Prazos permanece en supabase/migrations/20261112150000_djen_intimacoes.sql; aún debe aplicarse a la base de producción.
 - No se calcula ninguna fecha límite automáticamente. Cada comunicación crea un borrador sin vencimiento ni recordatorios hasta la revisión humana.
 
@@ -25,7 +25,7 @@ supabase/migrations/20261112150000_djen_intimacoes.sql
 
 Este SQL crea intimacoes_djen, djen_sync_runs, los vínculos de borrador en prazos, las políticas RLS y las funciones djen_ingest / djen_confirmar_prazo.
 
-Ejecuta una sola vez. Si el SQL devuelve un error, detente y corrige el error antes de volver a intentarlo; no ejecutes parcialmente ni elimines tablas existentes.
+El script es idempotente: las tablas e índices ya existentes se conservan y las políticas, funciones y permisos se ajustan a la versión actual. Si el SQL devuelve un error, detente y corrige el error antes de volver a intentarlo; no elimines tablas ni filas existentes.
 
 ### 3. Publicar la Edge Function
 
@@ -70,20 +70,31 @@ En Supabase Dashboard, ve a Database → Extensions y confirma que estén habili
 En SQL Editor, ejecuta el bloque siguiente reemplazando los dos marcadores. Usa la clave publishable del proyecto (o la antigua anon si el proyecto aún no tiene clave publishable). Esta clave solo identifica al proyecto; la función exige además el encabezado secreto DJEN_CRON_SECRET, por lo que la clave pública por sí sola no permite ejecutar la coleta.
 
 ~~~sql
-select vault.create_secret(
-  'https://yqvfybcznlpsgoqwzrop.supabase.co',
-  'djen_project_url'
-);
+DO $
+DECLARE
+  v_id uuid;
+BEGIN
+  SELECT id INTO v_id FROM vault.secrets WHERE name = 'djen_project_url';
+  IF v_id IS NULL THEN
+    PERFORM vault.create_secret('https://yqvfybcznlpsgoqwzrop.supabase.co', 'djen_project_url', 'URL do projeto Acervo Justo');
+  ELSE
+    PERFORM vault.update_secret(v_id, 'https://yqvfybcznlpsgoqwzrop.supabase.co', 'djen_project_url', 'URL do projeto Acervo Justo');
+  END IF;
 
-select vault.create_secret(
-  'PEGA_AQUI_LA_CLAVE_PUBLISHABLE_DEL_PROYECTO',
-  'djen_publishable_key'
-);
+  SELECT id INTO v_id FROM vault.secrets WHERE name = 'djen_publishable_key';
+  IF v_id IS NULL THEN
+    PERFORM vault.create_secret('PEGA_AQUI_A_CHAVE_PUBLISHABLE_DO_PROJETO', 'djen_publishable_key', 'Chave pública para identificar o projeto no pg_net');
+  ELSE
+    PERFORM vault.update_secret(v_id, 'PEGA_AQUI_A_CHAVE_PUBLISHABLE_DO_PROJETO', 'djen_publishable_key', 'Chave pública para identificar o projeto no pg_net');
+  END IF;
 
-select vault.create_secret(
-  'PEGA_AQUI_EL_MISMO_DJEN_CRON_SECRET',
-  'djen_cron_secret'
-);
+  SELECT id INTO v_id FROM vault.secrets WHERE name = 'djen_cron_secret';
+  IF v_id IS NULL THEN
+    PERFORM vault.create_secret('PEGA_AQUI_O_MESMO_DJEN_CRON_SECRET', 'djen_cron_secret', 'Segredo compartilhado entre pg_cron e a Edge Function DJEN');
+  ELSE
+    PERFORM vault.update_secret(v_id, 'PEGA_AQUI_O_MESMO_DJEN_CRON_SECRET', 'djen_cron_secret', 'Segredo compartilhado entre pg_cron e a Edge Function DJEN');
+  END IF;
+END $;
 ~~~
 
 Si alguno de esos nombres ya existe en Vault, no crees una segunda copia con otro nombre. Actualiza el secreto existente en Vault y conserva exactamente los nombres indicados.
