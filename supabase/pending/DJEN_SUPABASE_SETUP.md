@@ -1,45 +1,49 @@
 # DJEN nativo no Supabase — instrucciones de activación
 
-Este flujo sustituye integralmente el colector Vercel. La coleta corre en una Supabase Edge Function; la agenda diaria se ejecuta en el propio Postgres con pg_cron + pg_net; los secretos se guardan en Supabase Vault. Lovable conserva la interfaz y sincroniza el código desde GitHub.
+Este flujo sustituye el colector Vercel por una Edge Function alojada en el backend Supabase administrado por Lovable. El proyecto de la aplicación es `Arquivo Jurídico Central` (ID de proyecto Lovable `3a20ae50-781d-485b-bf94-455f13c6e988`). El `project_id = yqvfybcznlpsgoqwzrop` de `supabase/config.toml` es la referencia técnica corta usada por Supabase; no es el ID UUID de Lovable. No crees otro proyecto ni conectes esta integración a una base externa. El código se mantiene en GitHub; la base, secretos y funciones pertenecen al backend existente de Lovable.
 
 ## Estado de esta implementación
 
 - El colector está en supabase/functions/djen-sync/index.ts.
 - supabase/config.toml define verify_jwt = false solo para esta función. La función valida obligatoriamente el header x-cron-secret.
 - La coleta consulta OAB/MG 37.610 en los últimos 7 días y recorre la paginación. Si la respuesta queda incompleta, aborta sin grabar.
-- La función usa `@supabase/supabase-js` y obtiene la clave administrativa desde `SUPABASE_SECRET_KEYS`, variable inyectada por Supabase en el runtime. La clave nunca pasa por el navegador ni se guarda en GitHub o Vault.
-- El SQL de tablas, políticas, funciones y vínculo con Prazos permanece en supabase/migrations/20261112150000_djen_intimacoes.sql; aún debe aplicarse a la base de producción.
+- La función usa `@supabase/supabase-js` y obtiene la clave administrativa exclusivamente del entorno del backend (`SUPABASE_SECRET_KEYS` o, como compatibilidad con el backend integrado, `SUPABASE_SERVICE_ROLE_KEY`). La clave nunca pasa por el navegador ni se guarda en GitHub o Vault.
+- La lectura de solo consulta del 12/11/2026 confirmó: 581 filas en `public.prazos`; tablas `intimacoes_djen` y `djen_sync_runs` creadas pero vacías; columnas DJEN de `prazos` y funciones DJEN existentes; `pg_cron` y Vault instalados; `pg_net` ausente; ningún job DJEN programado.
+- Por ello, **no ejecutes a ciegas la migración completa**: compara primero el esquema real y aplica solo lo que falte. La integración de GitHub no ejecuta automáticamente todas las migraciones al fusionar el PR.
 - No se calcula ninguna fecha límite automáticamente. Cada comunicación crea un borrador sin vencimiento ni recordatorios hasta la revisión humana.
 
 ## Orden seguro de activación
 
 ### 1. Hacer backup de la base de datos
 
-Antes de aplicar el SQL pendiente, crea/descarga un backup de la base de producción desde el Dashboard de Supabase. La rama backup/djen-supabase-native-before-hardening-20261112 conserva el código anterior en GitHub; no sustituye el backup de los datos del banco.
+Antes de cualquier escritura, exporta la base del proyecto Lovable existente:
+
+1. Abre el proyecto **Arquivo Jurídico Central**.
+2. En la barra del proyecto entra en **More → Database → Manage → Settings**.
+3. En **Export project data**, pulsa **Export data**; en la tarjeta **Database**, pulsa **Export → Start export**.
+4. Lovable avisará por correo cuando el archivo esté listo y también lo guardará en **More → Storage**. Descárgalo y guárdalo fuera de Lovable.
+
+La exportación contiene estructura y datos completos de PostgreSQL, incluidas cuentas de usuario y hashes de contraseñas. No contiene archivos de Storage, código de Edge Functions, secretos, ajustes de proveedores de inicio de sesión ni claves API. Descarga esos archivos de Storage por separado si necesitas un respaldo integral. Lovable mantiene backups automáticos diarios, pero no permite crear un punto de restauración inmediato a demanda.
+
+La rama `backup/djen-supabase-native-before-hardening-20261112` conserva código anterior en GitHub; no sustituye este respaldo de la base de datos.
 
 ### 2. Aplicar el SQL del módulo DJEN
 
-En Supabase Dashboard, abre SQL Editor y ejecuta el contenido completo de:
+En el proyecto Lovable abre **More → Database → Manage → SQL editor**. No pegues todavía el archivo completo de la migración: la lectura actual demuestra que las tablas DJEN, los campos y las funciones principales ya existen y que las 581 filas de `prazos` deben conservarse. Primero compara la definición exacta de columnas, índices, triggers, funciones, políticas RLS y permisos con `supabase/migrations/20261112150000_djen_intimacoes.sql`. Luego ejecuta solamente las sentencias faltantes, comenzando por instalar `pg_net` con:
 
-supabase/migrations/20261112150000_djen_intimacoes.sql
+~~~sql
+CREATE EXTENSION IF NOT EXISTS pg_net;
+~~~
 
-Este SQL crea intimacoes_djen, djen_sync_runs, los vínculos de borrador en prazos, las políticas RLS y las funciones djen_ingest / djen_confirmar_prazo.
-
-El script es idempotente: las tablas e índices ya existentes se conservan y las políticas, funciones y permisos se ajustan a la versión actual. Si el SQL devuelve un error, detente y corrige el error antes de volver a intentarlo; no elimines tablas ni filas existentes.
+En la configuración estándar de Supabase, esta extensión crea el esquema `net`, que es donde viven `net.http_post` y `net._http_response`. No la instales en el esquema `extensions`. La migración de GitHub fue corregida para reflejarlo. Si alguna sentencia falla, detente y consulta el estado antes de reintentarlo; no elimines ni recrees tablas, ni modifiques los 581 registros manuales existentes.
 
 ### 3. Publicar la Edge Function
 
-La carpeta supabase/functions/djen-sync debe publicarse en el proyecto cuyo ref está configurado en supabase/config.toml.
+El archivo está en `supabase/functions/djen-sync/index.ts`. Como el backend pertenece a Lovable, no utilices otra organización o proyecto desde el panel personal de Supabase ni intentes desplegar sobre uno de los otros proyectos que aparecen en tu cuenta.
 
-Con Supabase CLI instalado y autenticado:
+En Lovable, abre **More → Database → Manage → Edge functions** para comprobar las funciones y sus logs. La documentación de Lovable indica que la creación, edición y publicación de una Edge Function se realiza desde el chat del proyecto. Después de sincronizar el código aprobado desde GitHub, pide que publique **solo** `djen-sync`, sin cambios adicionales en la interfaz ni en otras funciones. La vista Edge functions permite comprobar que la función aparece, revisar invocaciones y abrir sus logs.
 
-~~~powershell
-supabase login
-supabase link --project-ref yqvfybcznlpsgoqwzrop
-supabase functions deploy djen-sync --project-ref yqvfybcznlpsgoqwzrop
-~~~
-
-La configuración verify_jwt = false ya está en supabase/config.toml. No la cambies a true: el endpoint usa autenticación propia mediante el header secreto y no debe llamarse directamente desde el navegador.
+La configuración `verify_jwt = false` debe conservarse para esta función, porque el endpoint valida obligatoriamente el header secreto `x-cron-secret`. Nunca debe ser llamada sin esa autenticación propia.
 
 ### 4. Crear el secreto de la función
 
@@ -52,12 +56,12 @@ $DJEN_SECRET = [Convert]::ToHexString($bytes)
 $DJEN_SECRET | Set-Clipboard
 ~~~
 
-En Supabase Dashboard, abre Edge Functions → Secrets y agrega:
+En el proyecto Lovable abre **More → Settings → Secrets** y agrega:
 
-- Nombre: DJEN_CRON_SECRET
+- Nombre: `DJEN_CRON_SECRET`
 - Valor: pega el secreto generado
 
-No uses el prefijo SUPABASE_ en el nombre del secreto.
+Lovable inyecta los secretos en el runtime de las Edge Functions y no vuelve a mostrar el valor después de guardarlo. Conserva una copia segura porque el mismo valor debe guardarse en Vault para que pg_cron pueda invocar la función. No uses el prefijo reservado `SUPABASE_`.
 
 ### 5. Activar extensiones y guardar los datos de llamada en Vault
 
