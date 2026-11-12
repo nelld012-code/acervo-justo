@@ -65,16 +65,16 @@ Lovable inyecta los secretos en el runtime de las Edge Functions y no vuelve a m
 
 ### 5. Activar extensiones y guardar los datos de llamada en Vault
 
-En Supabase Dashboard, ve a Database → Extensions y confirma que estén habilitadas:
-
-- pg_cron
-- pg_net
-- supabase_vault (Vault)
-
-En SQL Editor, ejecuta el bloque siguiente reemplazando los dos marcadores. Usa la clave publishable del proyecto (o la antigua anon si el proyecto aún no tiene clave publishable). Esta clave solo identifica al proyecto; la función exige además el encabezado secreto DJEN_CRON_SECRET, por lo que la clave pública por sí sola no permite ejecutar la coleta.
+En **More → Database → Manage → SQL editor** del mismo proyecto Lovable, confirma las extensiones con una consulta de solo lectura:
 
 ~~~sql
-DO $
+select extname, extversion from pg_extension where extname in ('pg_cron', 'pg_net', 'supabase_vault');
+~~~
+
+La comprobación del 12/11/2026 encontró `pg_cron` y `supabase_vault`, pero no `pg_net`. Si aún no aparece, aplica primero `CREATE EXTENSION IF NOT EXISTS pg_net;` después de completar el backup del paso 1. Luego ejecuta el bloque siguiente reemplazando los dos marcadores. La URL base confirmada en el `.env` del repositorio es `https://yqvfybcznlpsgoqwzrop.supabase.co`; copia la clave `VITE_SUPABASE_PUBLISHABLE_KEY` desde el `.env` del proyecto. La clave publishable identifica el proyecto; la función exige además el header secreto `x-cron-secret`, por lo que la clave pública por sí sola no permite ejecutar la coleta. No pegues valores secretos en el chat ni los cometas en GitHub.
+
+~~~sql
+DO $$
 DECLARE
   v_id uuid;
 BEGIN
@@ -98,8 +98,7 @@ BEGIN
   ELSE
     PERFORM vault.update_secret(v_id, 'PEGA_AQUI_O_MESMO_DJEN_CRON_SECRET', 'djen_cron_secret', 'Segredo compartilhado entre pg_cron e a Edge Function DJEN');
   END IF;
-END $;
-~~~
+END $$7667
 
 Si alguno de esos nombres ya existe en Vault, no crees una segunda copia con otro nombre. Actualiza el secreto existente en Vault y conserva exactamente los nombres indicados.
 
