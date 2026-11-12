@@ -1,3 +1,5 @@
+import { withSupabase } from "npm:@supabase/server@1.9.2";
+
 // Supabase Edge Function — DJEN nacional para OAB/MG 37.610.
 // Executada pelo Supabase Cron. Cria apenas rascunhos; nunca calcula prazo automaticamente.
 // Autenticacao propria: header x-cron-secret (verify_jwt=false em supabase/config.toml).
@@ -77,6 +79,16 @@ function json(body: unknown, status = 200): Response {
       "Cache-Control": "no-store",
     },
   });
+
+Deno.serve(async (request: Request) => {
+  try {
+    return await djenSyncHandler(request);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error("[djen-sync] Erro nao tratado:", message);
+    return json({ error: "Falha interna ao executar a sincronizacao DJEN." }, 500);
+  }
+});
 }
 
 function safeEqual(expected: string, received: string): boolean {
@@ -88,68 +100,41 @@ function safeEqual(expected: string, received: string): boolean {
   return difference === 0;
 }
 
-function getDatabaseSecretKey(): string {
-  // Supabase 2026: prefere a chave secreta nomeada; mantem compatibilidade com service_role legado.
-  const namedKeys = Deno.env.get("SUPABASE_SECRET_KEYS");
-  if (namedKeys) {
-    try {
-      const parsed = JSON.parse(namedKeys) as Record<string, string>;
-      if (parsed.default) return parsed.default;
-    } catch {
-      throw new Error("SUPABASE_SECRET_KEYS nao contem JSON valido.");
-    }
-  }
-
-  return Deno.env.get("SUPABASE_SECRET_KEY")
-    ?? Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")
-    ?? "";
-}
-
-function databaseHeaders(databaseSecretKey: string): Record<string, string> {
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-    apikey: databaseSecretKey,
+type AdminDb = {
+  from: (table: string) => {
+    insert: (values: Record<string, unknown>) => PromiseLike<{ error: { message: string } | null }>;
   };
-  if (databaseSecretKey.startsWith("eyJ")) {
-    headers.Authorization = "Bearer " + databaseSecretKey;
-  }
-  return headers;
-}
+  rpc: (name: string, args: Record<string, unknown>) => PromiseLike<{
+    data: unknown;
+    error: { message: string } | null;
+  }>;
+};
 
 async function recordSyncFailure(
-  supabaseUrl: string,
-  databaseSecretKey: string,
+  admin: AdminDb,
   startDate: string,
   endDate: string,
   reason: string,
   found: number,
 ): Promise<void> {
   try {
-    const endpoint = supabaseUrl.replace(/\/+$/, "") + "/rest/v1/djen_sync_runs";
-    await fetch(endpoint, {
-      method: "POST",
-      headers: {
-        ...databaseHeaders(databaseSecretKey),
-        Prefer: "return=minimal",
-      },
-      body: JSON.stringify({
-        inicio: startDate,
-        fim: endDate,
-        origem: "supabase-edge-cron",
-        encontrados: found,
-        inseridos: 0,
-        rascunhos: 0,
-        erro: reason.slice(0, 800),
-        finished_at: new Date().toISOString(),
-      }),
-      signal: AbortSignal.timeout(8000),
+    const { error } = await admin.from("djen_sync_runs").insert({
+      inicio: startDate,
+      fim: endDate,
+      origem: "supabase-edge-cron",
+      encontrados: found,
+      inseridos: 0,
+      rascunhos: 0,
+      erro: reason.slice(0, 800),
+      finished_at: new Date().toISOString(),
     });
+    if (error) console.error("[djen-sync] Nao foi possivel registrar a falha:", error.message);
   } catch {
     // O registro de erro nunca deve encobrir a falha original da coleta.
   }
 }
 
-Deno.serve(async (request: Request) => {
+const djenSyncHandler = withSupabase({ auth: "none" }, async (request: Request, ctx) => {
   if (request.method !== "POST") {
     return json({ error: "Metodo nao permitido." }, 405);
   }
@@ -160,10 +145,9 @@ Deno.serve(async (request: Request) => {
     return json({ error: "Nao autorizado." }, 401);
   }
 
-  const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
-  const databaseSecretKey = getDatabaseSecretKey();
-  if (!supabaseUrl || !databaseSecretKey) {
-    return json({ error: "Configuracao interna do Supabase incompleta." }, 503);
+  const admin = ctx.supabaseAdmin as AdminDb;
+  if (!admin) {
+    return json({ error: "Cliente administrativo do Supabase indisponivel." }, 503);
   }
 
   const endDate = todayInSaoPaulo();
@@ -191,7 +175,7 @@ Deno.serve(async (request: Request) => {
       });
 
       if (!upstream.ok) {
-        await recordSyncFailure(supabaseUrl, databaseSecretKey, startDate, endDate, "CNJ HTTP " + upstream.status, collected.length);
+        await recordSyncFailure(admin, startDate, endDate, "CNJ HTTP " + upstream.status, collected.length);
         return json({
           error: "A consulta ao servico do CNJ falhou.",
           upstreamStatus: upstream.status,
@@ -205,7 +189,7 @@ Deno.serve(async (request: Request) => {
       if (result.count !== undefined) {
         const reportedTotal = Number(result.count);
         if (!Number.isFinite(reportedTotal) || reportedTotal < 0) {
-          await recordSyncFailure(supabaseUrl, databaseSecretKey, startDate, endDate, "CNJ retornou quantidade invalida", collected.length);
+          await recordSyncFailure(admin, startDate, endDate, "CNJ retornou quantidade invalida", collected.length);
           return json({ error: "O CNJ retornou uma quantidade invalida.", bancoAlterado: false }, 502);
         }
         total = reportedTotal;
@@ -220,7 +204,7 @@ Deno.serve(async (request: Request) => {
     }
 
     if (!paginationComplete || (total > 0 && collected.length < total)) {
-      await recordSyncFailure(supabaseUrl, databaseSecretKey, startDate, endDate, "Paginacao CNJ incompleta", collected.length);
+      await recordSyncFailure(admin, startDate, endDate, "Paginacao CNJ incompleta", collected.length);
       return json({
         error: "A paginacao do CNJ ficou incompleta; nenhum dado foi gravado.",
         totalCNJ: total,
@@ -300,36 +284,20 @@ Deno.serve(async (request: Request) => {
       });
     }
 
-    const headers = databaseHeaders(databaseSecretKey);
-    const rpcUrl = supabaseUrl.replace(/\/+$/, "") + "/rest/v1/rpc/djen_ingest";
-    const rpc = await fetch(rpcUrl, {
-      method: "POST",
-      headers,
-      body: JSON.stringify({
-        p_items: rows,
-        p_inicio: startDate,
-        p_fim: endDate,
-        p_origem: "supabase-edge-cron",
-      }),
-      signal: AbortSignal.timeout(60000),
+    const { data: ingest, error: ingestError } = await admin.rpc("djen_ingest", {
+      p_items: rows,
+      p_inicio: startDate,
+      p_fim: endDate,
+      p_origem: "supabase-edge-cron",
     });
 
-    const responseText = await rpc.text();
-    if (!rpc.ok) {
-      await recordSyncFailure(supabaseUrl, databaseSecretKey, startDate, endDate, "RPC djen_ingest HTTP " + rpc.status, collected.length);
+    if (ingestError) {
+      await recordSyncFailure(admin, startDate, endDate, "RPC djen_ingest: " + ingestError.message, collected.length);
       return json({
         error: "O banco recusou a importacao DJEN.",
-        status: rpc.status,
-        detail: responseText.slice(0, 800),
+        detail: ingestError.message.slice(0, 800),
         bancoAlterado: false,
       }, 502);
-    }
-
-    let ingest: unknown;
-    try {
-      ingest = JSON.parse(responseText);
-    } catch {
-      ingest = responseText;
     }
 
     return json({
@@ -345,7 +313,7 @@ Deno.serve(async (request: Request) => {
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    await recordSyncFailure(supabaseUrl, databaseSecretKey, startDate, endDate, message, collected.length);
+    await recordSyncFailure(admin, startDate, endDate, message, collected.length);
     return json({
       error: message,
       bancoAlterado: false,
