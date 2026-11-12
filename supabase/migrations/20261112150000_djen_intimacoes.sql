@@ -3,9 +3,9 @@
 -- para os prazos existentes (djen_hash NULL) a identidade e o comportamento ficam idênticos.
 
 -- Extensões necessárias à execução diária do coletor no próprio Supabase.
-CREATE SCHEMA IF NOT EXISTS extensions;
 CREATE EXTENSION IF NOT EXISTS pg_cron;
-CREATE EXTENSION IF NOT EXISTS pg_net WITH SCHEMA extensions;
+-- pg_net cria o schema net usado por net.http_post e net._http_response.
+CREATE EXTENSION IF NOT EXISTS pg_net;
 
 -- 1) Prazos: vínculo com DJEN e marcação "Pendente de revisão" (status continua compatível com prazos_status_check).
 ALTER TABLE public.prazos ADD COLUMN IF NOT EXISTS djen_hash text;
