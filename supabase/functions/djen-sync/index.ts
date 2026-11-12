@@ -161,7 +161,7 @@ const djenSyncHandler = withSupabase({ auth: "none" }, async (request: Request, 
       const upstream = await fetch(CNJ_URL + "?" + params.toString(), {
         method: "GET",
         headers: { Accept: "application/json" },
-        signal: AbortSignal.timeout(15000),
+        signal: AbortSignal.timeout(10000),
       });
 
       if (!upstream.ok) {
