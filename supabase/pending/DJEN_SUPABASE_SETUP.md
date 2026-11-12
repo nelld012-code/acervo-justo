@@ -106,6 +106,11 @@ select net.http_post(
       from vault.decrypted_secrets
       where name = 'djen_publishable_key'
     ),
+    'Authorization', 'Bearer ' || (
+      select decrypted_secret
+      from vault.decrypted_secrets
+      where name = 'djen_publishable_key'
+    ),
     'x-cron-secret', (
       select decrypted_secret
       from vault.decrypted_secrets
@@ -125,7 +130,7 @@ from net._http_response
 where id = PEGA_AQUI_EL_REQUEST_ID;
 ~~~
 
-El resultado esperado tiene status_code = 200, dryRun = true y bancoAlterado = false. Si hay error, no crees el cron todavía.
+El resultado esperado tiene status_code = 200, dryRun = true y bancoAlterado = false. `pg_net` es asíncrono: el primer SELECT devuelve un request_id y la respuesta debe consultarse después en net._http_response. Si hay error, no crees el cron todavía.
 
 ### 7. Hacer una primera sincronización real
 
@@ -172,6 +177,11 @@ select cron.schedule(
           from vault.decrypted_secrets
           where name = 'djen_publishable_key'
         ),
+        'Authorization', 'Bearer ' || (
+          select decrypted_secret
+          from vault.decrypted_secrets
+          where name = 'djen_publishable_key'
+        ),
         'x-cron-secret', (
           select decrypted_secret
           from vault.decrypted_secrets
@@ -185,7 +195,7 @@ select cron.schedule(
 );
 ~~~
 
-El nombre del job es djen-sync-daily. Si ejecutas de nuevo el agendamiento con el mismo nombre, Supabase Cron actualiza el job existente.
+El nombre del job es djen-sync-daily. Si ejecutas de nuevo el agendamiento con el mismo nombre, Supabase Cron actualiza el job existente. `pg_cron` usa el reloj de la base de datos; confirma la zona horaria antes de elegir 09:00 UTC.
 
 Para revisar el historial:
 
