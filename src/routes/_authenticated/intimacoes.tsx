@@ -12,6 +12,7 @@ import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { BellRing, Printer, Search } from "lucide-react";
 import { planoConfirmacao } from "@/lib/djen";
+import { useProfile } from "@/hooks/use-profile";
 
 export const Route = createFileRoute("/_authenticated/intimacoes")({
   head: () => ({ meta: [{ title: "Intimações DJEN - Gestão Judicial" }, { name: "description", content: "Comunicações DJEN da OAB/MG 37.610." }] }),
@@ -35,6 +36,8 @@ function escapeHtml(value: unknown): string {
 
 function IntimacoesPage() {
   const qc = useQueryClient();
+  const { cargo } = useProfile();
+  const canConfirmPrazo = ["administrador", "advogado", "secretaria"].includes(cargo);
   const [busca, setBusca] = useState(""); const [pag, setPag] = useState(0);
   const [aberta, setAberta] = useState<Intimacao | null>(null);
   const [conf, setConf] = useState({ data: "", parte: "", advogado: "", lembrete: false, antecedencia: 3, repetir: false, ok: false });
@@ -125,7 +128,7 @@ function IntimacoesPage() {
           <div className="mt-4 flex flex-wrap gap-2">
             {i.link && <Button size="sm" variant="outline" asChild><a href={i.link} target="_blank" rel="noreferrer">Abrir no DJEN</a></Button>}
             {i.status === "nova" && <Button size="sm" variant="outline" onClick={() => revisar.mutate(i.id)}>Marcar como revisada</Button>}
-            {i.status !== "convertida_em_prazo" && <Button size="sm" disabled={!i.prazo_id} onClick={() => { setConf({ data: "", parte: "", advogado: "", lembrete: false, antecedencia: 3, repetir: false, ok: false }); setAberta(i); }}>Revisar e confirmar prazo</Button>}
+            {canConfirmPrazo && i.status !== "convertida_em_prazo" && <Button size="sm" disabled={!i.prazo_id} onClick={() => { setConf({ data: "", parte: "", advogado: "", lembrete: false, antecedencia: 3, repetir: false, ok: false }); setAberta(i); }}>Revisar e confirmar prazo</Button>}
           </div>
         </div>)}
         {q.isSuccess && filtradas.length === 0 && <p className="py-8 text-center text-sm text-muted-foreground">Nenhuma comunicação encontrada.</p>}
@@ -140,7 +143,7 @@ function IntimacoesPage() {
           <div><Label>Parte</Label><Input value={conf.parte} onChange={(e) => setConf({ ...conf, parte: e.target.value })} /></div>
           <div><Label>Advogado</Label><Input value={conf.advogado} onChange={(e) => setConf({ ...conf, advogado: e.target.value })} /></div>
           <div className="flex items-center justify-between"><Label>Ativar lembrete</Label><Switch checked={conf.lembrete} onCheckedChange={(v) => setConf({ ...conf, lembrete: v })} /></div>
-          {conf.lembrete && <div><Label>Antecedência (dias)</Label><Input type="number" min={0} value={conf.antecedencia} onChange={(e) => setConf({ ...conf, antecedencia: Number(e.target.value) })} /></div>}
+          {conf.lembrete && <div><Label>Antecedência (dias)</Label><Input type="number" min={1} max={6} value={conf.antecedencia} onChange={(e) => setConf({ ...conf, antecedencia: Math.max(1, Math.min(6, Number(e.target.value) || 1)) })} /></div>}
           {conf.lembrete && <div className="flex items-center justify-between"><Label>Repetir alerta diariamente</Label><Switch checked={conf.repetir} onCheckedChange={(v) => setConf({ ...conf, repetir: v })} /></div>}
           <label className="flex items-start gap-2 text-sm"><input type="checkbox" checked={conf.ok} onChange={(e) => setConf({ ...conf, ok: e.target.checked })} />Conferi o texto original e confirmo a data limite.</label>
         </div>
