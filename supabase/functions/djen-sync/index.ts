@@ -1,148 +1,312 @@
 // Supabase Edge Function — DJEN nacional para OAB/MG 37.610.
-// Não calcula prazos: cria somente rascunhos sem parte, vencimento ou lembretes.
-// Protegida por DJEN_CRON_SECRET (header x-cron-secret).
+// Executada pelo Supabase Cron. Cria apenas rascunhos; nunca calcula prazo automaticamente.
+// Autenticacao propria: header x-cron-secret (verify_jwt=false em supabase/config.toml).
+
 const CNJ_URL = "https://comunicaapi.pje.jus.br/api/v1/comunicacao";
+const OAB_NUMERO = "37610";
+const OAB_UF = "MG";
 const PAGE_SIZE = 100;
 const MAX_PAGES = 10;
-const LOOKBACK_DAYS = 3;
+const LOOKBACK_DAYS = 7;
 
-type Item = Record<string, unknown>;
-const str = (v: unknown): string | null => v == null || String(v).trim() === "" ? null : String(v).trim();
-const normalize = (v: string) => v.replace(/<[^>]+>/g, " ").replace(/\\s+/g, " ").trim().toLowerCase();
+type CnjItem = Record<string, unknown>;
+type CnjResponse = { count?: number | string; items?: CnjItem[] };
+
+const asText = (value: unknown): string | null => {
+  if (value === null || value === undefined) return null;
+  const result = String(value).trim();
+  return result.length ? result : null;
+};
+
+function firstText(item: CnjItem, ...keys: string[]): string | null {
+  for (const key of keys) {
+    const result = asText(item[key]);
+    if (result) return result;
+  }
+  return null;
+}
+
+function normalizeText(value: string): string {
+  return value
+    .replace(/<[^>]*>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
 
 async function sha256(value: string): Promise<string> {
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
-  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
-}
-async function itemHash(item: Item): Promise<string> {
-  const id = str(item.id);
-  if (id) return await sha256(`djen:${id}`);
-  return await sha256(`p:${str(item.numeroprocessocommascara) ?? str(item.numero_processo) ?? ""}|d:${str(item.data_disponibilizacao) ?? ""}|t:${normalize(String(item.texto ?? ""))}`);
-}
-function todaySP(): string {
-  const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(new Date());
-  const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "";
-  return `${get("year")}-${get("month")}-${get("day")}`;
-}
-function shiftDate(day: string, offset: number): string {
-  const d = new Date(`${day}T12:00:00.000Z`);
-  d.setUTCDate(d.getUTCDate() + offset);
-  return d.toISOString().slice(0, 10);
-}
-function json(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } });
-}
-function safeEqual(a: string, b: string): boolean {
-  if (!a || !b || a.length !== b.length) return false;
-  let diff = 0;
-  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  return diff === 0;
+  return [...new Uint8Array(digest)]
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
 }
 
-Deno.serve(async (req: Request) => {
-  if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
-  const secret = Deno.env.get("DJEN_CRON_SECRET") ?? "";
-  if (!safeEqual(secret, req.headers.get("x-cron-secret") ?? "")) return json({ error: "Unauthorized" }, 401);
+async function communicationHash(item: CnjItem): Promise<string> {
+  const id = firstText(item, "id");
+  if (id) return await sha256("djen:" + id);
+
+  const processNumber = firstText(item, "numeroprocessocommascara", "numero_processo", "numeroProcesso") ?? "";
+  const availableDate = firstText(item, "data_disponibilizacao", "dataDisponibilizacao") ?? "";
+  const body = normalizeText(String(item.texto ?? ""));
+  return await sha256("p:" + processNumber + "|d:" + availableDate + "|t:" + body);
+}
+
+function todayInSaoPaulo(): string {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+
+  const part = (name: string) => parts.find((entry) => entry.type === name)?.value ?? "";
+  return part("year") + "-" + part("month") + "-" + part("day");
+}
+
+function shiftDate(date: string, offsetDays: number): string {
+  const value = new Date(date + "T12:00:00.000Z");
+  value.setUTCDate(value.getUTCDate() + offsetDays);
+  return value.toISOString().slice(0, 10);
+}
+
+function json(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: {
+      "Content-Type": "application/json; charset=utf-8",
+      "Cache-Control": "no-store",
+    },
+  });
+}
+
+function safeEqual(expected: string, received: string): boolean {
+  if (!expected || !received || expected.length !== received.length) return false;
+  let difference = 0;
+  for (let index = 0; index < expected.length; index++) {
+    difference |= expected.charCodeAt(index) ^ received.charCodeAt(index);
+  }
+  return difference === 0;
+}
+
+function getDatabaseSecretKey(): string {
+  // Supabase 2026: prefere a chave secreta nomeada; mantem compatibilidade com service_role legado.
+  const namedKeys = Deno.env.get("SUPABASE_SECRET_KEYS");
+  if (namedKeys) {
+    try {
+      const parsed = JSON.parse(namedKeys) as Record<string, string>;
+      if (parsed.default) return parsed.default;
+    } catch {
+      throw new Error("SUPABASE_SECRET_KEYS nao contem JSON valido.");
+    }
+  }
+
+  return Deno.env.get("SUPABASE_SECRET_KEY")
+    ?? Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")
+    ?? "";
+}
+
+Deno.serve(async (request: Request) => {
+  if (request.method !== "POST") {
+    return json({ error: "Metodo nao permitido." }, 405);
+  }
+
+  const cronSecret = Deno.env.get("DJEN_CRON_SECRET") ?? "";
+  const suppliedSecret = request.headers.get("x-cron-secret") ?? "";
+  if (!safeEqual(cronSecret, suppliedSecret)) {
+    return json({ error: "Nao autorizado." }, 401);
+  }
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
-  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-  if (!supabaseUrl || !serviceKey) return json({ error: "Missing Supabase environment configuration" }, 503);
+  const databaseSecretKey = getDatabaseSecretKey();
+  if (!supabaseUrl || !databaseSecretKey) {
+    return json({ error: "Configuracao interna do Supabase incompleta." }, 503);
+  }
 
-  const end = todaySP();
-  const start = shiftDate(end, -LOOKBACK_DAYS);
-  const collected: Item[] = [];
+  const endDate = todayInSaoPaulo();
+  const startDate = shiftDate(endDate, -LOOKBACK_DAYS);
+  const collected: CnjItem[] = [];
   let total = 0;
+
   try {
-    let exhausted = false;
+    let paginationComplete = false;
+
     for (let page = 1; page <= MAX_PAGES; page++) {
       const params = new URLSearchParams({
-        numeroOab: "37610", ufOab: "MG",
-        dataDisponibilizacaoInicio: start, dataDisponibilizacaoFim: end,
-        pagina: String(page), itensPorPagina: String(PAGE_SIZE),
+        numeroOab: OAB_NUMERO,
+        ufOab: OAB_UF,
+        dataDisponibilizacaoInicio: startDate,
+        dataDisponibilizacaoFim: endDate,
+        pagina: String(page),
+        itensPorPagina: String(PAGE_SIZE),
       });
-      const upstream = await fetch(`${CNJ_URL}?${params}`, {
+
+      const upstream = await fetch(CNJ_URL + "?" + params.toString(), {
+        method: "GET",
         headers: { Accept: "application/json" },
         signal: AbortSignal.timeout(15000),
       });
-      if (!upstream.ok) return json({ error: "CNJ request failed", upstreamStatus: upstream.status, detail: (await upstream.text()).slice(0, 500) }, 502);
-      const result = await upstream.json() as { count?: number; items?: Item[] };
+
+      if (!upstream.ok) {
+        return json({
+          error: "A consulta ao servico do CNJ falhou.",
+          upstreamStatus: upstream.status,
+          detail: (await upstream.text()).slice(0, 400),
+          bancoAlterado: false,
+        }, 502);
+      }
+
+      const result = await upstream.json() as CnjResponse;
       const pageItems = Array.isArray(result.items) ? result.items : [];
-      total = Number(result.count ?? total);
+      if (result.count !== undefined) {
+        const reportedTotal = Number(result.count);
+        if (!Number.isFinite(reportedTotal) || reportedTotal < 0) {
+          return json({ error: "O CNJ retornou uma quantidade invalida.", bancoAlterado: false }, 502);
+        }
+        total = reportedTotal;
+      }
+
       collected.push(...pageItems);
+
       if (pageItems.length < PAGE_SIZE || (total > 0 && collected.length >= total)) {
-        exhausted = true;
+        paginationComplete = true;
         break;
       }
     }
-    if (!exhausted || total > collected.length) {
-      return json({ error: "Pagination incomplete; database was not changed", totalCNJ: total, received: collected.length, maxPages: MAX_PAGES }, 502);
+
+    if (!paginationComplete || (total > 0 && collected.length < total)) {
+      return json({
+        error: "A paginacao do CNJ ficou incompleta; nenhum dado foi gravado.",
+        totalCNJ: total,
+        recebidos: collected.length,
+        limitePaginas: MAX_PAGES,
+        bancoAlterado: false,
+      }, 502);
     }
 
     const rows: Record<string, unknown>[] = [];
     const seen = new Set<string>();
+
     for (const item of collected) {
-      const hash = await itemHash(item);
+      const hash = await communicationHash(item);
       if (seen.has(hash)) continue;
       seen.add(hash);
-      const processNumber = str(item.numeroprocessocommascara) ?? str(item.numero_processo);
-      const tribunal = str(item.siglaTribunal);
-      const organ = str(item.nomeOrgao);
-      const type = str(item.tipoComunicacao);
-      const date = str(item.data_disponibilizacao)?.slice(0, 10) ?? null;
-      const link = str(item.link);
-      const text = String(item.texto ?? "");
-      const summary = normalize(text).slice(0, 280);
+
+      const processNumber = firstText(item, "numeroprocessocommascara", "numero_processo", "numeroProcesso");
+      const tribunal = firstText(item, "siglaTribunal", "sigla_tribunal");
+      const organ = firstText(item, "nomeOrgao", "nome_orgao");
+      const communicationType = firstText(item, "tipoComunicacao", "tipo_comunicacao");
+      const documentType = firstText(item, "tipoDocumento", "tipo_documento");
+      const communicationDate = firstText(item, "data_disponibilizacao", "dataDisponibilizacao");
+      const link = firstText(item, "link");
+      const bodyText = String(item.texto ?? "");
+      const rawId = firstText(item, "id");
+      const numericId = rawId && /^\d+$/.test(rawId) && Number.isSafeInteger(Number(rawId))
+        ? Number(rawId)
+        : null;
+
+      const excerpt = normalizeText(bodyText).slice(0, 280);
       const observation = [
-        `Pendente de revisão — gerado da intimação DJEN de ${date ?? "data não informada"}`,
-        organ, link, summary ? `Trecho: ${summary}` : null,
+        "Pendente de revisao — gerado da intimacao DJEN de " + (communicationDate?.slice(0, 10) ?? "data nao informada"),
+        organ,
+        link,
+        excerpt ? "Trecho: " + excerpt : null,
       ].filter(Boolean).join(" • ");
+
       rows.push({
         hash,
-        djen_id: item.id != null && /^\\d+$/.test(String(item.id)) ? Number(item.id) : null,
+        djen_id: numericId,
         numero_processo: processNumber,
         sigla_tribunal: tribunal,
         orgao: organ,
-        tipo_comunicacao: type,
-        tipo_documento: str(item.tipoDocumento),
-        meio: str(item.meiocompleto) ?? str(item.meio),
-        data_disponibilizacao: date,
+        tipo_comunicacao: communicationType,
+        tipo_documento: documentType,
+        meio: firstText(item, "meiocompleto", "meio"),
+        data_disponibilizacao: communicationDate?.slice(0, 10) ?? null,
         link,
         destinatarios: item.destinatarios ?? null,
-        advogados: item.destinatarioadvogados ?? null,
-        texto: text,
+        advogados: item.destinatarioadvogados ?? item.advogados ?? null,
+        texto: bodyText,
         payload: item,
         observacao: observation,
       });
     }
 
-    const dryRun = new URL(req.url).searchParams.get("dryRun") === "1";
-    if (dryRun) return json({
-      dryRun: true, oab: "MG 37610", dataInicio: start, dataFim: end,
-      totalCNJ: total, recebidos: collected.length, unicos: rows.length,
-      amostras: rows.slice(0, 2).map((r) => ({
-        numero_processo: r.numero_processo, sigla_tribunal: r.sigla_tribunal,
-        data_disponibilizacao: r.data_disponibilizacao, tipo_comunicacao: r.tipo_comunicacao,
-        texto_caracteres: String(r.texto).length,
-      })),
-      bancoAlterado: false,
+    const dryRun = new URL(request.url).searchParams.get("dryRun") === "1";
+    if (dryRun) {
+      return json({
+        dryRun: true,
+        oab: OAB_UF + " " + OAB_NUMERO,
+        dataInicio: startDate,
+        dataFim: endDate,
+        totalCNJ: total,
+        recebidos: collected.length,
+        unicos: rows.length,
+        amostras: rows.slice(0, 3).map((row) => ({
+          numero_processo: row.numero_processo,
+          sigla_tribunal: row.sigla_tribunal,
+          orgao: row.orgao,
+          data_disponibilizacao: row.data_disponibilizacao,
+          tipo_comunicacao: row.tipo_comunicacao,
+          texto_caracteres: String(row.texto).length,
+        })),
+        bancoAlterado: false,
+      });
+    }
+
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      apikey: databaseSecretKey,
+    };
+    // Chaves secretas sb_secret_ nao sao JWTs; Authorization so e enviado para a chave legada service_role.
+    if (databaseSecretKey.startsWith("eyJ")) {
+      headers.Authorization = "Bearer " + databaseSecretKey;
+    }
+
+    const rpcUrl = supabaseUrl.replace(/\/+$/, "") + "/rest/v1/rpc/djen_ingest";
+    const rpc = await fetch(rpcUrl, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        p_items: rows,
+        p_inicio: startDate,
+        p_fim: endDate,
+        p_origem: "supabase-edge-cron",
+      }),
+      signal: AbortSignal.timeout(60000),
     });
 
-    const rpc = await fetch(`${supabaseUrl.replace(/\\/$/, "")}/rest/v1/rpc/djen_ingest`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        apikey: serviceKey,
-        Authorization: `Bearer ${serviceKey}`,
-      },
-      body: JSON.stringify({ p_items: rows, p_inicio: start, p_fim: end, p_origem: "supabase-edge-cron" }),
-      signal: AbortSignal.timeout(30000),
-    });
     const responseText = await rpc.text();
-    if (!rpc.ok) return json({ error: "Database ingest failed", status: rpc.status, detail: responseText.slice(0, 1000) }, 502);
+    if (!rpc.ok) {
+      return json({
+        error: "O banco recusou a importacao DJEN.",
+        status: rpc.status,
+        detail: responseText.slice(0, 800),
+        bancoAlterado: false,
+      }, 502);
+    }
+
     let ingest: unknown;
-    try { ingest = JSON.parse(responseText); } catch { ingest = responseText; }
-    return json({ ok: true, oab: "MG 37610", dataInicio: start, dataFim: end, totalCNJ: total, recebidos: collected.length, unicos: rows.length, bancoAlterado: true, ingest });
+    try {
+      ingest = JSON.parse(responseText);
+    } catch {
+      ingest = responseText;
+    }
+
+    return json({
+      ok: true,
+      oab: OAB_UF + " " + OAB_NUMERO,
+      dataInicio: startDate,
+      dataFim: endDate,
+      totalCNJ: total,
+      recebidos: collected.length,
+      unicos: rows.length,
+      bancoAlterado: true,
+      ingest,
+    });
   } catch (error) {
-    return json({ error: error instanceof Error ? error.message : String(error), bancoAlterado: false }, 502);
+    return json({
+      error: error instanceof Error ? error.message : String(error),
+      bancoAlterado: false,
+    }, 502);
   }
 });
