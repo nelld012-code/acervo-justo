@@ -17,23 +17,50 @@ $$;
 
 CREATE OR REPLACE FUNCTION public.prazo_merge_on_insert()
 RETURNS trigger LANGUAGE plpgsql SET search_path TO 'public' AS $function$
+DECLARE conflict_id uuid;
 BEGIN
   NEW.dedupe_key := public.prazo_identity_key(NEW.nome, NEW.numero_processo, NEW.data_limite, NEW.djen_hash);
   IF NEW.revisao_pendente AND (NEW.data_limite IS NOT NULL OR NEW.lembrete_ativo OR NEW.repetir_alerta_diariamente) THEN
     RAISE EXCEPTION 'Rascunho DJEN não pode ter vencimento nem lembretes antes da revisão.';
   END IF;
   PERFORM pg_advisory_xact_lock(hashtextextended(NEW.dedupe_key, 0));
-  -- Somente aditivo: mesma identidade já existente é ignorada, sem alterar o registro existente.
-  IF EXISTS (SELECT 1 FROM public.prazos WHERE dedupe_key = NEW.dedupe_key) THEN
+
+  SELECT id INTO conflict_id
+  FROM public.prazos
+  WHERE dedupe_key = NEW.dedupe_key
+  LIMIT 1;
+
+  IF conflict_id IS NOT NULL THEN
+    -- Mantém a consolidação histórica dos prazos manuais/importados.
+    -- Para um rascunho DJEN, a identidade é imutável e o duplicado é apenas ignorado.
+    IF NEW.djen_hash IS NULL THEN
+      UPDATE public.prazos
+      SET
+        observacao = public.prazo_merge_observations(ARRAY[observacao, NEW.observacao]),
+        parte = CASE
+          WHEN length(trim(coalesce(NEW.parte, ''))) > length(trim(coalesce(parte, '')))
+            THEN NEW.parte ELSE parte END,
+        advogado = CASE
+          WHEN length(trim(coalesce(NEW.advogado, ''))) > length(trim(coalesce(advogado, '')))
+            THEN NEW.advogado ELSE advogado END,
+        status = CASE WHEN NEW.status = 'Concluído' THEN NEW.status ELSE status END,
+        data_conclusao = coalesce(data_conclusao, NEW.data_conclusao),
+        lembrete_ativo = coalesce(NEW.lembrete_ativo, lembrete_ativo),
+        antecedencia_dias = coalesce(NEW.antecedencia_dias, antecedencia_dias),
+        repetir_alerta_diariamente = coalesce(NEW.repetir_alerta_diariamente, repetir_alerta_diariamente),
+        updated_at = now()
+      WHERE id = conflict_id;
+    END IF;
     RETURN NULL;
   END IF;
+
   RETURN NEW;
 END;
 $function$;
 
 CREATE OR REPLACE FUNCTION public.prazo_merge_on_update()
 RETURNS trigger LANGUAGE plpgsql SET search_path TO 'public' AS $function$
-DECLARE candidate_key text;
+DECLARE candidate_key text; conflict_id uuid;
 BEGIN
   IF NEW.djen_hash IS DISTINCT FROM OLD.djen_hash THEN
     RAISE EXCEPTION 'O vínculo DJEN do prazo não pode ser alterado.';
@@ -44,14 +71,50 @@ BEGIN
   IF NEW.revisao_pendente AND (NEW.data_limite IS NOT NULL OR NEW.lembrete_ativo OR NEW.repetir_alerta_diariamente) THEN
     RAISE EXCEPTION 'Confirme a revisão na página Intimações antes de definir vencimento ou lembretes.';
   END IF;
+
   candidate_key := public.prazo_identity_key(NEW.nome, NEW.numero_processo, NEW.data_limite, NEW.djen_hash);
   NEW.dedupe_key := candidate_key;
+  PERFORM pg_advisory_xact_lock(hashtextextended(candidate_key, 0));
+
   IF candidate_key IS DISTINCT FROM OLD.dedupe_key THEN
-    PERFORM pg_advisory_xact_lock(hashtextextended(candidate_key, 0));
-    IF EXISTS (SELECT 1 FROM public.prazos WHERE dedupe_key = candidate_key AND id <> OLD.id) THEN
-      RAISE EXCEPTION 'Já existe outro prazo com o mesmo nome, número do processo e data limite.' USING ERRCODE = '23505';
+    SELECT id INTO conflict_id
+    FROM public.prazos
+    WHERE dedupe_key = candidate_key
+      AND id <> OLD.id
+    LIMIT 1;
+
+    IF conflict_id IS NOT NULL THEN
+      -- Não altera o comportamento de consolidação dos prazos já existentes.
+      -- Um rascunho DJEN nunca deve ser mesclado com outro registro.
+      IF NEW.djen_hash IS NOT NULL THEN
+        RAISE EXCEPTION 'Já existe outro registro vinculado à mesma comunicação DJEN.' USING ERRCODE = '23505';
+      END IF;
+
+      UPDATE public.prazos
+      SET
+        observacao = public.prazo_merge_observations(ARRAY[observacao, NEW.observacao]),
+        parte = CASE
+          WHEN length(trim(coalesce(NEW.parte, ''))) > length(trim(coalesce(parte, '')))
+            THEN NEW.parte ELSE parte END,
+        advogado = CASE
+          WHEN length(trim(coalesce(NEW.advogado, ''))) > length(trim(coalesce(advogado, '')))
+            THEN NEW.advogado ELSE advogado END,
+        status = CASE WHEN NEW.status = 'Concluído' THEN NEW.status ELSE status END,
+        data_conclusao = coalesce(data_conclusao, NEW.data_conclusao),
+        lembrete_ativo = coalesce(NEW.lembrete_ativo, lembrete_ativo),
+        antecedencia_dias = coalesce(NEW.antecedencia_dias, antecedencia_dias),
+        repetir_alerta_diariamente = coalesce(NEW.repetir_alerta_diariamente, repetir_alerta_diariamente),
+        updated_at = now()
+      WHERE id = conflict_id;
+
+      RETURN NULL;
     END IF;
   END IF;
+
+  IF NEW.observacao IS DISTINCT FROM OLD.observacao THEN
+    NEW.observacao := public.prazo_merge_observations(ARRAY[OLD.observacao, NEW.observacao]);
+  END IF;
+
   RETURN NEW;
 END;
 $function$;
