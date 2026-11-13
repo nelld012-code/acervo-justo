@@ -10,6 +10,14 @@
 ## 2026-11-11 DJEN
 - [x] Inspeção segura (backup, extensões, RLS de prazos, teste CNJ)
 - [x] Código de mapeamento/hash, rota de sincronização (dry-run) e migração pendente — NÃO aplicados
-- [ ] Aplicar migração e cron — bloqueado: backup não verificável por mim, pg_net ausente, CNJ bloqueia acesso fora do Brasil
+- [x] Banco DJEN existente confirmado em 2026-11-13: tabelas/RPCs presentes, 581 prazos; NÃO reaplicar migração
 - [x] Código: recebimento protegido, rascunho automático em Prazos, confirmação humana, testes
-- [ ] Aplicar supabase/pending/20261112150000_djen_intimacoes.sql — aguarda aprovação do responsável
+- [x] Migração já aplicada externamente; arquivo pendente NÃO deve ser executado
+
+## 2026-11-13 Finalização DJEN autorizada
+- [ ] Integrar e verificar somente a função existente djen-sync do PR #58, preservando recursos Vercel
+- [ ] Desplegar somente djen-sync e verificar secreto no runtime com POST dryRun autenticado
+- [ ] Se CNJ/dryRun passarem, configurar uma única tarefa diária nativa às 09:00 UTC com autenticação segura
+- [ ] Se dryRun passar, executar primeira ingestão e conferir originais, deduplicação, borradores e 581 prazos prévios intactos
+- [ ] Completar somente lacunas DJEN na UI: revisão, confirmação, vínculo a Prazos e impressão
+- [ ] Executar testes/lint, conferir preview e publicar somente após validação
