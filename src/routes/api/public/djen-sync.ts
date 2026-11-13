@@ -13,7 +13,7 @@ export const Route = createFileRoute("/api/public/djen-sync")({
       dryRun: new URL(request.url).searchParams.get("dryRun") === "1",
       ingest: async (rows, p) => {
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-        const db = supabaseAdmin as unknown as { rpc: (f: string, a: unknown) => Promise<{ data: any; error: { message: string } | null }> };
+        const db = supabaseAdmin as unknown as { rpc: (f: string, a: unknown) => Promise<{ data: { inseridos?: number; rascunhos?: number } | null; error: { message: string } | null }> };
         const { data, error } = await db.rpc("djen_ingest", { p_items: rows, p_inicio: p.dataInicio, p_fim: p.dataFim, p_origem: p.origem ?? null });
         if (error) throw new Error(error.message);
         return { inseridos: Number(data?.inseridos ?? 0), rascunhos: Number(data?.rascunhos ?? 0) };
