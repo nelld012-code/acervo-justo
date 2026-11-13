@@ -7,7 +7,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 const CNJ_URL = "https://comunicaapi.pje.jus.br/api/v1/comunicacao";
 const OAB_NUMERO = "37610";
 const OAB_UF = "MG";
-const PAGE_SIZE = 100;
+const PAGE_SIZE = 50; // Limite conservador aceito pela API pública do CNJ.
 const MAX_PAGES = 10;
 const LOOKBACK_DAYS = 7;
 
@@ -77,6 +77,7 @@ function json(body: unknown, status = 200): Response {
     headers: {
       "Content-Type": "application/json; charset=utf-8",
       "Cache-Control": "no-store",
+      "X-DJEN-Function-Region": Deno.env.get("SB_REGION") ?? "unknown",
     },
   });
 }
@@ -171,18 +172,35 @@ async function djenSyncHandler(request: Request): Promise<Response> {
         itensPorPagina: String(PAGE_SIZE),
       });
 
-      const upstream = await fetch(CNJ_URL + "?" + params.toString(), {
-        method: "GET",
-        headers: { Accept: "application/json" },
-        signal: AbortSignal.timeout(10000),
-      });
+      // Repetir somente falhas transitórias. HTTP 403 não é contornado: é
+      // reportado para diagnóstico de bloqueio/região ou política do CNJ.
+      let upstream: Response | null = null;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        upstream = await fetch(CNJ_URL + "?" + params.toString(), {
+          method: "GET",
+          headers: { Accept: "application/json" },
+          signal: AbortSignal.timeout(15000),
+        });
+        if (![429, 500, 502, 503, 504].includes(upstream.status) || attempt === 2) break;
+        const retryAfter = Number(upstream.headers.get("retry-after") ?? "");
+        const waitMs = Number.isFinite(retryAfter) && retryAfter > 0
+          ? Math.min(retryAfter * 1000, 10000)
+          : (attempt + 1) * 1500;
+        await new Promise((resolve) => setTimeout(resolve, waitMs));
+      }
 
-      if (!upstream.ok) {
-        if (!dryRun) await recordSyncFailure(admin, startDate, endDate, "CNJ HTTP " + upstream.status, collected.length);
+      if (!upstream || !upstream.ok) {
+        const status = upstream?.status ?? 0;
+        const detail = upstream ? (await upstream.text()).slice(0, 400) : "Sem resposta do CNJ";
+        const diagnostic = "CNJ HTTP " + status + " | regiao_funcao=" +
+          (Deno.env.get("SB_REGION") ?? "unknown") + " | " + detail;
+        if (!dryRun) await recordSyncFailure(admin, startDate, endDate, diagnostic, collected.length);
         return json({
           error: "A consulta ao servico do CNJ falhou.",
-          upstreamStatus: upstream.status,
-          detail: (await upstream.text()).slice(0, 400),
+          upstreamStatus: status,
+          functionRegion: Deno.env.get("SB_REGION") ?? "unknown",
+          rateLimitRemaining: upstream?.headers.get("x-ratelimit-remaining") ?? null,
+          detail,
           bancoAlterado: false,
         }, 502);
       }
@@ -273,6 +291,8 @@ async function djenSyncHandler(request: Request): Promise<Response> {
       return json({
         dryRun: true,
         oab: OAB_UF + " " + OAB_NUMERO,
+        functionRegion: Deno.env.get("SB_REGION") ?? "unknown",
+        pageSize: PAGE_SIZE,
         dataInicio: startDate,
         dataFim: endDate,
         totalCNJ: total,
