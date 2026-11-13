@@ -454,6 +454,45 @@ export type Database = {
         }
         Relationships: []
       }
+      djen_sync_runs: {
+        Row: {
+          encontrados: number
+          erro: string | null
+          fim: string | null
+          finished_at: string | null
+          id: string
+          inicio: string | null
+          inseridos: number
+          origem: string | null
+          rascunhos: number
+          started_at: string
+        }
+        Insert: {
+          encontrados?: number
+          erro?: string | null
+          fim?: string | null
+          finished_at?: string | null
+          id?: string
+          inicio?: string | null
+          inseridos?: number
+          origem?: string | null
+          rascunhos?: number
+          started_at?: string
+        }
+        Update: {
+          encontrados?: number
+          erro?: string | null
+          fim?: string | null
+          finished_at?: string | null
+          id?: string
+          inicio?: string | null
+          inseridos?: number
+          origem?: string | null
+          rascunhos?: number
+          started_at?: string
+        }
+        Relationships: []
+      }
       document_versions: {
         Row: {
           change_notes: string | null
@@ -635,6 +674,86 @@ export type Database = {
         }
         Relationships: []
       }
+      intimacoes_djen: {
+        Row: {
+          advogados: Json | null
+          created_at: string
+          data_disponibilizacao: string | null
+          destinatarios: Json | null
+          djen_id: number | null
+          hash: string
+          id: string
+          link: string | null
+          meio: string | null
+          numero_processo: string | null
+          orgao: string | null
+          payload: Json
+          prazo_id: string | null
+          revisada_em: string | null
+          revisada_por: string | null
+          sigla_tribunal: string | null
+          status: string
+          texto: string
+          tipo_comunicacao: string | null
+          tipo_documento: string | null
+          updated_at: string
+        }
+        Insert: {
+          advogados?: Json | null
+          created_at?: string
+          data_disponibilizacao?: string | null
+          destinatarios?: Json | null
+          djen_id?: number | null
+          hash: string
+          id?: string
+          link?: string | null
+          meio?: string | null
+          numero_processo?: string | null
+          orgao?: string | null
+          payload: Json
+          prazo_id?: string | null
+          revisada_em?: string | null
+          revisada_por?: string | null
+          sigla_tribunal?: string | null
+          status?: string
+          texto: string
+          tipo_comunicacao?: string | null
+          tipo_documento?: string | null
+          updated_at?: string
+        }
+        Update: {
+          advogados?: Json | null
+          created_at?: string
+          data_disponibilizacao?: string | null
+          destinatarios?: Json | null
+          djen_id?: number | null
+          hash?: string
+          id?: string
+          link?: string | null
+          meio?: string | null
+          numero_processo?: string | null
+          orgao?: string | null
+          payload?: Json
+          prazo_id?: string | null
+          revisada_em?: string | null
+          revisada_por?: string | null
+          sigla_tribunal?: string | null
+          status?: string
+          texto?: string
+          tipo_comunicacao?: string | null
+          tipo_documento?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "intimacoes_djen_prazo_id_fkey"
+            columns: ["prazo_id"]
+            isOneToOne: true
+            referencedRelation: "prazos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       messages: {
         Row: {
           attachment_name: string | null
@@ -746,6 +865,7 @@ export type Database = {
           data_conclusao: string | null
           data_limite: string | null
           dedupe_key: string | null
+          djen_hash: string | null
           id: string
           lembrete_ativo: boolean
           nome: string
@@ -753,6 +873,7 @@ export type Database = {
           observacao: string | null
           parte: string
           repetir_alerta_diariamente: boolean
+          revisao_pendente: boolean
           status: string
           updated_at: string
         }
@@ -764,6 +885,7 @@ export type Database = {
           data_conclusao?: string | null
           data_limite?: string | null
           dedupe_key?: string | null
+          djen_hash?: string | null
           id?: string
           lembrete_ativo?: boolean
           nome: string
@@ -771,6 +893,7 @@ export type Database = {
           observacao?: string | null
           parte?: string
           repetir_alerta_diariamente?: boolean
+          revisao_pendente?: boolean
           status?: string
           updated_at?: string
         }
@@ -782,6 +905,7 @@ export type Database = {
           data_conclusao?: string | null
           data_limite?: string | null
           dedupe_key?: string | null
+          djen_hash?: string | null
           id?: string
           lembrete_ativo?: boolean
           nome?: string
@@ -789,6 +913,7 @@ export type Database = {
           observacao?: string | null
           parte?: string
           repetir_alerta_diariamente?: boolean
+          revisao_pendente?: boolean
           status?: string
           updated_at?: string
         }
@@ -963,6 +1088,27 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      djen_confirmar_prazo: {
+        Args: {
+          p_advogado: string
+          p_antecedencia_dias: number
+          p_data_limite: string
+          p_intimacao: string
+          p_lembrete_ativo: boolean
+          p_parte: string
+          p_repetir: boolean
+        }
+        Returns: string
+      }
+      djen_ingest: {
+        Args: {
+          p_fim: string
+          p_inicio: string
+          p_items: Json
+          p_origem: string
+        }
+        Returns: Json
+      }
       list_message_contacts: {
         Args: never
         Returns: {
@@ -972,6 +1118,15 @@ export type Database = {
         }[]
       }
       only_digits: { Args: { v: string }; Returns: string }
+      prazo_identity_key: {
+        Args: {
+          p_data: string
+          p_djen_hash: string
+          p_nome: string
+          p_processo: string
+        }
+        Returns: string
+      }
       prazo_merge_observations: {
         Args: { values_to_merge: string[] }
         Returns: string
