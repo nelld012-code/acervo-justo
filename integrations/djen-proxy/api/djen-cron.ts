@@ -126,37 +126,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const dryRun = String(req.query?.dryRun ?? "") === "1";
-    if (dryRun) {
-      const amostras = items.slice(0, 2).map((entry) => {
-        const item = entry as Record<string, unknown>;
-        const texto = String(item.texto ?? "");
-        return {
-          id: item.id ?? null,
-          hash: item.hash ?? null,
-          numeroProcesso: item.numeroprocessocommascara ?? item.numero_processo ?? null,
-          siglaTribunal: item.siglaTribunal ?? item.sigla_tribunal ?? null,
-          dataDisponibilizacao: item.data_disponibilizacao ?? item.datadisponibilizacao ?? null,
-          nomeOrgao: item.nomeOrgao ?? item.nome_orgao ?? null,
-          tipoComunicacao: item.tipoComunicacao ?? item.tipo_comunicacao ?? null,
-          textoCaracteres: texto.length,
-          inicioDoTexto: texto.slice(0, 180),
-        };
-      });
-      return res.status(200).json({
-        dryRun: true,
-        region: process.env.VERCEL_REGION ?? "unknown",
-        pageSize: PAGE_SIZE,
-        oab: "MG 37610",
-        dataInicio: inicio,
-        dataFim: fim,
-        totalCNJ: total,
-        recebidos: items.length,
-        amostras,
-        bancoAlterado: false,
-      });
-    }
 
-    const sinkUrl = `${acervoUrl}/api/public/djen-sync`;
+    const sinkUrl = `${acervoUrl}/api/public/djen-sync${dryRun ? "?dryRun=1" : ""}`;
     const sink = await fetch(sinkUrl, {
       method: "POST",
       headers: {
@@ -185,6 +156,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     let result: unknown;
     try { result = JSON.parse(sinkBody); } catch { result = sinkBody; }
+    if (dryRun) {
+      return res.status(200).json({
+        ok: true,
+        dryRun: true,
+        region: process.env.VERCEL_REGION ?? "unknown",
+        dataInicio: inicio,
+        dataFim: fim,
+        totalCNJ: total,
+        recebidos: items.length,
+        acervo: result,
+        bancoAlterado: false,
+      });
+    }
+
     return res.status(200).json({
       ok: true,
       region: process.env.VERCEL_REGION ?? "unknown",
