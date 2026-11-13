@@ -1,9 +1,9 @@
 declare const process: { env: Record<string, string | undefined> };
 
 const CNJ_URL = "https://comunicaapi.pje.jus.br/api/v1/comunicacao";
-const PAGE_SIZE = 100;
+const PAGE_SIZE = 50;
 const MAX_PAGES = 10;
-const LOOKBACK_DAYS = 3;
+const LOOKBACK_DAYS = 7;
 
 type VercelRequest = {
   method?: string;
@@ -78,16 +78,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         itensPorPagina: String(PAGE_SIZE),
       });
 
-      const response = await fetch(`${CNJ_URL}?${params.toString()}`, {
-        headers: { Accept: "application/json" },
-        signal: AbortSignal.timeout(12000),
-      });
+      // Retry only transient upstream failures; never bypass or retry a 403.
+      let response: Response | null = null;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        response = await fetch(`${CNJ_URL}?${params.toString()}`, {
+          headers: { Accept: "application/json" },
+          signal: AbortSignal.timeout(15000),
+        });
+        if (![429, 500, 502, 503, 504].includes(response.status) || attempt === 2) break;
+        const retryAfter = Number(response.headers.get("retry-after") ?? "");
+        const waitMs = Number.isFinite(retryAfter) && retryAfter > 0
+          ? Math.min(retryAfter * 1000, 10000)
+          : (attempt + 1) * 1500;
+        await new Promise((resolve) => setTimeout(resolve, waitMs));
+      }
 
-      if (!response.ok) {
-        const detail = (await response.text()).slice(0, 500);
+      if (!response || !response.ok) {
+        const status = response?.status ?? 0;
+        const detail = response ? (await response.text()).slice(0, 500) : "No response from CNJ";
         return res.status(502).json({
           error: "CNJ request failed",
-          upstreamStatus: response.status,
+          upstreamStatus: status,
+          rateLimitRemaining: response?.headers.get("x-ratelimit-remaining") ?? null,
           detail,
           region: process.env.VERCEL_REGION ?? "unknown",
         });
@@ -114,36 +126,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const dryRun = String(req.query?.dryRun ?? "") === "1";
-    if (dryRun) {
-      const amostras = items.slice(0, 2).map((entry) => {
-        const item = entry as Record<string, unknown>;
-        const texto = String(item.texto ?? "");
-        return {
-          id: item.id ?? null,
-          hash: item.hash ?? null,
-          numeroProcesso: item.numeroprocessocommascara ?? item.numero_processo ?? null,
-          siglaTribunal: item.siglaTribunal ?? item.sigla_tribunal ?? null,
-          dataDisponibilizacao: item.data_disponibilizacao ?? item.datadisponibilizacao ?? null,
-          nomeOrgao: item.nomeOrgao ?? item.nome_orgao ?? null,
-          tipoComunicacao: item.tipoComunicacao ?? item.tipo_comunicacao ?? null,
-          textoCaracteres: texto.length,
-          inicioDoTexto: texto.slice(0, 180),
-        };
-      });
-      return res.status(200).json({
-        dryRun: true,
-        region: process.env.VERCEL_REGION ?? "unknown",
-        oab: "MG 37610",
-        dataInicio: inicio,
-        dataFim: fim,
-        totalCNJ: total,
-        recebidos: items.length,
-        amostras,
-        bancoAlterado: false,
-      });
-    }
 
-    const sinkUrl = `${acervoUrl}/api/public/djen-sync`;
+    const sinkUrl = `${acervoUrl}/api/public/djen-sync${dryRun ? "?dryRun=1" : ""}`;
     const sink = await fetch(sinkUrl, {
       method: "POST",
       headers: {
@@ -172,6 +156,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     let result: unknown;
     try { result = JSON.parse(sinkBody); } catch { result = sinkBody; }
+    if (dryRun) {
+      return res.status(200).json({
+        ok: true,
+        dryRun: true,
+        region: process.env.VERCEL_REGION ?? "unknown",
+        dataInicio: inicio,
+        dataFim: fim,
+        totalCNJ: total,
+        recebidos: items.length,
+        acervo: result,
+        bancoAlterado: false,
+      });
+    }
+
     return res.status(200).json({
       ok: true,
       region: process.env.VERCEL_REGION ?? "unknown",
