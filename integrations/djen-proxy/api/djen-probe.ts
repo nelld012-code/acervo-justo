@@ -1,6 +1,6 @@
 declare const process: { env: Record<string, string | undefined> };
 
-type VercelRequest = { method?: string };
+type VercelRequest = { method?: string; query?: Record<string, string | string[] | undefined> };
 type VercelResponse = {
   setHeader: (name: string, value: string) => void;
   status: (code: number) => VercelResponse;
@@ -47,6 +47,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
   }
 
+  const runOnce = String(req.query?.runOnce ?? "") === "1";
   const dataFim = dateInSaoPaulo(new Date());
   const dataInicio = shiftDate(dataFim, -LOOKBACK_DAYS);
   const items: unknown[] = [];
@@ -117,7 +118,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
-    const receiver = await fetch(acervoUrl + "/api/public/djen-sync?dryRun=1", {
+    const receiverUrl = acervoUrl + "/api/public/djen-sync" + (runOnce ? "" : "?dryRun=1");
+    const receiver = await fetch(receiverUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -128,7 +130,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         total,
         dataInicio,
         dataFim,
-        origem: "vercel-gru1-dry-run",
+        origem: runOnce ? "vercel-gru1-initial-import" : "vercel-gru1-dry-run",
         coletadoEm: new Date().toISOString(),
       }),
       signal: AbortSignal.timeout(20000),
@@ -139,6 +141,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     return res.status(200).json({
       ok: receiver.ok,
+      mode: runOnce ? "one-time-import" : "dry-run",
       stage: "receiver",
       region: process.env.VERCEL_REGION ?? "unknown",
       periodo: { inicio: dataInicio, fim: dataFim },
@@ -148,7 +151,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       recebidos: items.length,
       receiverStatus: receiver.status,
       receiver: receiverBody,
-      bancoAlterado: false,
+      bancoAlterado: runOnce && receiver.ok,
     });
   } catch (error) {
     return res.status(200).json({
