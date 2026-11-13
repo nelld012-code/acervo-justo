@@ -60,7 +60,6 @@ function IntimacoesPage() {
   return <div className="space-y-6 p-4 md:p-6">
     <div><div className="flex items-center gap-2"><BellRing className="h-6 w-6 text-primary" /><h1 className="text-2xl font-bold tracking-tight">Intimações DJEN</h1></div>
       <p className="mt-1 text-sm text-muted-foreground">Busca nacional · OAB/MG 37.610 · Joaquim Dimas Gonçalves</p></div>
-    <div role="status" className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm">Consulta automática temporariamente indisponível: o serviço do CNJ está respondendo com erro 403 (acesso negado). Nenhuma nova intimação está sendo sincronizada no momento; confira o DJEN diretamente.</div>
     <Card>
       <CardHeader className="pb-3"><div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div className="flex items-center gap-2"><CardTitle className="text-base">Comunicações</CardTitle><Button size="sm" variant="outline" disabled={!filtradas.length} onClick={() => imprimir(filtradas, "Relatório de intimações DJEN", false)}>Imprimir lista</Button></div><div className="relative w-full sm:max-w-xs"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input value={busca} onChange={(e) => { setBusca(e.target.value); setPag(0); }} placeholder="Buscar processo, tribunal ou texto..." className="pl-9" /></div></div></CardHeader>
       <CardContent className="space-y-3">
