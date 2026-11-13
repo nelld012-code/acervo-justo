@@ -12,6 +12,7 @@ import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { BellRing, Search } from "lucide-react";
 import { planoConfirmacao } from "@/lib/djen";
+import { openPrintDocument } from "@/lib/print-doc";
 
 export const Route = createFileRoute("/_authenticated/intimacoes")({
   head: () => ({ meta: [{ title: "Intimações DJEN - Gestão Judicial" }, { name: "description", content: "Comunicações DJEN da OAB/MG 37.610." }] }),
@@ -19,10 +20,17 @@ export const Route = createFileRoute("/_authenticated/intimacoes")({
 });
 
 type Intimacao = { id: string; numero_processo: string | null; sigla_tribunal: string | null; orgao: string | null; tipo_comunicacao: string | null; data_disponibilizacao: string | null; link: string | null; texto: string; status: string; prazo_id: string | null };
-const db = supabase as unknown as { from: (t: string) => any; rpc: (f: string, a: unknown) => any };
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const db = supabase as any;
 const STATUS: Record<string, string> = { nova: "Nova", revisada: "Revisada", convertida_em_prazo: "Convertida em prazo" };
 const br = (d: string | null) => (d ? d.split("-").reverse().join("/") : "—");
 const PAGE = 8;
+const esc = (v: unknown) => String(v ?? "—").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
+const limpo = (t: string) => t.replace(/<[^>]+>/g, " ");
+function imprimir(itens: Intimacao[], titulo: string, completo: boolean) {
+  const corpo = itens.map((i) => `<section style="border:1px solid #000;padding:8px;margin-bottom:8px;page-break-inside:avoid"><b>${esc(i.numero_processo)}</b> — ${esc(STATUS[i.status] ?? i.status)}<br/>${esc(br(i.data_disponibilizacao))} · ${esc(i.sigla_tribunal)} · ${esc(i.orgao)}<br/>${esc(i.tipo_comunicacao)}${completo ? `<p style="white-space:pre-wrap">${esc(limpo(i.texto))}</p>` : ""}</section>`).join("");
+  openPrintDocument(`<!doctype html><html><head><meta charset="utf-8"><title>${esc(titulo)}</title></head><body style="font-family:Arial;font-size:12px;color:#000"><h2>${esc(titulo)}</h2><p>OAB/MG 37.610 · ${itens.length} comunicação(ões) · impresso em ${new Date().toLocaleString("pt-BR")}</p>${corpo}</body></html>`, { pageSize: "A4" });
+}
 
 function IntimacoesPage() {
   const qc = useQueryClient();
@@ -52,8 +60,9 @@ function IntimacoesPage() {
   return <div className="space-y-6 p-4 md:p-6">
     <div><div className="flex items-center gap-2"><BellRing className="h-6 w-6 text-primary" /><h1 className="text-2xl font-bold tracking-tight">Intimações DJEN</h1></div>
       <p className="mt-1 text-sm text-muted-foreground">Busca nacional · OAB/MG 37.610 · Joaquim Dimas Gonçalves</p></div>
+    <div role="status" className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm">Consulta automática temporariamente indisponível: o serviço do CNJ está respondendo com erro 403 (acesso negado). Nenhuma nova intimação está sendo sincronizada no momento; confira o DJEN diretamente.</div>
     <Card>
-      <CardHeader className="pb-3"><div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><CardTitle className="text-base">Comunicações</CardTitle><div className="relative w-full sm:max-w-xs"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input value={busca} onChange={(e) => { setBusca(e.target.value); setPag(0); }} placeholder="Buscar processo, tribunal ou texto..." className="pl-9" /></div></div></CardHeader>
+      <CardHeader className="pb-3"><div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div className="flex items-center gap-2"><CardTitle className="text-base">Comunicações</CardTitle><Button size="sm" variant="outline" disabled={!filtradas.length} onClick={() => imprimir(filtradas, "Relatório de intimações DJEN", false)}>Imprimir lista</Button></div><div className="relative w-full sm:max-w-xs"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input value={busca} onChange={(e) => { setBusca(e.target.value); setPag(0); }} placeholder="Buscar processo, tribunal ou texto..." className="pl-9" /></div></div></CardHeader>
       <CardContent className="space-y-3">
         {q.isLoading && <p className="py-8 text-center text-sm text-muted-foreground">Carregando…</p>}
         {q.isError && <p className="py-8 text-center text-sm text-muted-foreground">Módulo DJEN ainda não ativado no banco de dados.</p>}
@@ -63,6 +72,7 @@ function IntimacoesPage() {
           <p className="mt-2 line-clamp-3 whitespace-pre-wrap text-sm">{i.texto.replace(/<[^>]+>/g, " ")}</p>
           <div className="mt-4 flex flex-wrap gap-2">
             {i.link && <Button size="sm" variant="outline" asChild><a href={i.link} target="_blank" rel="noreferrer">Abrir no DJEN</a></Button>}
+            <Button size="sm" variant="outline" onClick={() => imprimir([i], "Ficha de intimação DJEN", true)}>Imprimir</Button>
             {i.status === "nova" && <Button size="sm" variant="outline" onClick={() => revisar.mutate(i.id)}>Marcar como revisada</Button>}
             {i.status !== "convertida_em_prazo" && <Button size="sm" disabled={!i.prazo_id} onClick={() => { setConf({ data: "", parte: "", advogado: "", lembrete: false, antecedencia: 3, repetir: false, ok: false }); setAberta(i); }}>Revisar e confirmar prazo</Button>}
           </div>
