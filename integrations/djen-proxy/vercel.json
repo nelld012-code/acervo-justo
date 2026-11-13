@@ -5,5 +5,11 @@
     "api/*.ts": {
       "maxDuration": 30
     }
-  }
+  },
+  "crons": [
+    {
+      "path": "/api/djen-cron",
+      "schedule": "0 9 * * *"
+    }
+  ]
 }
