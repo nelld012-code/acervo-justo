@@ -44,6 +44,7 @@ AS $$
   );
 $$;
 
+GRANT USAGE ON SCHEMA private TO authenticated;
 REVOKE ALL ON FUNCTION private.system_access_is_active() FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION private.system_access_is_active() TO authenticated;
 
@@ -85,21 +86,3 @@ BEGIN
 END;
 $$;
 
--- Private files are also unavailable to non-administrators during suspension.
-ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "System access gate" ON storage.objects;
-CREATE POLICY "System access gate"
-  ON storage.objects AS RESTRICTIVE
-  FOR ALL TO authenticated
-  USING (
-    bucket_id <> 'legal_docs'
-    OR private.system_access_is_active()
-    OR private.has_cargo(auth.uid(), ARRAY['administrador']::text[])
-  )
-  WITH CHECK (
-    bucket_id <> 'legal_docs'
-    OR private.system_access_is_active()
-    OR private.has_cargo(auth.uid(), ARRAY['administrador']::text[])
-  );
-
-NOTIFY pgrst, 'reload schema';
