@@ -3,14 +3,14 @@
 
 CREATE TABLE IF NOT EXISTS public.system_settings (
   id text PRIMARY KEY CHECK (id = 'global'),
-  is_active boolean NOT NULL DEFAULT true,
+  is_active boolean NOT NULL DEFAULT false,
   updated_at timestamptz NOT NULL DEFAULT now(),
   updated_by uuid REFERENCES auth.users(id) ON DELETE SET NULL
 );
 
 INSERT INTO public.system_settings (id, is_active)
-VALUES ('global', true)
-ON CONFLICT (id) DO NOTHING;
+VALUES ('global', false)
+ON CONFLICT (id) DO UPDATE SET is_active = false, updated_at = now();
 
 ALTER TABLE public.system_settings ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON TABLE public.system_settings FROM anon, authenticated;
