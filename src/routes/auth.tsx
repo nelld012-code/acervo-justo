@@ -1,5 +1,5 @@
 import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,6 +29,17 @@ function AuthPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [nome, setNome] = useState("");
+  const [systemActive, setSystemActive] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+    supabase.from("system_settings").select("is_active").eq("id", "global").maybeSingle()
+      .then(({ data, error }) => {
+        if (!active) return;
+        setSystemActive(!error && data?.is_active !== false);
+      });
+    return () => { active = false; };
+  }, []);
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -45,6 +56,10 @@ function AuthPage() {
 
   async function handleSignup(e: React.FormEvent) {
     e.preventDefault();
+    if (!systemActive) {
+      toast.error("Cadastro temporariamente indisponível", { description: "O sistema está com acesso suspenso." });
+      return;
+    }
     setLoading(true);
     const { error } = await supabase.auth.signUp({
       email,
@@ -87,7 +102,7 @@ function AuthPage() {
               <Button type="submit" className="w-full" disabled={loading}>{loading ? "Entrando..." : "Entrar"}</Button>
             </form>
           </TabsContent>
-          <TabsContent value="signup">
+          {systemActive && <TabsContent value="signup">
             <form onSubmit={handleSignup} className="mt-4 space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="nome-s">Nome completo</Label>
