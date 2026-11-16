@@ -15,6 +15,14 @@ export const Route = createFileRoute("/bloqueio")({
         .maybeSingle();
       if (profile?.cargo === "administrador") throw redirect({ to: "/recepcao" });
     }
+    const { data: access } = await supabase
+      .from("system_settings")
+      .select("is_active")
+      .eq("id", "global")
+      .maybeSingle();
+    if (access?.is_active !== false) {
+      throw redirect({ to: auth.user ? "/recepcao" : "/" });
+    }
   },
   head: () => ({
     meta: [
