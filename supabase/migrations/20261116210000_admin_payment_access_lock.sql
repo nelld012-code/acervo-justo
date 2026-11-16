@@ -86,6 +86,7 @@ END;
 $$;
 
 -- Private files are also unavailable to non-administrators during suspension.
+ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "System access gate" ON storage.objects;
 CREATE POLICY "System access gate"
   ON storage.objects AS RESTRICTIVE
