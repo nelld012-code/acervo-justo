@@ -85,9 +85,9 @@ function AuthPage() {
           <span className="font-semibold text-card-foreground">Gestão Judicial</span>
         </div>
         <Tabs defaultValue="login">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className={`grid w-full ${systemActive ? "grid-cols-2" : "grid-cols-1"}`}>
             <TabsTrigger value="login">Entrar</TabsTrigger>
-            <TabsTrigger value="signup">Cadastrar</TabsTrigger>
+            {systemActive && <TabsTrigger value="signup">Cadastrar</TabsTrigger>}
           </TabsList>
           <TabsContent value="login">
             <form onSubmit={handleLogin} className="mt-4 space-y-4">
