@@ -35,7 +35,7 @@ CREATE OR REPLACE FUNCTION private.system_access_is_active()
 RETURNS boolean
 LANGUAGE sql
 STABLE
-SECURITY DEFINER
+SECURITY INVOKER
 SET search_path = public, private
 AS $$
   SELECT COALESCE(
@@ -91,11 +91,13 @@ CREATE POLICY "System access gate"
   ON storage.objects AS RESTRICTIVE
   FOR ALL TO authenticated
   USING (
-    private.system_access_is_active()
+    bucket_id <> 'legal_docs'
+    OR private.system_access_is_active()
     OR private.has_cargo(auth.uid(), ARRAY['administrador']::text[])
   )
   WITH CHECK (
-    private.system_access_is_active()
+    bucket_id <> 'legal_docs'
+    OR private.system_access_is_active()
     OR private.has_cargo(auth.uid(), ARRAY['administrador']::text[])
   );
 
