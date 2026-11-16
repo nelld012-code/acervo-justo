@@ -13,7 +13,7 @@ VALUES ('global', true)
 ON CONFLICT (id) DO NOTHING;
 
 ALTER TABLE public.system_settings ENABLE ROW LEVEL SECURITY;
-REVOKE ALL ON TABLE public.system_settings FROM anon;
+REVOKE ALL ON TABLE public.system_settings FROM anon, authenticated;
 GRANT SELECT, INSERT, UPDATE ON TABLE public.system_settings TO authenticated;
 
 DROP POLICY IF EXISTS "Authenticated users can read system access status" ON public.system_settings;
