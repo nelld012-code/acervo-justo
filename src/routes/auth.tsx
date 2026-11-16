@@ -29,7 +29,7 @@ function AuthPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [nome, setNome] = useState("");
-  const [systemActive, setSystemActive] = useState(true);
+  const [systemActive, setSystemActive] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -119,7 +119,7 @@ function AuthPage() {
               <p className="text-xs text-muted-foreground">Novas contas recebem acesso inicial de assistente. Um administrador poderá ajustar as permissões conforme a função da equipe.</p>
               <Button type="submit" className="w-full" disabled={loading}>{loading ? "Cadastrando..." : "Criar Conta"}</Button>
             </form>
-          </TabsContent>
+          </TabsContent>}
         </Tabs>
       </div>
     </div>
