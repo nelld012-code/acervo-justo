@@ -15,10 +15,12 @@ ON CONFLICT (id) DO NOTHING;
 ALTER TABLE public.system_settings ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON TABLE public.system_settings FROM anon, authenticated;
 GRANT SELECT, INSERT, UPDATE ON TABLE public.system_settings TO authenticated;
+GRANT SELECT (is_active) ON TABLE public.system_settings TO anon;
 
 DROP POLICY IF EXISTS "Authenticated users can read system access status" ON public.system_settings;
-CREATE POLICY "Authenticated users can read system access status"
-  ON public.system_settings FOR SELECT TO authenticated USING (true);
+DROP POLICY IF EXISTS "Public can read system access status" ON public.system_settings;
+CREATE POLICY "Public can read system access status"
+  ON public.system_settings FOR SELECT TO anon, authenticated USING (true);
 
 DROP POLICY IF EXISTS "Only administrators can create system settings" ON public.system_settings;
 CREATE POLICY "Only administrators can create system settings"
