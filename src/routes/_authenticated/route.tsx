@@ -9,6 +9,7 @@ import { SidebarProvider, useSidebar } from "@/components/ui/sidebar";
 import { Menu, MessageSquare, X, UserCircle, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useProfile, CARGO_LABELS } from "@/hooks/use-profile";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
@@ -16,6 +17,15 @@ export const Route = createFileRoute("/_authenticated")({
     const { data, error } = await supabase.auth.getUser();
     if (error || !data.user) throw redirect({ to: "/auth" });
     const { data: profile } = await supabase.from("profiles").select("cargo").eq("id", data.user.id).maybeSingle();
+    const { data: access, error: accessError } = await supabase
+      .from("system_settings")
+      .select("is_active")
+      .eq("id", "global")
+      .maybeSingle();
+    const isAdmin = profile?.cargo === "administrador";
+    if (!isAdmin && (accessError || access?.is_active === false)) {
+      throw redirect({ to: "/bloqueio" });
+    }
     if (profile?.cargo === "secretaria") {
       const allowed = ["/dashboard", "/recepcao", "/mensagens", "/clientes", "/assistentes-juridicos", "/crm", "/financeiro"];
       if (!allowed.some((path) => location.pathname === path || location.pathname.startsWith(`${path}/`))) {
@@ -89,13 +99,45 @@ function NewMessagePopup() {
 }
 
 function HeaderActions() {
-  const { profile, cargo } = useProfile();
+  const { profile, cargo, perms } = useProfile();
+  const [systemActive, setSystemActive] = useState<boolean | null>(null);
+  useEffect(() => {
+    if (!perms.isAdmin) return;
+    let active = true;
+    supabase.from("system_settings").select("is_active").eq("id", "global").maybeSingle()
+      .then(({ data, error }) => {
+        if (!active) return;
+        if (error) {
+          toast.error("Não foi possível consultar o bloqueio do sistema.");
+          setSystemActive(null);
+        } else {
+          setSystemActive(data?.is_active !== false);
+        }
+      });
+    return () => { active = false; };
+  }, [perms.isAdmin]);
+
+  async function toggleSystemAccess() {
+    if (!perms.isAdmin || systemActive === null) return;
+    const next = !systemActive;
+    const { error } = await supabase.from("system_settings").update({ is_active: next }).eq("id", "global");
+    if (error) {
+      toast.error("Não foi possível alterar o acesso.", { description: error.message });
+      return;
+    }
+    setSystemActive(next);
+    toast.success(next ? "Sistema reativado para todos." : "Sistema bloqueado para todos, exceto administradores.");
+  }
+
   async function sair() { await supabase.auth.signOut(); window.location.assign("/auth"); }
   const nome = profile?.nome?.trim() || "Usuário";
   const cargoLabel = CARGO_LABELS[cargo] ?? cargo;
   return (
     <div className="ml-auto flex shrink-0 flex-col items-end">
       <div className="flex items-center gap-1 sm:gap-2">
+        {perms.isAdmin && systemActive !== null && <Button variant={systemActive ? "outline" : "default"} size="sm" onClick={() => void toggleSystemAccess()} className="h-9 px-2 text-xs sm:px-3">
+          {systemActive ? "Bloquear acesso" : "Reativar sistema"}
+        </Button>}
         {cargo !== "secretaria" && <Link to="/perfil" className="inline-flex h-9 items-center gap-1.5 rounded-md px-2 text-sm font-medium text-foreground transition-colors hover:bg-muted sm:px-3" title="Perfil" aria-label="Abrir perfil">
           <UserCircle className="h-4 w-4" /><span>Perfil</span>
         </Link>}
