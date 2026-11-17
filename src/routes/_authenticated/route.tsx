@@ -23,8 +23,7 @@ export const Route = createFileRoute("/_authenticated")({
       .select("is_active")
       .eq("id", "global")
       .maybeSingle();
-    const isAdmin = data.user.id === SYSTEM_OWNER_ID;
-    if (!isAdmin && (accessError || access?.is_active === false)) {
+    if (shouldBlockSystemAccess({ userId: data.user.id, isActive: access?.is_active, accessError: !!accessError })) {
       throw redirect({ to: "/bloqueio" });
     }
     if (profile?.cargo === "secretaria") {

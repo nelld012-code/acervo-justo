@@ -8,7 +8,7 @@ export const Route = createFileRoute("/bloqueio")({
   ssr: false,
   beforeLoad: async () => {
     const { data: auth } = await supabase.auth.getUser();
-    if (auth.user?.id === SYSTEM_OWNER_ID) throw redirect({ to: "/recepcao" });
+    if (isSystemOwner(auth.user?.id)) throw redirect({ to: "/recepcao" });
     const { data: access } = await supabase
       .from("system_settings")
       .select("is_active")
