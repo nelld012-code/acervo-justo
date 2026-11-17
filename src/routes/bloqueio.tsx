@@ -10,14 +10,6 @@ export const Route = createFileRoute("/bloqueio")({
   beforeLoad: async () => {
     const { data: auth } = await supabase.auth.getUser();
     if (auth.user?.id === SYSTEM_OWNER_ID) throw redirect({ to: "/recepcao" });
-    if (auth.user) {
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("cargo")
-        .eq("id", auth.user.id)
-        .maybeSingle();
-      if (profile?.cargo === "administrador") { /* Other administrator accounts remain blocked. */ }
-    }
     const { data: access } = await supabase
       .from("system_settings")
       .select("is_active")
