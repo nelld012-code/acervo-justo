@@ -163,7 +163,7 @@ function SystemAccessWatcher() {
     let timer: number | undefined;
     const start = async () => {
       const { data: auth } = await supabase.auth.getUser();
-      if (!active || auth.user?.id === SYSTEM_OWNER_ID) return;
+      if (!active || isSystemOwner(auth.user?.id)) return;
       const checkAccess = async () => {
         const { data, error } = await supabase
           .from("system_settings")

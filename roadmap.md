@@ -31,3 +31,10 @@
 - [x] Validar Deno check e publicar SOMENTE djen-sync, sem migração nem deploy do banco — check exit 0, deploy confirmado
 - [x] Verificar segredo no runtime e POST autenticado ?dryRun=1 sem gravar dados — HTTP 502, upstreamStatus=403, bancoAlterado=false
 - [x] NÃO executar ingestão real nem configurar cron nesta etapa — bloqueio mantido: CNJ não retornou HTTP 200
+
+## 2026-11-17 Suspensão de acesso do proprietário
+- [x] Conferir PR #65 no código local e manter system_settings.is_active = true
+- [x] Confirmar no banco as 19 políticas restritivas e a exceção exclusiva do UUID proprietário
+- [x] Centralizar e testar a regra: outro administrador não contorna o bloqueio
+- [ ] Validar /bloqueio desconectado, login e botão do proprietário sem alterar o estado real
+- [ ] Executar lint/testes e conferir o build automático; não publicar
