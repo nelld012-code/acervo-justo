@@ -81,7 +81,7 @@ BEGIN
     EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY', table_name);
     EXECUTE format('DROP POLICY IF EXISTS "System access gate" ON public.%I', table_name);
     EXECUTE format(
-      'CREATE POLICY "System access gate" ON public.%I AS RESTRICTIVE FOR ALL TO authenticated USING (private.system_access_is_active() OR auth.uid() = '89d9645a-6916-4788-8935-5a492d17db19'::uuid) WITH CHECK (private.system_access_is_active() OR auth.uid() = '89d9645a-6916-4788-8935-5a492d17db19'::uuid)',
+      'CREATE POLICY "System access gate" ON public.%I AS RESTRICTIVE FOR ALL TO authenticated USING (private.system_access_is_active() OR auth.uid() = ''89d9645a-6916-4788-8935-5a492d17db19''::uuid) WITH CHECK (private.system_access_is_active() OR auth.uid() = ''89d9645a-6916-4788-8935-5a492d17db19''::uuid)',
       table_name
     );
   END LOOP;
