@@ -36,11 +36,7 @@ export const Route = createFileRoute("/bloqueio")({
       { name: "robots", content: "noindex, nofollow" },
     ],
   }),
-  component: () => (
-    <ClientOnly>
-      <AccessSuspendedPage />
-    </ClientOnly>
-  ),
+  component: AccessSuspendedPage,
 });
 
 function AccessSuspendedPage() {
