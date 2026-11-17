@@ -2,8 +2,7 @@ import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { LockKeyhole, Scale } from "lucide-react";
-
-const SYSTEM_OWNER_ID = "89d9645a-6916-4788-8935-5a492d17db19";
+import { isSystemOwner } from "@/lib/system-access";
 
 export const Route = createFileRoute("/bloqueio")({
   ssr: false,

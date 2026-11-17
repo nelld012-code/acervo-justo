@@ -10,8 +10,7 @@ import { Menu, MessageSquare, X, UserCircle, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useProfile, CARGO_LABELS } from "@/hooks/use-profile";
 import { toast } from "sonner";
-
-const SYSTEM_OWNER_ID = "89d9645a-6916-4788-8935-5a492d17db19";
+import { isSystemOwner, shouldBlockSystemAccess } from "@/lib/system-access";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
