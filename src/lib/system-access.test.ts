@@ -19,14 +19,24 @@ describe("system access suspension", () => {
   });
 
   it("does not block non-owners while the system is active", () => {
-    expect(shouldBlockSystemAccess({ userId: "00000000-0000-4000-8000-000000000001", isActive: true })).toBe(false);
+    expect(
+      shouldBlockSystemAccess({ userId: "00000000-0000-4000-8000-000000000001", isActive: true }),
+    ).toBe(false);
   });
 
   it("fails closed for non-owners if the access status cannot be read", () => {
-    expect(shouldBlockSystemAccess({ userId: "00000000-0000-4000-8000-000000000001", isActive: null, accessError: true })).toBe(true);
+    expect(
+      shouldBlockSystemAccess({
+        userId: "00000000-0000-4000-8000-000000000001",
+        isActive: null,
+        accessError: true,
+      }),
+    ).toBe(true);
   });
 
   it("lets the owner enter even if the access status cannot be read", () => {
-    expect(shouldBlockSystemAccess({ userId: SYSTEM_OWNER_ID, isActive: null, accessError: true })).toBe(false);
+    expect(
+      shouldBlockSystemAccess({ userId: SYSTEM_OWNER_ID, isActive: null, accessError: true }),
+    ).toBe(false);
   });
 });
