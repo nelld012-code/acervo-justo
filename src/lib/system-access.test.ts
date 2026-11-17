@@ -1,4 +1,4 @@
-// @ts-ignore Vitest é executado sob demanda com bunx, sem dependência fixa no projeto.
+// @ts-expect-error Vitest é executado sob demanda com bunx, sem dependência fixa no projeto.
 import { describe, expect, it } from "vitest";
 import { isSystemOwner, shouldBlockSystemAccess, SYSTEM_OWNER_ID } from "./system-access";
 
