@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as BloqueioRouteImport } from './routes/bloqueio'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
@@ -32,6 +33,11 @@ import { Route as AuthenticatedAudienciasRouteImport } from './routes/_authentic
 import { Route as AuthenticatedAssistentesJuridicosRouteImport } from './routes/_authenticated/assistentes-juridicos'
 import { Route as ApiPublicDjenSyncRouteImport } from './routes/api/public/djen-sync'
 
+const BloqueioRoute = BloqueioRouteImport.update({
+  id: '/bloqueio',
+  path: '/bloqueio',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
@@ -149,6 +155,7 @@ const ApiPublicDjenSyncRoute = ApiPublicDjenSyncRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/bloqueio': typeof BloqueioRoute
   '/assistentes-juridicos': typeof AuthenticatedAssistentesJuridicosRoute
   '/audiencias': typeof AuthenticatedAudienciasRoute
   '/audit': typeof AuthenticatedAuditRoute
@@ -172,6 +179,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/bloqueio': typeof BloqueioRoute
   '/assistentes-juridicos': typeof AuthenticatedAssistentesJuridicosRoute
   '/audiencias': typeof AuthenticatedAudienciasRoute
   '/audit': typeof AuthenticatedAuditRoute
@@ -197,6 +205,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
+  '/bloqueio': typeof BloqueioRoute
   '/_authenticated/assistentes-juridicos': typeof AuthenticatedAssistentesJuridicosRoute
   '/_authenticated/audiencias': typeof AuthenticatedAudienciasRoute
   '/_authenticated/audit': typeof AuthenticatedAuditRoute
@@ -222,6 +231,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
+    | '/bloqueio'
     | '/assistentes-juridicos'
     | '/audiencias'
     | '/audit'
@@ -245,6 +255,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/auth'
+    | '/bloqueio'
     | '/assistentes-juridicos'
     | '/audiencias'
     | '/audit'
@@ -269,6 +280,7 @@ export interface FileRouteTypes {
     | '/'
     | '/_authenticated'
     | '/auth'
+    | '/bloqueio'
     | '/_authenticated/assistentes-juridicos'
     | '/_authenticated/audiencias'
     | '/_authenticated/audit'
@@ -294,11 +306,19 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
+  BloqueioRoute: typeof BloqueioRoute
   ApiPublicDjenSyncRoute: typeof ApiPublicDjenSyncRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/bloqueio': {
+      id: '/bloqueio'
+      path: '/bloqueio'
+      fullPath: '/bloqueio'
+      preLoaderRoute: typeof BloqueioRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/auth': {
       id: '/auth'
       path: '/auth'
@@ -506,6 +526,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
+  BloqueioRoute: BloqueioRoute,
   ApiPublicDjenSyncRoute: ApiPublicDjenSyncRoute,
 }
 export const routeTree = rootRouteImport
