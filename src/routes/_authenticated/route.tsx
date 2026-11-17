@@ -11,6 +11,8 @@ import { Button } from "@/components/ui/button";
 import { useProfile, CARGO_LABELS } from "@/hooks/use-profile";
 import { toast } from "sonner";
 
+const SYSTEM_OWNER_ID = "89d9645a-6916-4788-8935-5a492d17db19";
+
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
   beforeLoad: async ({ location }) => {
@@ -22,7 +24,7 @@ export const Route = createFileRoute("/_authenticated")({
       .select("is_active")
       .eq("id", "global")
       .maybeSingle();
-    const isAdmin = profile?.cargo === "administrador";
+    const isAdmin = data.user.id === SYSTEM_OWNER_ID;
     if (!isAdmin && (accessError || access?.is_active === false)) {
       throw redirect({ to: "/bloqueio" });
     }
@@ -99,10 +101,11 @@ function NewMessagePopup() {
 }
 
 function HeaderActions() {
-  const { profile, cargo, perms } = useProfile();
+  const { profile, cargo } = useProfile();
+  const [isOwner, setIsOwner] = useState(false);
   const [systemActive, setSystemActive] = useState<boolean | null>(null);
   useEffect(() => {
-    if (!perms.isAdmin) return;
+    supabase.auth.getUser().then(({ data }) => setIsOwner(data.user?.id === SYSTEM_OWNER_ID));
     let active = true;
     supabase.from("system_settings").select("is_active").eq("id", "global").maybeSingle()
       .then(({ data, error }) => {
@@ -115,10 +118,10 @@ function HeaderActions() {
         }
       });
     return () => { active = false; };
-  }, [perms.isAdmin]);
+  }, []);
 
   async function toggleSystemAccess() {
-    if (!perms.isAdmin || systemActive === null) return;
+    if (!isOwner || systemActive === null) return;
     const next = !systemActive;
     if (!next && !window.confirm("Bloquear o acesso de todos os usuários, mantendo apenas os administradores?")) return;
     const { data: auth } = await supabase.auth.getUser();
@@ -137,7 +140,7 @@ function HeaderActions() {
   return (
     <div className="ml-auto flex shrink-0 flex-col items-end">
       <div className="flex items-center gap-1 sm:gap-2">
-        {perms.isAdmin && systemActive !== null && <Button variant={systemActive ? "outline" : "default"} size="sm" onClick={() => void toggleSystemAccess()} className="h-9 px-2 text-xs sm:px-3">
+        {isOwner && systemActive !== null && <Button variant={systemActive ? "outline" : "default"} size="sm" onClick={() => void toggleSystemAccess()} className="h-9 px-2 text-xs sm:px-3">
           {systemActive ? "Bloquear acesso" : "Reativar sistema"}
         </Button>}
         {cargo !== "secretaria" && <Link to="/perfil" className="inline-flex h-9 items-center gap-1.5 rounded-md px-2 text-sm font-medium text-foreground transition-colors hover:bg-muted sm:px-3" title="Perfil" aria-label="Abrir perfil">
@@ -157,9 +160,10 @@ function HeaderActions() {
 }
 
 function SystemAccessWatcher() {
-  const { perms } = useProfile();
+  const [isOwner, setIsOwner] = useState(false);
   useEffect(() => {
-    if (perms.isAdmin) return;
+    let owner = false;
+    supabase.auth.getUser().then(({ data }) => { owner = data.user?.id === SYSTEM_OWNER_ID; setIsOwner(owner); });
     let active = true;
     const checkAccess = async () => {
       const { data, error } = await supabase
@@ -167,14 +171,14 @@ function SystemAccessWatcher() {
         .select("is_active")
         .eq("id", "global")
         .maybeSingle();
-      if (active && !error && data?.is_active === false) {
+      if (active && !owner && !error && data?.is_active === false) {
         window.location.assign("/bloqueio");
       }
     };
     void checkAccess();
     const timer = window.setInterval(() => void checkAccess(), 15000);
     return () => { active = false; window.clearInterval(timer); };
-  }, [perms.isAdmin]);
+  }, []);
   return null;
 }
 
