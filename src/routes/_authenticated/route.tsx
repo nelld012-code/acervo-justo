@@ -103,7 +103,7 @@ function HeaderActions() {
   const [isOwner, setIsOwner] = useState(false);
   const [systemActive, setSystemActive] = useState<boolean | null>(null);
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setIsOwner(data.user?.id === SYSTEM_OWNER_ID));
+    supabase.auth.getUser().then(({ data }) => setIsOwner(isSystemOwner(data.user?.id)));
     let active = true;
     supabase.from("system_settings").select("is_active").eq("id", "global").maybeSingle()
       .then(({ data, error }) => {

@@ -21,6 +21,11 @@ export const Route = createFileRoute("/bloqueio")({
   head: () => ({
     meta: [
       { title: "Acesso suspenso - Acervo Justo" },
+      { name: "description", content: "Acesso temporariamente suspenso; entre com a conta proprietária para reativar o sistema." },
+      { property: "og:title", content: "Acesso suspenso - Acervo Justo" },
+      { property: "og:description", content: "Acesso temporariamente suspenso; os dados e documentos permanecem preservados." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
       { name: "robots", content: "noindex, nofollow" },
     ],
   }),
