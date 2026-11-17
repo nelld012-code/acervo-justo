@@ -14,6 +14,12 @@ export type Database = {
   }
   public: {
     Tables: {
+      system_settings: {
+        Row: { id: string; is_active: boolean; updated_at: string; updated_by: string | null }
+        Insert: { id?: string; is_active?: boolean; updated_at?: string; updated_by?: string | null }
+        Update: { id?: string; is_active?: boolean; updated_at?: string; updated_by?: string | null }
+        Relationships: []
+      },
       audiencias: {
         Row: {
           advogado: string | null

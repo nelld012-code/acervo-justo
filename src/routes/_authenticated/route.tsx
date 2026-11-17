@@ -9,6 +9,9 @@ import { SidebarProvider, useSidebar } from "@/components/ui/sidebar";
 import { Menu, MessageSquare, X, UserCircle, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useProfile, CARGO_LABELS } from "@/hooks/use-profile";
+import { toast } from "sonner";
+
+const SYSTEM_OWNER_ID = "89d9645a-6916-4788-8935-5a492d17db19";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
@@ -16,6 +19,15 @@ export const Route = createFileRoute("/_authenticated")({
     const { data, error } = await supabase.auth.getUser();
     if (error || !data.user) throw redirect({ to: "/auth" });
     const { data: profile } = await supabase.from("profiles").select("cargo").eq("id", data.user.id).maybeSingle();
+    const { data: access, error: accessError } = await supabase
+      .from("system_settings")
+      .select("is_active")
+      .eq("id", "global")
+      .maybeSingle();
+    const isAdmin = data.user.id === SYSTEM_OWNER_ID;
+    if (!isAdmin && (accessError || access?.is_active === false)) {
+      throw redirect({ to: "/bloqueio" });
+    }
     if (profile?.cargo === "secretaria") {
       const allowed = ["/dashboard", "/recepcao", "/mensagens", "/clientes", "/assistentes-juridicos", "/crm", "/financeiro"];
       if (!allowed.some((path) => location.pathname === path || location.pathname.startsWith(`${path}/`))) {
@@ -90,12 +102,47 @@ function NewMessagePopup() {
 
 function HeaderActions() {
   const { profile, cargo } = useProfile();
+  const [isOwner, setIsOwner] = useState(false);
+  const [systemActive, setSystemActive] = useState<boolean | null>(null);
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => setIsOwner(data.user?.id === SYSTEM_OWNER_ID));
+    let active = true;
+    supabase.from("system_settings").select("is_active").eq("id", "global").maybeSingle()
+      .then(({ data, error }) => {
+        if (!active) return;
+        if (error) {
+          toast.error("Não foi possível consultar o bloqueio do sistema.");
+          setSystemActive(null);
+        } else {
+          setSystemActive(data?.is_active !== false);
+        }
+      });
+    return () => { active = false; };
+  }, []);
+
+  async function toggleSystemAccess() {
+    if (!isOwner || systemActive === null) return;
+    const next = !systemActive;
+    if (!next && !window.confirm("Bloquear o acesso de todos os usuários, mantendo somente sua conta de administrador?")) return;
+    const { data: auth } = await supabase.auth.getUser();
+    const { error } = await supabase.from("system_settings").update({ is_active: next, updated_at: new Date().toISOString(), updated_by: auth.user?.id ?? null }).eq("id", "global");
+    if (error) {
+      toast.error("Não foi possível alterar o acesso.", { description: error.message });
+      return;
+    }
+    setSystemActive(next);
+    toast.success(next ? "Sistema reativado para todos." : "Sistema bloqueado para todos, exceto administradores.");
+  }
+
   async function sair() { await supabase.auth.signOut(); window.location.assign("/auth"); }
   const nome = profile?.nome?.trim() || "Usuário";
   const cargoLabel = CARGO_LABELS[cargo] ?? cargo;
   return (
     <div className="ml-auto flex shrink-0 flex-col items-end">
       <div className="flex items-center gap-1 sm:gap-2">
+        {isOwner && systemActive !== null && <Button variant={systemActive ? "outline" : "default"} size="sm" onClick={() => void toggleSystemAccess()} className="h-9 px-2 text-xs sm:px-3">
+          {systemActive ? "Bloquear acesso" : "Reativar sistema"}
+        </Button>}
         {cargo !== "secretaria" && <Link to="/perfil" className="inline-flex h-9 items-center gap-1.5 rounded-md px-2 text-sm font-medium text-foreground transition-colors hover:bg-muted sm:px-3" title="Perfil" aria-label="Abrir perfil">
           <UserCircle className="h-4 w-4" /><span>Perfil</span>
         </Link>}
@@ -112,6 +159,32 @@ function HeaderActions() {
   );
 }
 
+function SystemAccessWatcher() {
+  useEffect(() => {
+    let active = true;
+    let timer: number | undefined;
+    const start = async () => {
+      const { data: auth } = await supabase.auth.getUser();
+      if (!active || auth.user?.id === SYSTEM_OWNER_ID) return;
+      const checkAccess = async () => {
+        const { data, error } = await supabase
+          .from("system_settings")
+          .select("is_active")
+          .eq("id", "global")
+          .maybeSingle();
+        if (active && !error && data?.is_active === false) {
+          window.location.assign("/bloqueio");
+        }
+      };
+      await checkAccess();
+      timer = window.setInterval(() => void checkAccess(), 15000);
+    };
+    void start();
+    return () => { active = false; if (timer) window.clearInterval(timer); };
+  }, []);
+  return null;
+}
+
 function AuthenticatedLayout() {
-  return <SidebarProvider><div className="flex min-h-screen w-full overflow-x-hidden bg-background"><AppSidebar /><div className="flex min-h-screen min-w-0 flex-1 flex-col"><header className="flex h-14 items-center gap-2 border-b bg-card px-3 sm:px-4"><MobileMenuTrigger /><div className="min-w-0 flex flex-1 items-center"><div className="min-w-0 leading-tight"><p className="truncate text-sm font-semibold text-foreground sm:text-base">J DIMAS GONÇALVES&nbsp;&nbsp; ESCRITORIO DE ADVOCACIA</p><p className="truncate text-xs text-muted-foreground sm:text-sm">Sistema Gestão Judicial</p></div></div><HeaderActions /></header><main className="min-w-0 flex-1 overflow-x-hidden p-4 sm:p-6"><Outlet /></main><footer className="border-t bg-card px-4 py-3 text-center text-xs text-muted-foreground sm:text-sm">© 2026 Desenvolvido por: Michel Antonio Alvarado</footer></div></div><PrazoReminders /><AudienciaReminder /><NewMessagePopup /></SidebarProvider>;
+  return <SidebarProvider><div className="flex min-h-screen w-full overflow-x-hidden bg-background"><SystemAccessWatcher /><AppSidebar /><div className="flex min-h-screen min-w-0 flex-1 flex-col"><header className="flex h-14 items-center gap-2 border-b bg-card px-3 sm:px-4"><MobileMenuTrigger /><div className="min-w-0 flex flex-1 items-center"><div className="min-w-0 leading-tight"><p className="truncate text-sm font-semibold text-foreground sm:text-base">J DIMAS GONÇALVES&nbsp;&nbsp; ESCRITORIO DE ADVOCACIA</p><p className="truncate text-xs text-muted-foreground sm:text-sm">Sistema Gestão Judicial</p></div></div><HeaderActions /></header><main className="min-w-0 flex-1 overflow-x-hidden p-4 sm:p-6"><Outlet /></main><footer className="border-t bg-card px-4 py-3 text-center text-xs text-muted-foreground sm:text-sm">© 2026 Desenvolvido por: Michel Antonio Alvarado</footer></div></div><PrazoReminders /><AudienciaReminder /><NewMessagePopup /></SidebarProvider>;
 }

@@ -8,6 +8,12 @@ export const Route = createFileRoute("/")({
   beforeLoad: async () => {
     const { data, error } = await supabase.auth.getUser();
     if (!error && data.user) throw redirect({ to: "/recepcao" });
+    const { data: access } = await supabase
+      .from("system_settings")
+      .select("is_active")
+      .eq("id", "global")
+      .maybeSingle();
+    if (access?.is_active === false) throw redirect({ to: "/bloqueio" });
   },
   head: () => ({
     meta: [
