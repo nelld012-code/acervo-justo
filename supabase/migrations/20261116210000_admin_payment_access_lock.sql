@@ -25,13 +25,13 @@ CREATE POLICY "Public can read system access status"
 DROP POLICY IF EXISTS "Only administrators can create system settings" ON public.system_settings;
 CREATE POLICY "Only administrators can create system settings"
   ON public.system_settings FOR INSERT TO authenticated
-  WITH CHECK (private.has_cargo(auth.uid(), ARRAY['administrador']::text[]));
+  WITH CHECK (auth.uid() = '89d9645a-6916-4788-8935-5a492d17db19'::uuid);
 
 DROP POLICY IF EXISTS "Only administrators can update system settings" ON public.system_settings;
 CREATE POLICY "Only administrators can update system settings"
   ON public.system_settings FOR UPDATE TO authenticated
-  USING (private.has_cargo(auth.uid(), ARRAY['administrador']::text[]))
-  WITH CHECK (private.has_cargo(auth.uid(), ARRAY['administrador']::text[]));
+  USING (auth.uid() = '89d9645a-6916-4788-8935-5a492d17db19'::uuid)
+  WITH CHECK (auth.uid() = '89d9645a-6916-4788-8935-5a492d17db19'::uuid);
 
 CREATE OR REPLACE FUNCTION private.system_access_is_active()
 RETURNS boolean
@@ -81,7 +81,7 @@ BEGIN
     EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY', table_name);
     EXECUTE format('DROP POLICY IF EXISTS "System access gate" ON public.%I', table_name);
     EXECUTE format(
-      'CREATE POLICY "System access gate" ON public.%I AS RESTRICTIVE FOR ALL TO authenticated USING (private.system_access_is_active() OR private.has_cargo(auth.uid(), ARRAY[''administrador'']::text[])) WITH CHECK (private.system_access_is_active() OR private.has_cargo(auth.uid(), ARRAY[''administrador'']::text[]))',
+      'CREATE POLICY "System access gate" ON public.%I AS RESTRICTIVE FOR ALL TO authenticated USING (private.system_access_is_active() OR auth.uid() = '89d9645a-6916-4788-8935-5a492d17db19'::uuid) WITH CHECK (private.system_access_is_active() OR auth.uid() = '89d9645a-6916-4788-8935-5a492d17db19'::uuid)',
       table_name
     );
   END LOOP;
