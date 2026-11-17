@@ -129,7 +129,7 @@ function HeaderActions() {
       return;
     }
     setSystemActive(next);
-    toast.success(next ? "Sistema reativado para todos." : "Sistema bloqueado para todos, exceto administradores.");
+    toast.success(next ? "Sistema reativado para todos." : "Sistema bloqueado para todos, exceto sua conta.");
   }
 
   async function sair() { await supabase.auth.signOut(); window.location.assign("/auth"); }
