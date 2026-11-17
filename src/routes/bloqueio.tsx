@@ -1,4 +1,4 @@
-import { ClientOnly, createFileRoute, Link, redirect } from "@tanstack/react-router";
+import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { LockKeyhole, Scale } from "lucide-react";
