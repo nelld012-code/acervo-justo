@@ -3,17 +3,20 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { LockKeyhole, Scale } from "lucide-react";
 
+const SYSTEM_OWNER_ID = "89d9645a-6916-4788-8935-5a492d17db19";
+
 export const Route = createFileRoute("/bloqueio")({
   ssr: false,
   beforeLoad: async () => {
     const { data: auth } = await supabase.auth.getUser();
+    if (auth.user?.id === SYSTEM_OWNER_ID) throw redirect({ to: "/recepcao" });
     if (auth.user) {
       const { data: profile } = await supabase
         .from("profiles")
         .select("cargo")
         .eq("id", auth.user.id)
         .maybeSingle();
-      if (profile?.cargo === "administrador") throw redirect({ to: "/recepcao" });
+      if (profile?.cargo === "administrador") { /* Other administrator accounts remain blocked. */ }
     }
     const { data: access } = await supabase
       .from("system_settings")
