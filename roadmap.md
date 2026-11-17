@@ -36,5 +36,5 @@
 - [x] Conferir PR #65 no código local e manter system_settings.is_active = true
 - [x] Confirmar no banco as 19 políticas restritivas e a exceção exclusiva do UUID proprietário
 - [x] Centralizar e testar a regra: outro administrador não contorna o bloqueio
-- [ ] Validar /bloqueio desconectado, login e botão do proprietário sem alterar o estado real
-- [ ] Executar lint/testes e conferir o build automático; não publicar
+- [x] Validar /bloqueio desconectado, login disponível e botões do proprietário com respostas simuladas, sem alterar o estado real
+- [x] Executar lint dos arquivos alterados, 15 testes e conferir build automático OK; não publicar
