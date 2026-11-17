@@ -123,7 +123,7 @@ function HeaderActions() {
   async function toggleSystemAccess() {
     if (!isOwner || systemActive === null) return;
     const next = !systemActive;
-    if (!next && !window.confirm("Bloquear o acesso de todos os usuários, mantendo apenas os administradores?")) return;
+    if (!next && !window.confirm("Bloquear o acesso de todos os usuários, mantendo somente sua conta de administrador?")) return;
     const { data: auth } = await supabase.auth.getUser();
     const { error } = await supabase.from("system_settings").update({ is_active: next, updated_at: new Date().toISOString(), updated_by: auth.user?.id ?? null }).eq("id", "global");
     if (error) {
@@ -160,24 +160,27 @@ function HeaderActions() {
 }
 
 function SystemAccessWatcher() {
-  const [isOwner, setIsOwner] = useState(false);
   useEffect(() => {
-    let owner = false;
-    supabase.auth.getUser().then(({ data }) => { owner = data.user?.id === SYSTEM_OWNER_ID; setIsOwner(owner); });
     let active = true;
-    const checkAccess = async () => {
-      const { data, error } = await supabase
-        .from("system_settings")
-        .select("is_active")
-        .eq("id", "global")
-        .maybeSingle();
-      if (active && !owner && !error && data?.is_active === false) {
-        window.location.assign("/bloqueio");
-      }
+    let timer: number | undefined;
+    const start = async () => {
+      const { data: auth } = await supabase.auth.getUser();
+      if (!active || auth.user?.id === SYSTEM_OWNER_ID) return;
+      const checkAccess = async () => {
+        const { data, error } = await supabase
+          .from("system_settings")
+          .select("is_active")
+          .eq("id", "global")
+          .maybeSingle();
+        if (active && !error && data?.is_active === false) {
+          window.location.assign("/bloqueio");
+        }
+      };
+      await checkAccess();
+      timer = window.setInterval(() => void checkAccess(), 15000);
     };
-    void checkAccess();
-    const timer = window.setInterval(() => void checkAccess(), 15000);
-    return () => { active = false; window.clearInterval(timer); };
+    void start();
+    return () => { active = false; if (timer) window.clearInterval(timer); };
   }, []);
   return null;
 }
