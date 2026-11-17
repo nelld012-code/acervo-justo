@@ -2,14 +2,13 @@ import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { LockKeyhole, Scale } from "lucide-react";
-
-const SYSTEM_OWNER_ID = "89d9645a-6916-4788-8935-5a492d17db19";
+import { isSystemOwner } from "@/lib/system-access";
 
 export const Route = createFileRoute("/bloqueio")({
   ssr: false,
   beforeLoad: async () => {
     const { data: auth } = await supabase.auth.getUser();
-    if (auth.user?.id === SYSTEM_OWNER_ID) throw redirect({ to: "/recepcao" });
+    if (isSystemOwner(auth.user?.id)) throw redirect({ to: "/recepcao" });
     const { data: access } = await supabase
       .from("system_settings")
       .select("is_active")
@@ -22,6 +21,18 @@ export const Route = createFileRoute("/bloqueio")({
   head: () => ({
     meta: [
       { title: "Acesso suspenso - Acervo Justo" },
+      {
+        name: "description",
+        content:
+          "Acesso temporariamente suspenso; entre com a conta proprietária para reativar o sistema.",
+      },
+      { property: "og:title", content: "Acesso suspenso - Acervo Justo" },
+      {
+        property: "og:description",
+        content: "Acesso temporariamente suspenso; os dados e documentos permanecem preservados.",
+      },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
       { name: "robots", content: "noindex, nofollow" },
     ],
   }),
@@ -39,19 +50,27 @@ function AccessSuspendedPage() {
           <Scale className="h-5 w-5 text-amber-400" />
           ACERVO JUSTO
         </div>
-        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-400">Acesso temporariamente suspenso</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-400">
+          Acesso temporariamente suspenso
+        </p>
         <h1 className="mt-3 text-2xl font-bold sm:text-3xl">Sistema indisponível</h1>
         <p className="mx-auto mt-4 max-w-md text-sm leading-6 text-slate-300">
-          O acesso ao Acervo Justo encontra-se temporariamente suspenso devido a uma pendência financeira.
-          Para regularizar o acesso, entre em contato com a administração do sistema.
+          O acesso ao Acervo Justo encontra-se temporariamente suspenso devido a uma pendência
+          financeira. Para regularizar o acesso, entre em contato com a administração do sistema.
         </p>
-        <p className="mt-8 text-xs text-slate-500">Se você é o administrador, entre com sua conta para reativar o sistema.</p>
+        <p className="mt-8 text-xs text-slate-500">
+          Se você é o administrador, entre com sua conta para reativar o sistema.
+        </p>
         <div className="mt-5">
           <Link to="/auth">
-            <Button className="w-full bg-amber-500 text-slate-950 hover:bg-amber-400">Acesso do administrador</Button>
+            <Button className="w-full bg-amber-500 text-slate-950 hover:bg-amber-400">
+              Acesso do administrador
+            </Button>
           </Link>
         </div>
-        <p className="mt-8 text-xs text-slate-500">Seus dados e documentos permanecem preservados.</p>
+        <p className="mt-8 text-xs text-slate-500">
+          Seus dados e documentos permanecem preservados.
+        </p>
       </section>
     </main>
   );
