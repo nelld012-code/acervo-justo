@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Plus, Pencil, Trash2, Printer, MessageCircle, Upload, FileSpreadsheet, X, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { printReport } from "@/lib/print-report";
+import { exportToExcel } from "@/lib/export-excel";
 import { printAtestadoComparecimento } from "@/lib/print-financeiro";
 import { whatsappLink } from "@/lib/documents";
 import { parseReceptionExcel, type ReceptionImportRow, type ReceptionImportError } from "@/lib/reception-import";
@@ -106,13 +107,74 @@ function RecepcaoPage() {
     }
   }
   async function confirmDelete() { if (!toDelete) return; const { error } = await supabase.from("reception_entries").delete().eq("id", toDelete.id); if (error) toast.error("Erro ao excluir", { description: error.message }); else { toast.success("Registro excluído"); qc.invalidateQueries({ queryKey: ["reception-entries"] }); } setToDelete(null); }
+  async function exportAllReception() {
+    try {
+      toast.loading("Preparando planilha com todos os registros...", { id: "export-reception" });
+      const allRows: Reception[] = [];
+      const batchSize = 1000;
+      let from = 0;
+      while (true) {
+        const { data, error } = await supabase
+          .from("reception_entries")
+          .select("*")
+          .order("data", { ascending: false })
+          .order("created_at", { ascending: false })
+          .range(from, from + batchSize - 1);
+        if (error) throw error;
+        const batch = (data ?? []) as Reception[];
+        allRows.push(...batch);
+        if (batch.length < batchSize) break;
+        from += batchSize;
+      }
+      if (!allRows.length) {
+        toast.info("Não há registros para exportar.", { id: "export-reception" });
+        return;
+      }
+      const headers = [
+        "ID", "Data", "Hora de chegada", "Hora de saída", "Advogado",
+        "Nome do cliente", "CPF", "Telefone", "Atendente", "Assunto",
+        "Atestado emitido", "Atestado emitido em", "Criado em", "Criado por",
+      ];
+      const excelRows = allRows.map((r) => {
+        const extra = r as Reception & { created_by?: string | null };
+        return [
+          r.id,
+          br(r.data),
+          r.hora || "",
+          r.hora_saida || "",
+          r.advogado || "",
+          r.nome_cliente || "",
+          r.cpf || "",
+          r.telefone || "",
+          r.atendente || "",
+          r.assunto || "",
+          r.atestado_emitido ? "Sim" : "Não",
+          r.atestado_emitido_em ? new Date(r.atestado_emitido_em).toLocaleString("pt-BR") : "",
+          r.created_at ? new Date(r.created_at).toLocaleString("pt-BR") : "",
+          extra.created_by || "",
+        ];
+      });
+      exportToExcel(
+        `recepcao-completa-${new Date().toISOString().slice(0, 10)}.xlsx`,
+        headers,
+        excelRows,
+        { sheetName: "Recepção", excludeColumns: [] },
+      );
+      toast.success(`${allRows.length} registro(s) exportado(s) com todos os dados.`, { id: "export-reception" });
+    } catch (e) {
+      toast.error("Não foi possível exportar a recepção.", {
+        id: "export-reception",
+        description: e instanceof Error ? e.message : "Erro inesperado ao gerar a planilha.",
+      });
+    }
+  }
   function printOne(r: Reception) { printReport({ title: "Registro de Recepção", subtitle: r.nome_cliente, sections: [{ heading: "Dados do atendimento", columns: ["Campo", "Informação"], rows: [["Data", br(r.data)], ["Hora de chegada", r.hora || "—"], ["Hora de saída", r.hora_saida || "—"], ["Advogado", r.advogado], ["Nome do cliente", r.nome_cliente], ["CPF", r.cpf || "—"], ["Telefone", r.telefone], ["Atendente", r.atendente], ["Assunto", r.assunto || "—"]] }] }); }
   function printList() { printReport({ title: "Recepção — Registros de Atendimento", subtitle: `${filtered.length} registro(s)`, sections: [{ columns: ["Data", "Hora", "Advogado", "Nome do cliente", "CPF", "Telefone", "Atendente"], rows: filtered.map(r => [br(r.data), r.hora || "—", r.advogado, r.nome_cliente, r.cpf || "—", r.telefone, r.atendente]) }] }); }
   async function gerarAtestado(r: Reception) { await printAtestadoComparecimento({ nome: r.nome_cliente, cpf: r.cpf, data: r.data, horaInicio: r.hora, horaFim: r.hora_saida, assunto: r.assunto }); void supabase.from("reception_entries").update({ atestado_emitido: true, atestado_emitido_em: new Date().toISOString() }).eq("id", r.id); }
   async function chooseImport(file?: File) { if (!file) return; try { const result = await parseReceptionExcel(file); setImportRows(result.rows); setImportErrors(result.errors); setImportPage(1); setImportOpen(true); } catch (e) { toast.error("Não foi possível ler a planilha", { description: e instanceof Error ? e.message : "Arquivo inválido" }); } finally { if (fileRef.current) fileRef.current.value = ""; } }
   async function confirmImport() { if (!importRows.length) return; setImporting(true); try { const { data: auth } = await supabase.auth.getUser(); const payload = importRows.map(r => ({ ...r, created_by: auth.user?.id ?? null })); const { error } = await supabase.from("reception_entries").insert(payload); if (error) throw error; toast.success(`${importRows.length} registro(s) importado(s) com sucesso`); setImportOpen(false); setImportRows([]); setImportErrors([]); qc.invalidateQueries({ queryKey: ["reception-entries"] }); } catch (e) { toast.error("Erro ao importar", { description: e instanceof Error ? e.message : "Não foi possível salvar os registros" }); } finally { setImporting(false); } }
     return <div className="min-w-0 space-y-4">
-    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div className="min-w-0"><h1 className="text-xl font-semibold text-foreground sm:text-2xl">Recepção</h1><p className="text-sm text-muted-foreground">Registro de atendimentos recebidos na recepção.</p></div><div className="flex flex-wrap gap-2"><Button variant="outline" onClick={() => fileRef.current?.click()} className="flex-1 sm:flex-none"><Upload className="mr-2 h-4 w-4" /> Importar Excel</Button><Button variant="outline" onClick={printList} className="flex-1 sm:flex-none"><Printer className="mr-2 h-4 w-4" /> Imprimir lista</Button><Button onClick={openNew} className="flex-1 sm:flex-none"><Plus className="mr-2 h-4 w-4" /> Novo registro</Button><input ref={fileRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={e => void chooseImport(e.target.files?.[0])} /></div></div>
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div className="min-w-0"><h1 className="text-xl font-semibold text-foreground sm:text-2xl">Recepção</h1><p className="text-sm text-muted-foreground">Registro de atendimentos recebidos na recepção.</p></div><div className="flex flex-wrap gap-2"><Button variant="outline" onClick={() => fileRef.current?.click()} className="flex-1 sm:flex-none"><Upload className="mr-2 h-4 w-4" /> Importar Excel</Button><Button variant="outline" onClick={() => void exportAllReception()} className="flex-1 sm:flex-none"><FileSpreadsheet className="mr-2 h-4 w-4" /> Exportar Excel</Button><Button variant="outline" onClick={printList} className="flex-1 sm:flex-none"><Printer className="mr-2 h-4 w-4" /> Imprimir lista</Button><Button onClick={openNew} className="flex-1 sm:flex-none"><Plus className="mr-2 h-4 w-4" /> Novo registro</Button><input ref={fileRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={e => void chooseImport(e.target.files?.[0])} /></div></div>
     <div className="grid gap-3 sm:grid-cols-3">
       {[{ label: "Hoje", value: counts.hoje }, { label: "Esta semana", value: counts.semana }, { label: "Total", value: counts.total }].map(c => <Card key={c.label}><CardContent className="p-4"><div className="text-xs uppercase text-muted-foreground">{c.label}</div><div className="text-2xl font-semibold">{c.value}</div></CardContent></Card>)}
     </div>
