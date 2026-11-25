@@ -9,7 +9,7 @@ import { MessageAttachment } from "@/components/message-attachment";
 import { useProfile } from "@/hooks/use-profile";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { MessagesSquare, Paperclip, Inbox } from "lucide-react";
+import { MessagesSquare, Paperclip, Inbox, Clock } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/audit")({
   head: () => ({ meta: [{ title: "Auditoria - Gestão Judicial" }] }),
@@ -21,7 +21,7 @@ const LABEL: Record<string, string> = {
   uploaded: "Envio",
   edited: "Edição",
   deleted: "Exclusão",
-  downloaded: "Download",
+  downloaded: "Exportação / Download",
 };
 
 type MensagemAudit = {
@@ -76,6 +76,21 @@ function AuditPage() {
       return (data ?? []) as UsuarioAudit[];
     },
     staleTime: 60_000,
+  });
+
+  const sessoesQuery = useQuery({
+    queryKey: ["admin-work-sessions"],
+    enabled: perms.isAdmin,
+    queryFn: async () => {
+      const desde = new Date();
+      desde.setDate(desde.getDate() - 30);
+      const { data, error } = await supabase.from("user_work_sessions")
+        .select("id, user_id, started_at, last_activity_at, ended_at, active_seconds")
+        .gte("started_at", desde.toISOString()).order("started_at", { ascending: false }).limit(1000);
+      if (error) throw error;
+      return data ?? [];
+    },
+    staleTime: 30_000,
   });
 
   const mensagensQuery = useQuery({
@@ -179,6 +194,36 @@ function AuditPage() {
           </div>
         </CardContent>
       </Card>
+
+      {perms.isAdmin && (
+        <section className="space-y-4">
+          <div className="flex items-center gap-2">
+            <Clock className="h-5 w-5 text-muted-foreground" />
+            <div><h3 className="text-lg font-semibold">Acessos e jornada da equipe</h3>
+              <p className="text-sm text-muted-foreground">Últimos 30 dias. A contagem pausa após 5 minutos sem atividade.</p></div>
+          </div>
+          <Card><CardContent className="p-0">
+            {sessoesQuery.isLoading ? <p className="p-6 text-sm text-muted-foreground">Carregando acessos...</p>
+              : sessoesQuery.isError ? <p className="p-6 text-sm text-destructive">Não foi possível carregar. A migração do banco precisa estar aplicada.</p>
+              : !sessoesQuery.data?.length ? <p className="p-6 text-sm text-muted-foreground">Ainda não há sessões registradas.</p>
+              : <div className="overflow-x-auto"><Table><TableHeader><TableRow>
+                <TableHead>Colaborador</TableHead><TableHead>Entrada</TableHead><TableHead>Última atividade</TableHead><TableHead>Saída</TableHead><TableHead>Tempo ativo</TableHead>
+              </TableRow></TableHeader><TableBody>
+                {sessoesQuery.data.map((s) => {
+                  const nome = nomesUsuarios.get(s.user_id) ?? "Usuário";
+                  const segundos = Number(s.active_seconds ?? 0);
+                  return <TableRow key={s.id}>
+                    <TableCell className="font-medium">{nome}</TableCell>
+                    <TableCell className="whitespace-nowrap">{dataHora(s.started_at)}</TableCell>
+                    <TableCell className="whitespace-nowrap">{dataHora(s.last_activity_at)}</TableCell>
+                    <TableCell className="whitespace-nowrap">{s.ended_at ? dataHora(s.ended_at) : "Em andamento"}</TableCell>
+                    <TableCell className="whitespace-nowrap tabular-nums">{Math.floor(segundos / 3600)}h {Math.floor((segundos % 3600) / 60)}min</TableCell>
+                  </TableRow>;
+                })}
+              </TableBody></Table></div>}
+          </CardContent></Card>
+        </section>
+      )}
 
       {perms.isAdmin && (
         <section className="space-y-4">
