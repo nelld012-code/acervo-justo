@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { useProfile, CARGO_LABELS } from "@/hooks/use-profile";
 import { toast } from "sonner";
 import { isSystemOwner, shouldBlockSystemAccess } from "@/lib/system-access";
+import { WorkSessionTracker, endWorkSession } from "@/components/work-session-tracker";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
@@ -256,6 +257,7 @@ function HeaderActions() {
   }
 
   async function sair() {
+    await endWorkSession();
     await supabase.auth.signOut();
     window.location.assign("/auth");
   }
@@ -343,6 +345,7 @@ function AuthenticatedLayout() {
     <SidebarProvider>
       <div className="flex min-h-screen w-full overflow-x-hidden bg-background">
         <SystemAccessWatcher />
+        <WorkSessionTracker />
         <AppSidebar />
         <div className="flex min-h-screen min-w-0 flex-1 flex-col">
           <header className="flex h-14 items-center gap-2 border-b bg-card px-3 sm:px-4">
